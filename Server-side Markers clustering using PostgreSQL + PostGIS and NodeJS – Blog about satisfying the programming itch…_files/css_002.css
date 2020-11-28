@@ -1,0 +1,46 @@
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: italic;
+  font-weight: 400;
+  src: local('Ubuntu Italic'), local('Ubuntu-Italic'), url(https://web.archive.org/web/20171022064548im_/http://fonts.gstatic.com/s/ubuntu/v11/4iCu6KVjbNBYlgoKej76l0w.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: italic;
+  font-weight: 700;
+  src: local('Ubuntu Bold Italic'), local('Ubuntu-BoldItalic'), url(https://web.archive.org/web/20171022064548im_/http://fonts.gstatic.com/s/ubuntu/v11/4iCp6KVjbNBYlgoKejZPslyBN4Q.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Ubuntu Regular'), local('Ubuntu-Regular'), url(https://web.archive.org/web/20171022064548im_/http://fonts.gstatic.com/s/ubuntu/v11/4iCs6KVjbNBYlgoKcQ7z.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Ubuntu Bold'), local('Ubuntu-Bold'), url(https://web.archive.org/web/20171022064548im_/http://fonts.gstatic.com/s/ubuntu/v11/4iCv6KVjbNBYlgoCxCvjvmyI.ttf) format('truetype');
+}
+
+/*
+     FILE ARCHIVED ON 06:45:48 Oct 22, 2017 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:36:21 Dec 22, 2019.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+*/
+/*
+playback timings (ms):
+  PetaboxLoader3.resolve: 48.906
+  exclusion.robots.policy: 0.181
+  load_resource: 129.448
+  captures_list: 197.055
+  LoadShardBlock: 141.802 (3)
+  exclusion.robots: 0.196
+  RedisCDXSource: 5.644
+  PetaboxLoader3.datanode: 122.205 (4)
+  CDXLines.iter: 21.881 (3)
+  esindex: 0.012
+*/
