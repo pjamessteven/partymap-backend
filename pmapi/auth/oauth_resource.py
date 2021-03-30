@@ -12,8 +12,9 @@ from pmapi.extensions import db, cache
 
 oauth_blueprint = make_facebook_blueprint(
     storage=SQLAlchemyStorage(OAuth, db.session, cache=cache, user=current_user)
-    # redirect_url="http://localhost:8080"
 )
+
+# OAUTH HAS BEEN DISABLED IN application.py
 
 @oauth_before_login.connect_via(oauth_blueprint)
 def before_login(blueprint, url):

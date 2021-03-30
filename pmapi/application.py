@@ -55,7 +55,7 @@ def register_extensions(app):
 
 
 def register_blueprints(app):
-    from pmapi.auth.oauth_resource import oauth_blueprint
+    # from pmapi.auth.oauth_resource import oauth_blueprint
     from pmapi.auth.resource import auth_blueprint
     from pmapi.event_tag.resource import event_tags_blueprint
     from pmapi.event_date.resource import event_dates_blueprint
@@ -67,7 +67,7 @@ def register_blueprints(app):
     from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
 
-    app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
+    # app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
     app.register_blueprint(auth_blueprint, url_prefix="/api/auth")
     app.register_blueprint(event_tags_blueprint, url_prefix="/api/event_tags")
     app.register_blueprint(event_dates_blueprint, url_prefix="/api/event_date")
