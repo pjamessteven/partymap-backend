@@ -8,7 +8,6 @@ import uuid
 import re
 from flask_login import current_user
 from .model import EventImage
-from pmapi.event_contribution import controllers as event_contributions
 from pmapi.extensions import db
 
 
@@ -24,8 +23,9 @@ def add_images_to_event(event, images, text=None):
             thumb_filename=thumb_filename,
             creator=current_user)
         event_images.append(event_image)
-    db.session.flush()
-    return event_contributions.add_contribution(event, event_images, text)
+        db.session.add(event_image)
+    db.session.commit()
+    return event_images
 
 
 def save_event_image(file, eventId):

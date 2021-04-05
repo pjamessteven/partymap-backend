@@ -6,21 +6,31 @@ from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
 from pmapi.extensions import db
 from pmapi.favorite_events.model import favorites_association_table
 from pmapi.event.model import Event
+from pmapi.utils import ROLES
+import pmapi.exceptions as exc
+
+from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 app = Flask(__name__)
 
 
 class User(db.Model):
     __tablename__ = 'users'
-
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    role = db.Column(db.Integer, nullable=False, default=ROLES["USER"])
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     # Username can be null before social user has chosen a username
     username = db.Column(db.String(80), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=True)
     oauth = db.Column(db.Boolean, unique=False, default=False)
+    status = db.Column(
+        ENUM("active", "disabled", "pending", name="user_status"), default="pending"
+    )
     karma = db.Column(db.Integer, default=0)
     notifications = db.relationship('UserNotification', back_populates="user",
                                     cascade='all, delete-orphan')
@@ -31,10 +41,10 @@ class User(db.Model):
         'Event', back_populates="creator")
     created_event_dates = db.relationship(
         'EventDate', back_populates="creator")
-    created_contributions = db.relationship(
-        'EventContribution', back_populates="creator")
-    created_event_artists = db.relationship(
-        'EventArtist', back_populates="creator")
+#    created_contributions = db.relationship(
+#        'EventContribution', back_populates="creator")
+#    created_event_artists = db.relationship(
+#        'EventArtist', back_populates="creator")
     created_event_images = db.relationship(
         'EventImage', back_populates="creator")
     created_event_locations = db.relationship(
@@ -56,20 +66,23 @@ class User(db.Model):
         email = kwargs.get('email')
         password = kwargs.get('password')
         if not email or not password:
-            return None
+            raise exc.LoginRequired()
 
         user = cls.query.filter_by(email=email).first()
-        if not user or not check_password_hash(user.password, password):
-            return None
 
+        if not user or not check_password_hash(user.password, password):
+            raise exc.LoginRequired()
         return user
 
     def to_dict(self):
         return dict(id=self.id,
                     username=self.username,
                     email=self.email,
-                    favorite_events=[
-                        event.id for event in self.get_favorites()])
+                    status=self.status)
+
+    @property
+    def active(self):
+        return self.status == "active"
 
     @property
     def is_authenticated(self):
@@ -77,11 +90,19 @@ class User(db.Model):
 
     @property
     def is_active(self):
-        return True
+        return self.status == "active"
 
     @property
     def is_anonymous(self):
         return False
+
+    def deactivate(self):
+        self.status = "disabled"
+
+    def activate(self):
+        """activate a "pending" account"""
+        self.status = "active"
+        return self
 
     def get_favorites(self):
         select = favorites_association_table.select(
@@ -96,13 +117,12 @@ class User(db.Model):
 
     def get_id(self):
         return str(self.id).encode("utf-8").decode("utf-8")
+        """
 
     def get_karma(self):
-        """
         fetch the number of votes this user has had on his/her contributions and images
 
         add tags later????
-        """
         contribution_ids = [c.id for c in self.contributions]
         ecupvotes = eventcontribution_upvotes.select(db.and_(
             eventcontribution_upvotes.c.eventcontribution_id.in_(contribution_ids),
@@ -134,8 +154,9 @@ class User(db.Model):
         total = ecupvotes.rowcount-ecdownvotes.rowcount+eiupvotes.rowcount-eidownvotes.rowcount
         return total
 
+        """
 
 class OAuth(OAuthConsumerMixin, db.Model):
     provider_user_id = db.Column(db.String(256), unique=True, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey(User.id))
+    user_id = db.Column(UUID, db.ForeignKey(User.id))
     user = db.relationship(User)

@@ -4,7 +4,9 @@ import uuid
 
 ERROR_CODES = {
     # CODE : Message
-    'AUTH_FAIL': 'Authorization information is missing or invalid',
+    'AUTH_FAIL': 'Invalid credentials',
+    'ACCOUNT_DISABLED': "Account is temporarily disabled. Contact info@partymap.com",
+    'ACCOUNT_PENIDNG': 'Account has not been activated. Check your email!'
 }
 
 
@@ -88,6 +90,15 @@ class LoginRequired(JSONException):
     status_code = 401
     code = 'AUTH_FAIL'
 
+class UserDisabled(JSONException):
+    status_code = 403
+    code = "ACCOUNT_DISABLED"
+    message = "Account is temporarily disabled. Contact info@partymap.com"
+
+class UserPending(JSONException):
+    status_code = 403
+    code = "ACCOUNT_PENIDNG"
+    message = "Account has not been activated. Check your email!"
 
 class InvalidPermissions(JSONException):
     status_code = 403

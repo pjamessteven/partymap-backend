@@ -1,7 +1,14 @@
+from sqlalchemy import or_, and_
+from flask_login import current_user
+
 from .model import User
 from pmapi import validate
 import pmapi.exceptions as exc
-
+from pmapi.notification.model import EmailAction
+from pmapi.mail.controllers import send_signup_verify_email
+from pmapi.utils import ROLES
+from pmapi.extensions import db
+import logging
 
 def get_user(user_identifier):
     """Query the db for a user. Identifier may be an email, or username.
@@ -30,4 +37,83 @@ def get_user_or_404(user_identifier):
             search_property, user_identifier)
         raise exc.RecordNotFound(msg)
 
+    return user
+
+def check_user_does_not_exist(username, email):
+    existing_user = User.query.filter(
+        or_(User.username == username, User.email == email)
+    ).first()
+    if existing_user:
+        if existing_user.username == username:
+            msg = "User with username '{}' exists".format(username)
+        else:
+            msg = "User with email '{}' exists".format(email)
+
+        raise exc.RecordAlreadyExists(msg)
+
+
+def create_user(**kwargs):
+    activate = kwargs.pop("activate", None)
+    username = kwargs.pop("username", None)
+    email = kwargs.pop("email", None)
+    password = kwargs.pop("password", None)
+    token = kwargs.pop("token", None)
+
+    validate.username(username)
+    validate.email(email)
+    validate.password(password)
+
+    email_action = EmailAction.query.get(token)
+
+    if not email_action:
+        # only staff can create user without token
+        if not current_user or current_user.role < ROLES["STAFF"]:
+            raise exc.RecordNotFound("Non staff users require confirmation token.")
+    else:
+        if email_action.expired:
+            # token has expired (5 minutes passed)
+            db.session.delete(email_action)
+            db.session.flush()
+            raise exc.RecordNotFound("confirmation token has expired")
+        db.session.delete(email_action)
+        db.session.flush()
+    try:
+        check_user_does_not_exist(kwargs.get("username"), kwargs.get("email"))
+    except exc.RecordAlreadyExists as e:
+        logging.info("user.create.failed", error=str(e))
+        raise e
+
+    user = User(email, username, password)
+
+    if activate:
+        user.activate()
+    else:
+        # send activation email to user
+        email_action = EmailAction(user=user, action="email_verify")
+        db.session.add(email_action)
+        db.session.flush()
+        send_signup_verify_email(user, email_action.id)
+
+    logging.info(
+        "user.create",
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        status=user.status,
+    )
+
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+def activate_user(token):
+    """Activate a user using the EmailAction id that was emailed to the user"""
+    email_action = EmailAction.query.get(token)
+    if not email_action:
+        raise exc.RecordNotFound("No such token ({})".format(token))
+    user = email_action.user
+    user.activate()
+    db.session.delete(email_action)
+    db.session.commit()
+    logging.info("user.activated")
     return user

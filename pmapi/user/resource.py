@@ -26,7 +26,6 @@ def user():
             # if 'email' in data:
             # user.email = data['email']
             if 'username' in data:
-                print('hit')
                 if db.session.query(User).filter(User.username == data['username']).count():
                     raise InvalidUsage(
                         message='username_already_registered', status_code=400)
@@ -39,15 +38,8 @@ def user():
     elif request.method == 'POST':
         data = request.get_json()
         print(data)
-        if db.session.query(User).filter(User.email == data['email']).count():
-            raise InvalidUsage(message='email_already_registered', status_code=400)
-        elif db.session.query(User).filter(User.username == data['username']).count():
-            raise InvalidUsage(message='username_already_registered', status_code=400)
-        elif data['email'] and data['password'] and data['username']:
-            user = User(**data)
-            db.session.add(user)
-            db.session.commit()
-            return jsonify(user.to_dict()), 201
+        user = users.create_user(**data)
+        return jsonify(user.to_dict()), 201
 
     else:
         raise InvalidUsage(message='Method not allowed', status_code=405)
@@ -57,6 +49,10 @@ def user():
 def user_profile():
     pass
 
+@users_blueprint.route('/activate/<string:token>', methods=('POST',))
+def activate(token):
+    activated_user = users.activate_user(token)
+    return jsonify(activated_user.to_dict()), 200
 
 @users_blueprint.route('/<string:username>/activity', methods=('GET',))
 def user_activities(username):

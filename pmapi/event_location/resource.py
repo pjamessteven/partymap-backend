@@ -5,7 +5,6 @@ import datetime
 import time
 
 from pmapi.event.model import *
-from pmapi.event_artist.model import *
 from pmapi.event_tag.model import *
 from pmapi.event_date.model import *
 
@@ -38,8 +37,7 @@ def fetch_points():
         for tag in tags:
             event_locations = event_locations.filter(
                                 and_(
-                                    or_(EventDate.artists.any(EventArtist.artist_name==tag),
-                                        Event.event_tags.any(EventTag.tag_id==tag)),
+                                    Event.event_tags.any(EventTag.tag_id==tag),
                                     or_(
                                         and_(EventDate.event_start_naive>=min,and_(EventDate.event_end_naive<=max, EventDate.event_end_naive>=min)),
                                         and_(EventDate.event_start_naive>=min,EventDate.event_start_naive<=max),

@@ -1,8 +1,9 @@
 from pmapi.exceptions import InvalidAPIRequest
 from uuid import UUID
 from flask import current_app
+import re
 
-PASSWORD_LENGTH_MIN = 5
+PASSWORD_LENGTH_MIN = 8
 PASSWORD_LENGTH_MAX = 72  # changeme
 
 
@@ -44,7 +45,7 @@ def uuid(uuid, err_msg=None):
 
 
 def password(password):
-    """Minimum 5 chars
+    """Minimum 8 chars
     Maximum 72 chars
     all characters allowed
     """

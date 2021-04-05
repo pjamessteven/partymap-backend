@@ -12,7 +12,6 @@ from pytz.exceptions import UnknownTimeZoneError
 from pmapi.user.model import User
 from pmapi.event.model import *
 from pmapi.exceptions import InvalidUsage
-from pmapi.event_artist.model import *
 from pmapi.event_tag.model import *
 
 favorites_blueprint = Blueprint('favorites', __name__)

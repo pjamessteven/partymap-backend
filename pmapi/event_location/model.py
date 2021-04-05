@@ -6,6 +6,7 @@ from geoalchemy2.types import Geometry
 from sqlalchemy import Index, func, cast
 from sqlalchemy.sql import func
 from sqlalchemy import or_, and_
+from sqlalchemy.dialects.postgresql import UUID
 
 from pmapi.extensions import db
 
@@ -45,7 +46,7 @@ class EventLocation(db.Model):
     event_dates = db.relationship('EventDate', back_populates="location")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    creator_id = db.Column(UUID, db.ForeignKey('users.id'))
     creator = db.relationship('User', back_populates="created_event_locations")
 
     # serverside clustering

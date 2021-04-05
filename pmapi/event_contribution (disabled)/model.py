@@ -1,6 +1,7 @@
 import math
 from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
+from sqlalchemy.dialects.postgresql import UUID
 
 from pmapi.extensions import db
 
@@ -28,18 +29,22 @@ event_contribution_downvotes = db.Table(
 class EventContribution(db.Model):
     __tablename__ = 'event_contributions'
 
-    id = db.Column(db.Integer, primary_key=True)
-    text = db.Column(db.Text)
-    creator_id = db.Column(db.Integer,
+    id = db.Column(UUID, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator_id = db.Column(UUID,
                            db.ForeignKey('users.id'), nullable=False)
     creator = db.relationship('User', back_populates="created_contributions")
-    event_id = db.Column(db.Integer,
+
+    event_id = db.Column(UUID,
                          db.ForeignKey('events.id'), nullable=False)
     event = db.relationship('Event', back_populates="event_contributions")
-    event_date_id = db.Column(db.Integer, db.ForeignKey('event_dates.id'))
+    event_date_id = db.Column(UUID, db.ForeignKey('event_dates.id'))
     event_date = db.relationship('EventDate', back_populates="contributions")
+
+    text = db.Column(db.Text)
     images = db.relationship('EventImage', back_populates="contribution")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     status = db.Column(db.SmallInteger, default=1)
     score = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)

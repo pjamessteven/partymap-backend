@@ -3,75 +3,78 @@ from datetime import datetime
 import os
 from flask import current_app
 from flask_login import current_user
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 from pmapi.extensions import db
 
-event_image_upvotes = db.Table('event_image_upvotes',
-                               db.Column('user_id', db.Integer,
-                                         db.ForeignKey('users.id')),
-                               db.Column('event_image_id', db.Integer,
-                                         db.ForeignKey('event_images.id'))
-                               )
+event_image_upvotes = db.Table(
+    "event_image_upvotes",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_image_id", UUID, db.ForeignKey("event_images.id")),
+)
 
-event_image_downvotes = db.Table('event_image_downvotes',
-                                 db.Column('user_id', db.Integer,
-                                           db.ForeignKey('users.id')),
-                                 db.Column('event_image_id', db.Integer,
-                                           db.ForeignKey('event_images.id'))
-                                 )
+event_image_downvotes = db.Table(
+    "event_image_downvotes",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_image_id", UUID, db.ForeignKey("event_images.id")),
+)
 
 
 class EventImage(db.Model):
-    __tablename__ = 'event_images'
+    __tablename__ = "event_images"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator = db.relationship("User", back_populates="created_event_images")
+
     filename = db.Column(db.String, default=None, nullable=False)
     thumb_filename = db.Column(db.String, default=None, nullable=False)
     caption = db.Column(db.Text)
-    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    creator = db.relationship('User', back_populates="created_event_images")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    contribution_id = db.Column(db.Integer, db.ForeignKey('event_contributions.id'))
-    contribution = db.relationship("EventContribution", back_populates="images")
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
+
+    # contribution_id = db.Column(UUID, db.ForeignKey('event_contributions.id'))
+    # contribution = db.relationship("EventContribution", back_populates="images")
+    event_id = db.Column(UUID, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_images")
     status = db.Column(db.SmallInteger, default=1)
-    # rename to score
+
     score = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)
-    reports = db.relationship('Report', back_populates="event_image")
 
     def to_dict(self):
-        if self.contribution.event_date:
-            path = os.path.join(current_app.config['UPLOADS_URL']+str('event/')+str(
-                self.contribution.event.id)+str('/')+str(self.contribution.event_date.id)+'/')
-        else:
-            path = os.path.join(
-                current_app.config['UPLOADS_URL']+str('event/')+str(self.contribution.event.id)+str('/'))
+
+        path = os.path.join(
+            current_app.config["UPLOADS_URL"]
+            + str("event/")
+            + str(self.event.id)
+            + str("/")
+        )
 
         if current_user.is_authenticated:
-            print('ei.todict')
-            return dict(id=self.id,
-                        caption=self.caption,
-                        image_filename=self.filename,
-                        image_thumb_url=os.path.join(path, self.thumb_filename),
-                        image_url=os.path.join(path, self.filename),
-                        created_at=self.created_at,
-                        score=self.score,
-                        creator=self.creator.username,
-                        contribution=self.contribution_id,
-                        has_voted=self.has_voted(current_user.id))
+            return dict(
+                id=self.id,
+                caption=self.caption,
+                image_filename=self.filename,
+                image_thumb_url=os.path.join(path, self.thumb_filename),
+                image_url=os.path.join(path, self.filename),
+                created_at=self.created_at,
+                score=self.score,
+                creator=self.creator.username,
+                has_voted=self.has_voted(current_user.id),
+            )
 
         else:
-            return dict(id=self.id,
-                        caption=self.caption,
-                        image_filename=self.filename,
-                        image_thumb_url=os.path.join(path, self.thumb_filename),
-                        image_url=os.path.join(path, self.filename),
-                        created_at=self.created_at,
-                        score=self.score,
-                        creator=self.creator.username,
-                        contribution=self.contribution_id)
+            return dict(
+                id=self.id,
+                caption=self.caption,
+                image_filename=self.filename,
+                image_thumb_url=os.path.join(path, self.thumb_filename),
+                image_url=os.path.join(path, self.filename),
+                created_at=self.created_at,
+                score=self.score,
+                creator=self.creator.username,
+            )
 
     def get_status(self):
         """
@@ -106,7 +109,8 @@ class EventImage(db.Model):
         return ids of users who voted this item up
         """
         select = event_image_upvotes.select(
-            event_image_upvotes.c.event_image_id == self.id)
+            event_image_upvotes.c.event_image_id == self.id
+        )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
         return ids
@@ -116,7 +120,8 @@ class EventImage(db.Model):
         return ids of users who voted this item down
         """
         select = event_image_downvotes.select(
-            event_image_downvotes.c.event_image_id == self.id)
+            event_image_downvotes.c.event_image_id == self.id
+        )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
         return ids
@@ -128,13 +133,13 @@ class EventImage(db.Model):
         select_upvotes = event_image_upvotes.select(
             db.and_(
                 event_image_upvotes.c.user_id == user_id,
-                event_image_upvotes.c.event_image_id == self.id
+                event_image_upvotes.c.event_image_id == self.id,
             )
         )
         select_downvotes = event_image_downvotes.select(
             db.and_(
                 event_image_downvotes.c.user_id == user_id,
-                event_image_downvotes.c.event_image_id == self.id
+                event_image_downvotes.c.event_image_id == self.id,
             )
         )
         rs = db.engine.execute(select_upvotes).fetchall()
@@ -165,7 +170,7 @@ class EventImage(db.Model):
                 db.engine.execute(
                     event_image_upvotes.insert(),
                     user_id=user_id,
-                    event_image_id=self.id
+                    event_image_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = 1
@@ -174,7 +179,7 @@ class EventImage(db.Model):
                 db.engine.execute(
                     event_image_downvotes.insert(),
                     user_id=user_id,
-                    event_image_id=self.id
+                    event_image_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -1
@@ -189,7 +194,7 @@ class EventImage(db.Model):
                     event_image_upvotes.delete(
                         db.and_(
                             event_image_upvotes.c.user_id == user_id,
-                            event_image_upvotes.c.event_image_id == self.id
+                            event_image_upvotes.c.event_image_id == self.id,
                         )
                     )
                 )
@@ -202,7 +207,7 @@ class EventImage(db.Model):
                     event_image_upvotes.delete(
                         db.and_(
                             event_image_upvotes.c.user_id == user_id,
-                            event_image_upvotes.c.event_image_id == self.id
+                            event_image_upvotes.c.event_image_id == self.id,
                         )
                     )
                 )
@@ -211,7 +216,7 @@ class EventImage(db.Model):
                 db.engine.execute(
                     event_image_downvotes.insert(),
                     user_id=user_id,
-                    event_image_id=self.id
+                    event_image_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -2
@@ -226,7 +231,7 @@ class EventImage(db.Model):
                     event_image_downvotes.delete(
                         db.and_(
                             event_image_downvotes.c.user_id == user_id,
-                            event_image_downvotes.c.event_image_id == self.id
+                            event_image_downvotes.c.event_image_id == self.id,
                         )
                     )
                 )
@@ -238,7 +243,7 @@ class EventImage(db.Model):
                     event_image_downvotes.delete(
                         db.and_(
                             event_image_downvotes.c.user_id == user_id,
-                            event_image_downvotes.c.event_image_id == self.id
+                            event_image_downvotes.c.event_image_id == self.id,
                         )
                     )
                 )
@@ -247,7 +252,7 @@ class EventImage(db.Model):
                 db.engine.execute(
                     event_image_upvotes.insert(),
                     user_id=user_id,
-                    event_image_id=self.id
+                    event_image_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = +2

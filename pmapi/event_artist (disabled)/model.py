@@ -2,6 +2,7 @@ import calendar
 from datetime import datetime
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 from sqlalchemy import ForeignKeyConstraint
+from sqlalchemy.dialects.postgresql import UUID
 
 from pmapi.extensions import db
 

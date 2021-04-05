@@ -10,7 +10,6 @@ from pmapi.event_image.model import EventImage
 from pmapi.event.model import Event, Rrule
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation
-from pmapi.report.model import Report
 from pmapi.extensions import db, lm
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 

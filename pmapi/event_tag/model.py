@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from sqlalchemy import Index, func, cast
 from sqlalchemy.sql import func
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import UUID
+
 from sqlalchemy import ForeignKeyConstraint, UniqueConstraint
 
 from pmapi.extensions import db
@@ -17,20 +19,20 @@ def create_tsvector(*args):
 
 
 event_tag_upvotes = db.Table('event_tag_upvotes',
-                             db.Column('user_id', db.Integer, db.ForeignKey(
+                             db.Column('user_id', UUID, db.ForeignKey(
                                  'users.id'), primary_key=True),
                              db.Column('tag', db.String(20), db.ForeignKey(
                                  'tags.tag'), primary_key=True),
-                             db.Column('event_id', db.Integer, db.ForeignKey(
+                             db.Column('event_id', UUID, db.ForeignKey(
                                  'events.id'), primary_key=True),
                              )
 
 event_tag_downvotes = db.Table('event_tag_downvotes',
-                               db.Column('user_id', db.Integer, db.ForeignKey(
+                               db.Column('user_id', UUID, db.ForeignKey(
                                    'users.id'), primary_key=True),
                                db.Column('tag', db.String(20), db.ForeignKey(
                                    'tags.tag'), primary_key=True),
-                               db.Column('event_id', db.Integer, db.ForeignKey(
+                               db.Column('event_id', UUID, db.ForeignKey(
                                    'events.id'), primary_key=True),
                                )
 
@@ -75,15 +77,14 @@ class EventTag(db.Model):
     __tablename__ = 'event_tags'
 
     tag_id = db.Column(db.String(20), db.ForeignKey('tags.tag'), primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), primary_key=True)
+    event_id = db.Column(UUID, db.ForeignKey('events.id'), primary_key=True)
 
     tag = db.relationship('Tag', back_populates="events_with_tag")
     event = db.relationship('Event', back_populates="event_tags")
-    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    creator_id = db.Column(UUID, db.ForeignKey('users.id'))
     creator = db.relationship('User', back_populates="created_event_tags")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    reports = db.relationship('Report', backref="event_tag")
     status = db.Column(db.SmallInteger, default=1)
     votes = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)

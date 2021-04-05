@@ -25,16 +25,16 @@ manager.add_command('cluster', ClusterEventLocations)
 # enable python shell with application context
 @manager.shell
 def shell_ctx():
-    from pmapi.event_tags.model import Tag
-    from pmapi.event_tags.model import EventTag
+    from pmapi.event_tag.model import Tag, EventTag
     from pmapi.event.model import Event, Rrule
     from pmapi.user.model import User
     from pmapi.event_image.model import EventImage
-    from pmapi.event_contribution.model import EventContribution
     from pmapi.event_location.model import EventLocation
     from pmapi.event_date.model import EventDate
-    from pmapi.user.report import Report
-    from pmapi.activity.model import Activity
+    from pmapi.notification.model import Notification, UserNotification, EmailAction
+    from pmapi.extensions import db, activity_plugin
+    Activity = activity_plugin.activity_cls
+
     return dict(app=app,
                 db=db,
                 Tag=Tag,
@@ -42,12 +42,13 @@ def shell_ctx():
                 Event=Event,
                 User=User,
                 EventImage=EventImage,
-                EventContribution=EventContribution,
                 EventTag=EventTag,
                 EventDate=EventDate,
                 EventLocation=EventLocation,
                 Rrule=Rrule,
-                Report=Report)
+                Notification=Notification,
+                UserNotification=UserNotification,
+                EmailAction=EmailAction)
 
 if __name__ == '__main__':
     manager.run()

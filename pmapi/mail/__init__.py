@@ -1,8 +1,8 @@
 import sendgrid
-from sendgrid.helpers.mail import Content, Email, Mail, MailSettings, SandBoxMode
+from sendgrid.helpers.mail import Content, Email, Mail, To, MailSettings, SandBoxMode
 from pmapi.exceptions import InvalidAPIRequest, SystemError
 from pmapi import validate
-
+import logging
 
 class Mailer(object):
     """Mailer class to abstract the mail provider.
@@ -23,7 +23,7 @@ class Mailer(object):
             # keep a running count of successfully sent mail
             self.mail_sent = 0
 
-        self.sendgrid_client = sendgrid.SendGridAPIClient(apikey=self.api_key)
+        self.sendgrid_client = sendgrid.SendGridAPIClient(api_key=self.api_key)
 
     def send(self, to, subject, content, content_type="text/html", from_=None,):
         return self.sendgrid_send(to, subject, content, content_type, from_)
@@ -38,11 +38,11 @@ class Mailer(object):
         from_email = Email(from_)
 
         validate.email(to)
-        to_email = Email(to)
+        to_email = To(to)
 
         email_content = Content(content_type, content)
 
-        mail = Mail(from_email, subject, to_email, email_content)
+        mail = Mail(from_email, to_email, subject, email_content)
 
         if self.testing:
             mail_settings = MailSettings()
@@ -52,11 +52,11 @@ class Mailer(object):
         # in testing mode the success code is 200, otherwise success is 202
         rv = self.sendgrid_client.client.mail.send.post(request_body=mail.get())
         if rv.status_code >= 400:
-            log.error('mail.send', status_code=rv.status_code, error_body=rv.body)
+            logging.error('mail.send', status_code=rv.status_code, error_body=rv.body)
             return False
 
         else:
-            log.info('mail.send', success=True, subject=subject)
+            logging.info('mail.send', success=True, subject=subject)
 
         if self.testing:
             self.mail_sent += 1

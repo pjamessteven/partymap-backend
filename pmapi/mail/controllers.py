@@ -1,32 +1,32 @@
 from flask import current_app, render_template, request
 from pmapi.extensions import mail
-
+from datetime import datetime
 
 def send_mail(to, subject, content, content_type, from_=None, msg_type='unknown'):
     """Send mail asynchronously."""
     from pmapi.tasks import background_send_mail
-    background_send_mail.delay(to, subject, content, content_type,
+    background_send_mail(to, subject, content, content_type,
                                from_=None, msg_type='unknown')
 
 def send_signup_verify_email(user, action_id, resend=False):
     template = 'email/signup_verify_email.html'
     if resend:
         template = 'email/activate_account_reminder.html'
-    subject = '{} activation link'.format(domain_business_name)
+    subject = 'PartyMap account activation link'
     # XXX make dynamic
     acct_verify_url = (
-        'https://partymap.com/activate/{username}/{action_id}'
-        .format(username=user.username, action_id=action_id)
+        'https://partymap.com/activate/{action_id}'
+        .format(action_id=action_id)
     )
     context = {
         'account_activate_url': acct_verify_url,
         # "account_activate_url": user.domain.url_for('users.UserActivateResource',
         #                                             user_identifier=user.username,
         #                                             action_id=action_id),
-        "login_url": user.domain.url_for('authentication.LoginResource'),
-        'support_email': user.domain.support_email,
+        "login_url": 'https://www.partymap.com/login',
+        'support_email': 'support@partymap.com',
         "user_username": user.username,
-        "year": now().year,
+        "year": datetime.now().year,
     }
     content = render_template(template, **context)
     return send_mail(to=user.email,
