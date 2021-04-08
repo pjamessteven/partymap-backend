@@ -4,15 +4,20 @@ from flask_login import current_user
 from .model import User
 from pmapi import validate
 import pmapi.exceptions as exc
+from pmapi.common.controllers import paginated_results
 from pmapi.notification.model import EmailAction
 from pmapi.mail.controllers import send_signup_verify_email
 from pmapi.utils import ROLES
 from pmapi.extensions import db
 import logging
 
+
+def get_all_users(**kwargs):
+    return paginated_results(User, **kwargs)
+
+
 def get_user(user_identifier):
-    """Query the db for a user. Identifier may be an email, or username.
-    """
+    """Query the db for a user. Identifier may be an email, or username."""
     search_property = "username"
     # identifier is uuid?
     try:
@@ -24,8 +29,7 @@ def get_user(user_identifier):
     if "@" in user_identifier:
         search_property = "email"
 
-    user = User.query.filter(
-        getattr(User, search_property) == user_identifier).first()
+    user = User.query.filter(getattr(User, search_property) == user_identifier).first()
     return user, search_property
 
 
@@ -33,11 +37,11 @@ def get_user_or_404(user_identifier):
     """Return a user or raise 404 exception"""
     user, search_property = get_user(user_identifier.lower())
     if not user:
-        msg = "No such user with {} {}".format(
-            search_property, user_identifier)
+        msg = "No such user with {} {}".format(search_property, user_identifier)
         raise exc.RecordNotFound(msg)
 
     return user
+
 
 def check_user_does_not_exist(username, email):
     existing_user = User.query.filter(
@@ -45,11 +49,9 @@ def check_user_does_not_exist(username, email):
     ).first()
     if existing_user:
         if existing_user.username == username:
-            msg = "User with username '{}' exists".format(username)
+            raise exc.RecordAlreadyExists(code="USERNAME_TAKEN")
         else:
-            msg = "User with email '{}' exists".format(email)
-
-        raise exc.RecordAlreadyExists(msg)
+            raise exc.RecordAlreadyExists(code="EMAIL_ALREADY_REGISTERED")
 
 
 def create_user(**kwargs):
@@ -66,9 +68,12 @@ def create_user(**kwargs):
     email_action = EmailAction.query.get(token)
 
     if not email_action:
-        # only staff can create user without token
-        if not current_user or current_user.role < ROLES["STAFF"]:
-            raise exc.RecordNotFound("Non staff users require confirmation token.")
+        if not current_user.is_authenticated:
+            # staff must be logged in to create a user without a token
+            raise exc.RecordNotFound("Invitation code is required to sign up.")
+        elif current_user.is_authenticated and current_user.role < ROLES["STAFF"]:
+            # must be staff to create user without token
+            raise exc.RecordNotFound("Invitation code is required to sign up.")
     else:
         if email_action.expired:
             # token has expired (5 minutes passed)
@@ -78,7 +83,8 @@ def create_user(**kwargs):
         db.session.delete(email_action)
         db.session.flush()
     try:
-        check_user_does_not_exist(kwargs.get("username"), kwargs.get("email"))
+        check_user_does_not_exist(username, email)
+
     except exc.RecordAlreadyExists as e:
         logging.info("user.create.failed", error=str(e))
         raise e
@@ -105,6 +111,7 @@ def create_user(**kwargs):
     db.session.add(user)
     db.session.commit()
     return user
+
 
 def activate_user(token):
     """Activate a user using the EmailAction id that was emailed to the user"""

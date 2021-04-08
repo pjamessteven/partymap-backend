@@ -4,6 +4,7 @@ from pmapi.exceptions import InvalidAPIRequest, SystemError
 from pmapi import validate
 import logging
 
+
 class Mailer(object):
     """Mailer class to abstract the mail provider.
     Note the "init_app'd" instance 'mail' from the lc.extensions should be used."""
@@ -14,8 +15,8 @@ class Mailer(object):
 
     def init_app(self, app):
         # die if not set
-        self.api_key = app.config['SENDGRID_API_KEY']
-        self.default_from = app.config['SENDGRID_DEFAULT_FROM']
+        self.api_key = app.config["SENDGRID_API_KEY"]
+        self.default_from = app.config["SENDGRID_DEFAULT_FROM"]
         validate.email(self.default_from)
 
         self.testing = app.testing
@@ -25,7 +26,18 @@ class Mailer(object):
 
         self.sendgrid_client = sendgrid.SendGridAPIClient(api_key=self.api_key)
 
-    def send(self, to, subject, content, content_type="text/html", from_=None,):
+    def reset_mail_sent(self):
+        # used by tests
+        self.mail_sent = 0
+
+    def send(
+        self,
+        to,
+        subject,
+        content,
+        content_type="text/html",
+        from_=None,
+    ):
         return self.sendgrid_send(to, subject, content, content_type, from_)
 
     def sendgrid_send(self, to, subject, content, content_type="text/html", from_=None):
@@ -52,11 +64,11 @@ class Mailer(object):
         # in testing mode the success code is 200, otherwise success is 202
         rv = self.sendgrid_client.client.mail.send.post(request_body=mail.get())
         if rv.status_code >= 400:
-            logging.error('mail.send', status_code=rv.status_code, error_body=rv.body)
+            logging.error("mail.send", status_code=rv.status_code, error_body=rv.body)
             return False
 
         else:
-            logging.info('mail.send', success=True, subject=subject)
+            logging.info("mail.send", success=True, subject=subject)
 
         if self.testing:
             self.mail_sent += 1

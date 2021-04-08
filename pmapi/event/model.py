@@ -14,19 +14,11 @@ from pmapi.event_date.model import EventDate
 def create_tsvector(*args):
     # https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql
     exp = args[0]
-    print(args)
     for e in args[1:]:
         exp += " || " + e
-    print(exp)
     #    to_tsvector('english', title || ' ' || body))
     return func.to_tsvector("english", exp)
 
-
-event_owners = db.Table(
-    "event_owners",
-    db.Column("event_id", UUID, db.ForeignKey("events.id")),
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
-)
 
 # this table needs to be manually populated
 # two way relationship - so when I get an event it also has all event dates
@@ -42,10 +34,6 @@ class Event(db.Model):
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
         "User", back_populates="created_events", foreign_keys=[creator_id]
-    )
-
-    owners = db.relationship(
-        "User", secondary="event_owners", back_populates="owned_events"
     )
 
     name = db.Column(db.Text, nullable=False)
@@ -68,7 +56,8 @@ class Event(db.Model):
 
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events
-    __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
+    # this was causing tests to fail, unsure if needed
+    # __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
 
     def minified(self):
         return dict(

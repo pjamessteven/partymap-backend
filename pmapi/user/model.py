@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -32,39 +32,37 @@ class User(db.Model):
         ENUM("active", "disabled", "pending", name="user_status"), default="pending"
     )
     karma = db.Column(db.Integer, default=0)
-    notifications = db.relationship('UserNotification', back_populates="user",
-                                    cascade='all, delete-orphan')
-    owned_events = db.relationship(
-        'Event', secondary="event_owners", back_populates="owners")
+    notifications = db.relationship(
+        "UserNotification", back_populates="user", cascade="all, delete-orphan"
+    )
 
-    created_events = db.relationship(
-        'Event', back_populates="creator")
-    created_event_dates = db.relationship(
-        'EventDate', back_populates="creator")
-#    created_contributions = db.relationship(
-#        'EventContribution', back_populates="creator")
-#    created_event_artists = db.relationship(
-#        'EventArtist', back_populates="creator")
-    created_event_images = db.relationship(
-        'EventImage', back_populates="creator")
-    created_event_locations = db.relationship(
-        'EventLocation', back_populates="creator")
-    created_event_tags = db.relationship(
-        'EventTag', back_populates="creator")
+    created_events = db.relationship("Event", back_populates="creator")
+    created_event_dates = db.relationship("EventDate", back_populates="creator")
+    #    created_contributions = db.relationship(
+    #        'EventContribution', back_populates="creator")
+    #    created_event_artists = db.relationship(
+    #        'EventArtist', back_populates="creator")
+    created_event_images = db.relationship("EventImage", back_populates="creator")
+    created_event_locations = db.relationship("EventLocation", back_populates="creator")
+    created_event_tags = db.relationship("EventTag", back_populates="creator")
 
     # override init method to hash password when new user created
 
-    def __init__(self, email, username=None, password=None):
+    def __init__(self, email, username=None, password=None, role=None, status=None):
         self.email = email
         if username is not None:
             self.username = username
         if password is not None:
-            self.password = generate_password_hash(password, method='sha256')
+            self.password = generate_password_hash(password, method="sha256")
+        if role is not None:
+            self.role = role
+        if status is not None:
+            self.status = status
 
     @classmethod
     def authenticate(cls, **kwargs):
-        email = kwargs.get('email')
-        password = kwargs.get('password')
+        email = kwargs.get("email")
+        password = kwargs.get("password")
         if not email or not password:
             raise exc.LoginRequired()
 
@@ -75,10 +73,9 @@ class User(db.Model):
         return user
 
     def to_dict(self):
-        return dict(id=self.id,
-                    username=self.username,
-                    email=self.email,
-                    status=self.status)
+        return dict(
+            id=self.id, username=self.username, email=self.email, status=self.status
+        )
 
     @property
     def active(self):
@@ -155,6 +152,7 @@ class User(db.Model):
         return total
 
         """
+
 
 class OAuth(OAuthConsumerMixin, db.Model):
     provider_user_id = db.Column(db.String(256), unique=True, nullable=False)

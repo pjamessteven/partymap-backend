@@ -33,13 +33,14 @@ from werkzeug.routing import RequestRedirect
 
 import os
 import logging
+
 # ONLY FOR TESTING !!
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 
-def create_app(app_name='PARTYMAP'):
+def create_app(config, app_name="PARTYMAP"):
     app = Flask(app_name)
-    app.config.from_object('pmapi.config.BaseConfig')
+    app.config.from_object(config)
 
     register_extensions(app)
     register_blueprints(app)
@@ -47,7 +48,7 @@ def create_app(app_name='PARTYMAP'):
 
     @app.before_request
     def update_last_active():
-        print('is authenticated?')
+        print("is authenticated?")
         print(current_user)
         print(current_user.is_anonymous)
         print(current_user.is_authenticated)
@@ -57,10 +58,10 @@ def create_app(app_name='PARTYMAP'):
             extensions.db.session.commit()
 
     # potential security risk?
-    @app.route('/<path:path>')
+    @app.route("/<path:path>")
     @cross_origin()
     def static_file(path):
-        print('test')
+        print("test")
         return app.send_static_file(path)
 
     return app
@@ -72,8 +73,9 @@ def register_extensions(app):
     extensions.admin.init_app(app)
     extensions.lm.init_app(app)
     extensions.cors.init_app(app)
-    extensions.lm.login_view = 'api.login'
+    extensions.lm.login_view = "api.login"
     extensions.mail.init_app(app)
+
 
 def register_blueprints(app):
     # from pmapi.auth.oauth_resource import oauth_blueprint
@@ -83,6 +85,7 @@ def register_blueprints(app):
     from pmapi.event.resource import events_blueprint
     from pmapi.event_location.resource import locations_blueprint
     from pmapi.user.resource import users_blueprint
+
     # from pmapi.event_contribution.resource import event_contribution_blueprint
     from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
@@ -98,6 +101,7 @@ def register_blueprints(app):
     app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
 
+
 def register_errorhandlers(app):
     app.errorhandler(JSONException)(handle_error)
     app.errorhandler(UnprocessableEntity.code)(handle_webargs_error)
@@ -106,6 +110,7 @@ def register_errorhandlers(app):
     app.errorhandler(DBAPIError)(handle_db_disconnect)
     app.errorhandler(DatabaseError)(handle_db_disconnect)
     app.errorhandler(IntegrityError)(handle_integrity_error)
+
 
 def handle_internal_error(error, **kwargs):
     error = SystemError()
