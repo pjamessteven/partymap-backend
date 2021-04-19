@@ -1,12 +1,31 @@
 from flask import Blueprint, Response, request, jsonify
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    login_user,
+    logout_user,
+    current_user,
+    login_required,
+)
+from flask_apispec import doc
+from flask_apispec import marshal_with
+from flask_apispec import MethodResource
+from flask_apispec import use_kwargs
+from marshmallow import fields
+from marshmallow.validate import OneOf
 
+from pmapi.utils import ROLES
+from pmapi.common.controllers import paginated_view_args
 from pmapi.event.model import *
 from pmapi.user.model import User
 from pmapi.exceptions import InvalidUsage
+from pmapi.extensions import apidocs
 import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
-users_blueprint = Blueprint('users', __name__)
+
+from .schemas import UserSchema
+
+users_blueprint = Blueprint("users", __name__)
 
 
 @users_blueprint.errorhandler(InvalidUsage)
@@ -15,7 +34,41 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
-# update user
+
+@doc(tags=["users"])
+class UsersResource(MethodResource):
+    list_users_args = {
+        "username": fields.Str(description="search by username"),
+        "status": fields.Str(
+            description="Filter by status (staff+ only) (default: active)",
+            missing="active",
+            validate=OneOf(["active", "pending", "disabled", "all"]),
+        ),
+        "role": fields.Int(
+            description="Show users by role (staff+ only)",
+            validate=OneOf([*ROLES.values()]),
+        ),
+        **paginated_view_args(sort_options=["username", "created", "modified"]),
+    }
+
+    @doc(summary="Add a User", description="Adds a User")
+    @use_kwargs(
+        {
+            "username": fields.Str(required=True),
+            "email": fields.Email(required=True),
+            "activate": fields.Boolean(default=False),
+            "password": fields.Str(default=None),
+            "token": fields.Str(default=None),
+        }
+    )
+    @marshal_with(UserSchema(), code=200)
+    def post(self, **kwargs):
+        return users.create_user(**kwargs)
+
+
+users_blueprint.add_url_rule("/", view_func=UsersResource.as_view("UsersResource"))
+
+"""
 @users_blueprint.route('/', methods=('PUT', 'POST'))
 def user():
     if request.method == 'PUT':
@@ -43,18 +96,21 @@ def user():
 
     else:
         raise InvalidUsage(message='Method not allowed', status_code=405)
+"""
 
 
-@users_blueprint.route('/<string:id>', methods=('GET',))
+@users_blueprint.route("/<string:id>", methods=("GET",))
 def user_profile():
     pass
 
-@users_blueprint.route('/activate/<string:token>', methods=('POST',))
+
+@users_blueprint.route("/activate/<string:token>", methods=("POST",))
 def activate(token):
     activated_user = users.activate_user(token)
     return jsonify(activated_user.to_dict()), 200
 
-@users_blueprint.route('/<string:username>/activity', methods=('GET',))
+
+@users_blueprint.route("/<string:username>/activity", methods=("GET",))
 def user_activities(username):
     user = users.get_user_or_404(username)
     return jsonify(activities.get_activities_for_actor(user))

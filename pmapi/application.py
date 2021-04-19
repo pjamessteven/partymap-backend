@@ -4,13 +4,11 @@ application.py
 """
 
 from flask import Flask
-from flask import current_app
 from flask_cors import cross_origin
-from sqlalchemy import func
-from geoalchemy2 import Geometry
-from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
-from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
-from sqlalchemy_continuum import make_versioned
+
+# from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
+# from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
+# from sqlalchemy_continuum import make_versioned
 from flask_login import current_user
 from datetime import datetime
 from flask import jsonify
@@ -23,10 +21,11 @@ from .exceptions import JSONException
 from .exceptions import RecordAlreadyExists
 from .exceptions import SystemError
 
+from .extensions import db
+
 from sqlalchemy.exc import DatabaseError
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import IntegrityError
-from werkzeug.debug import get_current_traceback
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
@@ -45,6 +44,7 @@ def create_app(config, app_name="PARTYMAP"):
     register_extensions(app)
     register_blueprints(app)
     register_errorhandlers(app)
+    register_docs(app)
 
     @app.before_request
     def update_last_active():
@@ -75,6 +75,7 @@ def register_extensions(app):
     extensions.cors.init_app(app)
     extensions.lm.login_view = "api.login"
     extensions.mail.init_app(app)
+    extensions.apidocs.init_app(app)
 
 
 def register_blueprints(app):
@@ -87,19 +88,44 @@ def register_blueprints(app):
     from pmapi.user.resource import users_blueprint
 
     # from pmapi.event_contribution.resource import event_contribution_blueprint
-    from pmapi.favorite_events.resource import favorites_blueprint
+    # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
 
     # app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
     app.register_blueprint(auth_blueprint, url_prefix="/api/auth")
-    app.register_blueprint(event_tags_blueprint, url_prefix="/api/event_tags")
-    app.register_blueprint(event_dates_blueprint, url_prefix="/api/event_date")
+    app.register_blueprint(event_tags_blueprint, url_prefix="/api/tags")
+    app.register_blueprint(event_dates_blueprint, url_prefix="/api/dates")
     app.register_blueprint(events_blueprint, url_prefix="/api/event")
     app.register_blueprint(locations_blueprint, url_prefix="/api/locations")
     app.register_blueprint(users_blueprint, url_prefix="/api/users")
-    # app.register_blueprint(event_contribution_blueprint, url_prefix="/api/contribution")
-    app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
+    # app.register_blueprint(event_contribution_blueprint,
+    # url_prefix="/api/contribution")
+    # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
+
+
+def register_docs(app):
+    from pmapi.user.resource import UsersResource
+    from pmapi.event_tag.resource import TagsResource
+    from pmapi.event_location.resource import (
+        PointsResource,
+        LocationResource,
+        LocationsResource,
+    )
+    from pmapi.event_date.resource import (
+        DateResource,
+        DatesResource,
+        EventDatesResource,
+    )
+
+    extensions.apidocs.register(UsersResource, "users.UsersResource")
+    extensions.apidocs.register(TagsResource, "tags.TagsResource")
+    extensions.apidocs.register(PointsResource, "locations.PointsResource")
+    extensions.apidocs.register(LocationResource, "locations.LocationResource")
+    extensions.apidocs.register(LocationsResource, "locations.LocationsResource")
+    extensions.apidocs.register(DateResource, "dates.DateResource")
+    extensions.apidocs.register(DatesResource, "dates.DatesResource")
+    extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
 
 
 def register_errorhandlers(app):

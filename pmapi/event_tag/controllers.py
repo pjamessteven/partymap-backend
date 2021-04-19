@@ -1,5 +1,8 @@
 from flask_login import current_user
 from pmapi.extensions import db
+from pmapi.common.controllers import paginated_results
+import pmapi.exceptions as exc
+
 from .model import Tag, EventTag
 
 
@@ -13,14 +16,33 @@ def add_tags_to_event(tags, event):
             tag = db.session.query(Tag).filter(Tag.tag == t).one()
 
         # don't add duplicate event tag
-        if db.session.query(EventTag).filter(
-                EventTag.tag == tag, EventTag.event == event).count():
-            pass
+        if (
+            db.session.query(EventTag)
+            .filter(EventTag.tag == tag, EventTag.event == event)
+            .count()
+        ):
+            raise exc.RecordAlreadyExists("Tag already exists for event")
+
         else:
-            et = EventTag(
-                tag=tag,
-                event=event,
-                creator=current_user)
+            et = EventTag(tag=tag, event=event, creator=current_user)
             db.session.add(et)
             db.session.commit()
-            et.vote(current_user.id, 1)
+            return et
+
+
+def get_tags(**kwargs):
+    query = Tag.query
+    if "tag_name" in kwargs:
+        tag_name = kwargs.pop("tag_name")
+        query_string = ""
+        for word in tag_name.split():
+            # formulate a query string like 'twisted:* frequncey:*'
+            if word == tag_name.split()[-1]:
+                query_string = query_string + (word + str(":*"))
+            else:
+                query_string = query_string + (word + str(" & "))
+
+        query = query.filter(
+            Tag.__ts_vector__.match(query_string, postgresql_regconfig="english")
+        )
+    return paginated_results(Tag, query, **kwargs)

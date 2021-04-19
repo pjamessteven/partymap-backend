@@ -1,20 +1,62 @@
-from sqlalchemy import or_, and_
-from flask_login import current_user, login_required
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
+from marshmallow import fields
+from flask_apispec import doc
+from flask_apispec import marshal_with
+from flask_apispec import MethodResource
+from flask_apispec import use_kwargs
 
-from .model import Event
 from . import controllers as events
-from pmapi.exceptions import InvalidUsage, InvalidAPIRequest, RecordNotFound
-from pmapi.extensions import db, activity_plugin
+from pmapi.exceptions import InvalidUsage
 
-import pmapi.activity.controllers as activities
-import pmapi.event_tag.controllers as event_tags
-import pmapi.event_date.controllers as event_dates
-from pmapi.event_tag.model import EventTag, event_tag_upvotes, event_tag_downvotes
+from pmapi.common.controllers import paginated_view_args
+
+from .schemas import EventSchema, EventListSchema
 
 events_blueprint = Blueprint("events", __name__)
 
-Activity = activity_plugin.activity_cls
+# Activity = activity_plugin.activity_cls
+
+
+@doc(tags=["events"])
+class EventResource(MethodResource):
+    @doc(
+        summary="Get a list of events that are in the db.",
+        description="""Returns a list of event dates that are in the db. \n
+        ### Usage:  \n
+        Start and end date format must be in ISO-8601 format.
+        eg: 2020-05-23T05:00:00",
+        """,
+    )
+    @use_kwargs(
+        {
+            "query": fields.String(required=False),
+            **paginated_view_args(sort_options=["created_at"]),
+        },
+        location="query",
+    )
+    @marshal_with(EventListSchema(), code=200)
+    def get(self, **kwargs):
+        return events.search_events(**kwargs)
+
+    @doc(summary="Add an event", description="Add an event")
+    @use_kwargs(
+        {
+            "dateTime": fields.String(required=True),
+            "location": fields.dict(required=True),
+            "description": fields.String(required=True),
+            "name": fields.String(required=True),
+            "url": fields.String(required=False),
+            "tags": fields.List(fields.String(), required=False),
+            "images": fields.List(fields.Dict(), required=False),
+            "rrule": fields.Dict(),
+        },
+    )
+    @marshal_with(EventSchema(), code=200)
+    def post(self, **kwargs):
+        return events.add_event(**kwargs)
+
+
+events_blueprint.add_url_rule("/", view_func=EventResource.as_view("EventResource"))
 
 
 @events_blueprint.errorhandler(InvalidUsage)
@@ -23,6 +65,8 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
+
+"""
 
 @login_required
 @events_blueprint.route("/owned/", methods=("GET",))
@@ -101,9 +145,10 @@ def addEvent():
 
 
 # update event by ID number
-@events_blueprint.route("/<int:id>/", methods=("PUT",))
 @login_required
+@events_blueprint.route("/<string:id>/", methods=("PUT",))
 def update_event(id):
+    print("update event", id)
     data = request.get_json()
     print(data)
     event = Event.query.get(id)
@@ -131,7 +176,6 @@ def update_event(id):
     if tags:
         event_tags.add_tags_to_event(tags, event)
 
-    current_user.owned_events.append(event)
     db.session.commit()
 
     return jsonify(event.to_dict()), 201
@@ -190,3 +234,4 @@ def voteTag(event_id, tag_id):
     print(vote_status)
     # check if contribution has been voted by user yet or not
     return jsonify(et.to_dict())
+"""

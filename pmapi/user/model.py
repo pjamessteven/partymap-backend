@@ -4,7 +4,8 @@ from flask import Flask
 from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
 
 from pmapi.extensions import db
-from pmapi.favorite_events.model import favorites_association_table
+
+# from pmapi.favorite_events.model import favorites_association_table
 from pmapi.event.model import Event
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
@@ -101,6 +102,11 @@ class User(db.Model):
         self.status = "active"
         return self
 
+    def get_id(self):
+        return str(self.id).encode("utf-8").decode("utf-8")
+
+
+"""
     def get_favorites(self):
         select = favorites_association_table.select(
             favorites_association_table.c.user == self.id
@@ -112,9 +118,6 @@ class User(db.Model):
             events.append(Event.query.get(r[1]))
         return events
 
-    def get_id(self):
-        return str(self.id).encode("utf-8").decode("utf-8")
-        """
 
     def get_karma(self):
         fetch the number of votes this user has had on his/her contributions and images

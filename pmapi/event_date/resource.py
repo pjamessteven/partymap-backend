@@ -1,252 +1,131 @@
-from flask import Blueprint, Response, request, jsonify
-from flask_login import (
-    LoginManager,
-    UserMixin,
-    login_user,
-    logout_user,
-    current_user,
-    login_required,
-)
-import reverse_geocode
-import pygeohash as pgh
-from sqlalchemy import or_, and_
-from datetime import *
-import time
-import json
-from geoalchemy2 import Geometry, func, Geography
-from geoalchemy2.elements import WKTElement
-from geoalchemy2.functions import ST_Distance_Sphere
-from timezonefinder import TimezoneFinder
-from pytz import timezone, utc
-from pytz.exceptions import UnknownTimeZoneError
+from flask import Blueprint
 
-from pmapi.event.model import Event
-from pmapi.notification.controllers import create_notification
-from pmapi.extensions import db, activity_plugin
-from pmapi.event_location.model import EventLocation, EventLocationType
-from .model import EventDate
+from marshmallow import fields
+from flask_apispec import doc
+from flask_apispec import marshal_with
+from flask_apispec import MethodResource
+from flask_apispec import use_kwargs
+
+from .schemas import EventDateSchema, EventDateListSchema
 import pmapi.event_date.controllers as event_dates
+from pmapi.common.controllers import paginated_view_args
 
 
 per_page = 20
 
-event_dates_blueprint = Blueprint("event_dates", __name__)
-
-Activity = activity_plugin.activity_cls
+event_dates_blueprint = Blueprint("dates", __name__)
 
 
-# get all event_date for an event
-@event_dates_blueprint.route("/event/<int:id>/", methods=("GET",))
-def eventdates(id):
-    eventdate = Event.query.get(id).event_dates
-
-    if current_user.is_authenticated:
-        # return is favorited
-        return jsonify({"event_dates": eventdate.event.eventDates()})
-    else:
-        return jsonify({"event_dates": eventdate.event.eventDates()})
-
-
-# add a new date for an event
-@event_dates_blueprint.route("/event/<int:id>/", methods=("POST",))
-def add_eventdate(id):
-    event = Event.query.get(id)
-    if current_user.is_authenticated:
-        # return is favorited
-        pass
-    else:
-        return jsonify({"event_dates": eventdate.event.eventDates()})
-
-
-# query all event dates
-@event_dates_blueprint.route("/", methods=("GET",))
-def fetch_event_dates():
-
-    min = request.args.get("min", None)
-    max = request.args.get("max", None)
-    location = request.args.get("location", None)
-    bounds = request.args.get("bounds", None)
-    tags = request.args.get("tags[]", None)
-    page = request.args.get("page", None)
-
-    if tags:
-        tags = request.args.getlist("tags[]")
-
-    if page:
-        page = int(request.args.get("page"))
-
-    results = event_dates.query_event_dates(min, max, location, bounds, tags, page)
-
-    return jsonify(results), 200
+@doc(tags=["dates"])
+class DatesResource(MethodResource):
+    @doc(
+        summary="Get a list of event dates that are in the db.",
+        description="""Returns a list of event dates that are in the db. \n
+        ### Usage:  \n
+        Start and end date format must be in ISO-8601 format.
+        eg: 2020-05-23T05:00:00",
+        """,
+    )
+    @use_kwargs(
+        {
+            "date_min": fields.DateTime(required=False),
+            "date_max": fields.DateTime(required=False),
+            "tags": fields.List(fields.Str(), required=False),
+            "location": fields.Dict(required=False),
+            "bounds": fields.Dict(required=False),
+            **paginated_view_args(sort_options=["created_at"]),
+        },
+        location="query",
+    )
+    @marshal_with(EventDateListSchema(), code=200)
+    def get(self, **kwargs):
+        return event_dates.query_event_dates(**kwargs)
 
 
-# get an eventdates revisions
-@event_dates_blueprint.route("/<int:id>/revisions/", methods=("GET",))
-def eventDateRevision(id):
-    if request.method == "GET":
-        ed = EventDate.query.get(id)
-        return jsonify(ed.revisions())
+event_dates_blueprint.add_url_rule(
+    "/", view_func=DatesResource.as_view("DatesResource")
+)
 
 
-# get an eventdates revisions
-@event_dates_blueprint.route("/<int:id>/", methods=("DELETE",))
-def delete_eventdate(id):
-    ed = EventDate.query.get(id)
-    if ed is not None:
-        db.session.delete(ed)
-        db.session.commit()
+@doc(tags=["dates"])
+class DateResource(MethodResource):
+    @doc(
+        summary="Get an event date.",
+        description="""Returns a list of event dates that are in the db. \n
+        ### Usage:  \n
+        Start and end date format must be in ISO-8601 format.
+        eg: 2020-05-23T05:00:00",
+        """,
+        params={"id": {"description": "event date ID"}},
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    def get(self, id):
+        return event_dates.get_event_date_or_404(id)
+
+    @doc(
+        summary="Delete an event date.",
+        description="""Delete an event date. Must be event creator or admin.""",
+        params={"id": {"description": "event date ID"}},
+    )
+    def delete(self, id):
+        event_dates.delete_event_date(id)
         return "", 204
 
+    @doc(
+        summary="Update an event date.",
+        description="""Update an event date. Must be event creator or admin.""",
+        params={"id": {"description": "event date ID"}},
+    )
+    @use_kwargs(
+        {
+            "description": fields.Str(),
+            "url": fields.Str(),
+            "dateTime": fields.Dict(),
+            "location": fields.Dict(),
+            "cancelled": fields.Boolean(),
+        }
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    def put(self, id, **kwargs):
+        return event_dates.update_event_date(id, **kwargs)
 
-@event_dates_blueprint.route("/<int:id>/", methods=("PUT",))
-@login_required
-def update_eventdate(id):
-    data = request.get_json()
-    ed = EventDate.query.get(id)
-    print(data)
-    description = data.get("description")
-    url = data.get("url")
-    dateTime = data.get("dateTime")
-    location = data.get("location")
-    cancelled = data.get("cancelled")
 
-    if cancelled is not None:
-        ed.cancelled = cancelled
-        if cancelled is False:
-            # delete reason for deleting
-            ed.description = ""
+event_dates_blueprint.add_url_rule(
+    "/<id>", view_func=DateResource.as_view("DateResource")
+)
 
-    if description:
-        ed.description = description
 
-    if url:
-        ed.url = url
+@doc(tags=["dates"])
+class EventDatesResource(MethodResource):
+    @doc(
+        summary="Add an event date to an existing event.",
+        description="""Update an event date. Must be event creator or admin.""",
+        params={"id": {"description": "event date ID"}},
+    )
+    @use_kwargs(
+        {
+            "description": fields.Str(),
+            "url": fields.Str(),
+            "dateTime": fields.Dict(),
+            "location": fields.Dict(),
+            "cancelled": fields.Boolean(),
+        }
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    def post(self, event_id, **kwargs):
+        return event_dates.add_event_date(event_id, **kwargs)
 
-    if dateTime:
-        if location:
-            lat = location["geometry"]["location"]["lat"]
-            lng = location["geometry"]["location"]["lng"]
-        else:
-            lat = ed.location.lat
-            lng = ed.location.lng
+    @doc(
+        summary="Get dates of an event.",
+        description="""Get dates of an event.""",
+        params={"id": {"description": "event date ID"}},
+    )
+    @marshal_with(EventDateSchema(many=True), code=200)
+    def get(self, event_id):
+        return event_dates.get_event_dates_for_event(event_id)
 
-        date = dateTime.get("date")
-        geocode = reverse_geocode.search([(lat, lng)])[0]
-        event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        event_end = None
-        all_day = True
 
-        if date.get("end", None) is not None:
-            print("has attr")
-            event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-
-        # event start time is specified
-        if dateTime.get("startHours", None) is not None:
-            print("start date triggered")
-            all_day = False
-            event_start = event_start.replace(hour=int(dateTime.get("startHours")))
-            if dateTime.get("startMinutes") is not None:
-                event_start = event_start.replace(
-                    minute=int(dateTime.get("startMinutes"))
-                )
-
-        # event end time is specified
-        if dateTime.get("endHours", None) is not None and event_end is not None:
-            print("end date triggered")
-            all_day = False
-            event_end = event_end.replace(hour=int(dateTime.get("endHours")))
-            if dateTime.get("endMinutes") is not None:
-                event_end = event_end.replace(minute=int(dateTime.get("endMinutes")))
-        #
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
-        """
-        Date should be received as a naive date
-        ie. the local time where the event is happening with no tz info.
-        """
-        event_start = event_start.replace(tzinfo=None)
-        event_start_naive = event_start
-        event_start = tz_obj.localize(event_start)
-        event_start = event_start.astimezone(utc)
-        event_start = event_start.replace(tzinfo=None)
-        event_end_naive = None
-        if event_end is not None:
-            event_end = event_end.replace(tzinfo=None)
-            event_end_naive = event_end
-            event_end = tz_obj.localize(event_end)
-            event_end = event_end.astimezone(utc)
-            event_end = event_end.replace(tzinfo=None)
-
-        ed.event_start = event_start
-        ed.event_end = event_end
-        ed.event_start_naive = event_start_naive
-        ed.event_end_naive = event_end_naive
-        ed.all_day = all_day
-        ed.tz = tz
-        print("start naive")
-        print(event_start_naive)
-        print("end naive")
-        print(event_end_naive)
-        print("start")
-        print(event_start)
-        print("end")
-        print(event_end)
-        print(ed.to_dict())
-    if location:
-        lat = location["geometry"]["location"]["lat"]
-        lng = location["geometry"]["location"]["lng"]
-        location_name = location["name"]
-        location_description = location["description"]
-        location_types = location["types"]
-        location_place_id = location["place_id"]
-
-        geocode = reverse_geocode.search([(lat, lng)])[0]
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
-        location_type_objects = []
-        for t in location_types:
-            elt = EventLocationType(type=t)
-            db.session.merge(elt)
-            location_type_objects.append(elt)
-
-        location = EventLocation(
-            geohash=pgh.encode(lat, lng),
-            # For geodetic coordinates, X is longitude and Y is latitude
-            geo="SRID=4326;POINT ({0} {1})".format(lng, lat),
-            name=location_name,
-            description=location_description,
-            types=location_type_objects,
-            lat=lat,
-            lng=lng,
-            country_code=geocode["country_code"],
-            city=geocode["city"],
-            place_id=location_place_id,
-        )
-        location = db.session.merge(location)
-        ed.location = location
-        ed.tz = tz
-        # date settings not touched
-        # update location of all future eventdates
-    db.session.flush()
-    activity = Activity(verb=u"update", object=ed, target=ed.event)
-    # create_notification('UPDATE EVENT', activity, ed.event.followers)
-    db.session.add(activity)
-    db.session.commit()
-    print(ed.to_dict())
-    return jsonify(ed.to_dict()), 201
+event_dates_blueprint.add_url_rule(
+    "/event/<event_id>",
+    view_func=EventDatesResource.as_view("EventDatesResource"),
+)

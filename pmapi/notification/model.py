@@ -1,5 +1,4 @@
 from datetime import datetime
-from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 import uuid
@@ -7,40 +6,38 @@ import uuid
 from pmapi.extensions import db
 from pmapi.utils import random_string
 
+
 class Notification(db.Model):
-    __tablename__ = 'notifications'
+    __tablename__ = "notifications"
 
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    to_users = db.relationship('UserNotification',
-                               back_populates='notification',
-                               cascade='all, delete-orphan'
-                               )
+    to_users = db.relationship(
+        "UserNotification", back_populates="notification", cascade="all, delete-orphan"
+    )
     notification_type = db.Column(db.String)
-    # TYPES: 'UPDATE EVENT' 'VOTE PHOTO'
     notification_url = db.Column(db.String)
 
 
 class UserNotification(db.Model):
-    __tablename__ = 'user_notifications'
+    __tablename__ = "user_notifications"
 
     id = db.Column(
         UUID, db.ForeignKey("notifications.id", ondelete="CASCADE"), primary_key=True
     )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    notification = db.relationship('Notification',
+    notification = db.relationship(
+        "Notification", back_populates="to_users", lazy="joined", innerjoin=True
+    )
 
-                                   back_populates='to_users',
-                                   lazy='joined', innerjoin=True)
-
-    user_id = db.Column(UUID,
-                        db.ForeignKey('users.id', ondelete='CASCADE'),
-                        primary_key=True)
-    user = db.relationship('User',
-                           foreign_keys=[user_id],
-                           back_populates='notifications')
+    user_id = db.Column(
+        UUID, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    user = db.relationship(
+        "User", foreign_keys=[user_id], back_populates="notifications"
+    )
     read = db.Column(db.Boolean, default=False)
 
     def to_dict(self):
@@ -48,11 +45,12 @@ class UserNotification(db.Model):
             id=self.id,
             created_at=self.notification.created_at,
             notification_text=self.notification.notification_text,
-            notification_url=self.notification.notification_url
+            notification_url=self.notification.notification_url,
         )
 
     def send_email():
-        print('send notificaiton email to user')
+        print("send notificaiton email to user")
+
 
 class EmailAction(db.Model):
     """Table to store password reset requests and email account validations"""
@@ -60,7 +58,9 @@ class EmailAction(db.Model):
     __tablename__ = "email_actions"
 
     id = db.Column(db.String(32), primary_key=True, default=lambda: random_string())
-    created = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=datetime.utcnow
+    )
     user_id = db.Column(
         UUID, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )

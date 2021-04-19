@@ -1,13 +1,13 @@
 from datetime import datetime
 from flask import current_app
-from sqlalchemy import Index, func
+from sqlalchemy import func
 from sqlalchemy import and_
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 import uuid
 
-import pmapi.activity.controllers as activities
 from pmapi.extensions import db
-from pmapi.favorite_events.model import favorites_association_table
+
+# from pmapi.favorite_events.model import favorites_association_table
 from pmapi.event_date.model import EventDate
 
 
@@ -57,7 +57,8 @@ class Event(db.Model):
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events
     # this was causing tests to fail, unsure if needed
-    # __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
+    # __table_args__ = (Index("idx_events_fts",
+    # __ts_vector__, postgresql_using="gin"),)
 
     def minified(self):
         return dict(
@@ -83,13 +84,13 @@ class Event(db.Model):
                 event_images=[i.to_dict() for i in self.event_images],
                 description=self.description,
                 url=self.default_url,
-                favorited=self.is_favorited(current_user.id),
+                # favorited=self.is_favorited(current_user.id),
                 event_dates=[ed.to_dict() for ed in self.future_event_dates()],
                 # revisions=self.versions.count(),
                 # most_recent_activity=activities.get_most_recent_activity_for_item(self)
                 # if activity
                 # else None,
-                event_tags=[tag.to_dict() for tag in self.event_tags],
+                event_tags=[tag.tag_id for tag in self.event_tags],
                 rrule=recurring,
                 # settings=self.settings,
             )
@@ -108,7 +109,7 @@ class Event(db.Model):
                 event_images=[i.to_dict() for i in self.event_images],
                 description=self.description,
                 url=self.default_url,
-                event_tags=[tag.to_dict() for tag in self.event_tags],
+                event_tags=[tag.tag_id for tag in self.event_tags],
                 event_dates=[ed.to_dict() for ed in self.future_event_dates()],
                 # revisions=self.versions.count(),
                 # most_recent_activity=activities.get_most_recent_activity_for_item(self)
@@ -144,6 +145,7 @@ class Event(db.Model):
         )
         return eds
 
+    """
     def favorite(self, user_id):
         _faved = self.is_favorited(user_id)
         if _faved is False:
@@ -165,9 +167,7 @@ class Event(db.Model):
             return False
 
     def is_favorited(self, user_id):
-        """
-        returns favorite status
-        """
+#        returns favorite status
         select = favorites_association_table.select(
             db.and_(
                 favorites_association_table.c.event == self.id,
@@ -179,6 +179,7 @@ class Event(db.Model):
             return True
         else:
             return False
+    """
 
     def eventDates(self):
         return [ed.minified() for ed in self.event_dates]

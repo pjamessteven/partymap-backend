@@ -5,6 +5,7 @@ from flask_admin import Admin
 from flask_login import LoginManager
 from sqlalchemy_continuum.plugins import ActivityPlugin, FlaskPlugin
 from pmapi.mail import Mailer
+from flask_apispec import FlaskApiSpec
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
 admin = Admin(name="PARTYMAP", template_mode="bootstrap3")
@@ -14,3 +15,4 @@ lm = LoginManager()
 activity_plugin = ActivityPlugin()
 flask_plugin = FlaskPlugin()
 mail = Mailer()
+apidocs = FlaskApiSpec()

@@ -1,21 +1,29 @@
-import pmapi.event_location.controllers as event_locations
-from pmapi.event_date.model import EventDate
-from pmapi.extensions import db
-from pmapi.event.model import Rrule
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from timezonefinder import TimezoneFinder
-from datetime import datetime, timezone
+from datetime import datetime
 from flask import jsonify
-from geoalchemy2.elements import WKTElement
-import json
-from geoalchemy2 import Geometry, func, Geography
+from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_
+from pytz import timezone, utc
+import reverse_geocode
+import pygeohash as pgh
 
-from pmapi.event_location.model import EventLocation
+from pmapi.common.controllers import paginated_results
+import pmapi.event_location.controllers as event_locations
+import pmapi.event.controllers as events
+from pmapi.extensions import db, activity_plugin
+from pmapi.event.model import Rrule
+from pmapi.event_location.model import EventLocation, EventLocationType
+from pmapi.event_tag.model import EventTag
+from pmapi.event.model import Event
+from pmapi import exceptions as exc
+from .model import EventDate
 
 # from dateutil.relativedelta import *
 from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, WEEKLY
+
+Activity = activity_plugin.activity_cls
 
 
 def add_event_date(
@@ -28,31 +36,31 @@ def add_event_date(
     tz=None,
     url=None,
     description=None,
+    **kwargs
 ):
     """accepts naive start and end dates and derives timezone from location
     if it not provided"""
-    if tz:
-        tz_obj = pytz.timezone(tz)
+
+    location = kwargs.pop("location")
+
+    if "tz" in kwargs:
+        tz_obj = pytz.timezone(kwargs.pop("tz"))
     else:
         tf = TimezoneFinder()
         tz = tf.timezone_at(lng=location.lng, lat=location.lat)
         tz_obj = pytz.timezone(tz)
 
-    if location:
-        event_location = event_locations.get_event_location(location.place_id)
-        if not event_location:
-            event_location = event_locations.add_new_event_location(**location)
-
+    event_location = event_locations.get_event_location(location.place_id)
     if not event_location:
-        # throw error
-        pass
+        event_location = event_locations.add_new_event_location(**location)
 
-    start_localized = tz_obj.localize(start)
+    start_localized = tz_obj.localize(kwargs.pop("start"))
     start_localized = start_localized.astimezone(timezone.utc)
     # strip tz info before adding to db. very important!
     start_localized = start_localized.replace(tzinfo=None)
     # check if there is an enddate
     end_localized = None
+
     if end:
         end_localized = end
         end_localized = end_localized.astimezone(timezone.utc)
@@ -71,8 +79,151 @@ def add_event_date(
     db.session.add(ed)
 
 
-def update_event_date():
-    pass
+def update_event_date(id, **kwargs):
+    event_date = get_event_date_or_404(id)
+
+    dateTime = kwargs.get("dateTime", None)
+    location = kwargs.get("location", None)
+
+    if "cancelled" in kwargs:
+        event_date.cancelled = kwargs.pop("cancelled")
+
+    if "description" in kwargs:
+        event_date.description = kwargs.pop("description")
+
+    if "url" in kwargs:
+        event_date.url = kwargs.pop("url")
+
+    if "dateTime":
+        # location required for timezone info
+        if "location":
+            lat = location["geometry"]["location"]["lat"]
+            lng = location["geometry"]["location"]["lng"]
+        else:
+            lat = event_date.location.lat
+            lng = event_date.location.lng
+        geocode = reverse_geocode.search([(lat, lng)])[0]
+
+        date = dateTime.get("date")
+        event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        event_end = None
+        all_day = True
+
+        if date.get("end", None):
+            print("has end")
+            event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        # event start time is specified
+        if dateTime.get("startHours", None):
+            print("start date triggered")
+            all_day = False
+            event_start = event_start.replace(hour=int(dateTime.get("startHours")))
+            if dateTime.get("startMinutes") is not None:
+                event_start = event_start.replace(
+                    minute=int(dateTime.get("startMinutes"))
+                )
+
+        # event end time is specified
+        if dateTime.get("endHours", None) is not None and event_end is not None:
+            print("end date triggered")
+            all_day = False
+            event_end = event_end.replace(hour=int(dateTime.get("endHours")))
+            if dateTime.get("endMinutes") is not None:
+                event_end = event_end.replace(minute=int(dateTime.get("endMinutes")))
+        #
+        try:
+            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
+            tf = TimezoneFinder()
+            tz = tf.timezone_at(lng=lng, lat=lat)
+            tz_obj = timezone(tz)
+
+        except UnknownTimeZoneError:
+            print("TIMEZONE ERROR")
+            pass  # {handle error}
+
+        """
+        Date should be received as a naive date
+        ie. the local time where the event is happening with no tz info.
+        """
+        event_start = event_start.replace(tzinfo=None)
+        event_start_naive = event_start
+        event_start = tz_obj.localize(event_start)
+        event_start = event_start.astimezone(utc)
+        event_start = event_start.replace(tzinfo=None)
+        event_end_naive = None
+        if event_end is not None:
+            event_end = event_end.replace(tzinfo=None)
+            event_end_naive = event_end
+            event_end = tz_obj.localize(event_end)
+            event_end = event_end.astimezone(utc)
+            event_end = event_end.replace(tzinfo=None)
+
+        event_date.event_start = event_start
+        event_date.event_end = event_end
+        event_date.event_start_naive = event_start_naive
+        event_date.event_end_naive = event_end_naive
+        event_date.all_day = all_day
+        event_date.tz = tz
+        print("start naive")
+        print(event_start_naive)
+        print("end naive")
+        print(event_end_naive)
+        print("start")
+        print(event_start)
+        print("end")
+        print(event_end)
+
+    if location:
+        lat = location["geometry"]["location"]["lat"]
+        lng = location["geometry"]["location"]["lng"]
+        location_name = location["name"]
+        location_description = location["description"]
+        location_types = location["types"]
+        location_place_id = location["place_id"]
+
+        geocode = reverse_geocode.search([(lat, lng)])[0]
+        try:
+            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
+            tf = TimezoneFinder()
+            tz = tf.timezone_at(lng=lng, lat=lat)
+            tz_obj = timezone(tz)
+
+        except UnknownTimeZoneError:
+            print("TIMEZONE ERROR")
+            pass  # {handle error}
+
+        location_type_objects = []
+        for t in location_types:
+            elt = EventLocationType(type=t)
+            db.session.merge(elt)
+            location_type_objects.append(elt)
+
+        location = EventLocation(
+            geohash=pgh.encode(lat, lng),
+            # For geodetic coordinates, X is longitude and Y is latitude
+            geo="SRID=4326;POINT ({0} {1})".format(lng, lat),
+            name=location_name,
+            description=location_description,
+            types=location_type_objects,
+            lat=lat,
+            lng=lng,
+            country_code=geocode["country_code"],
+            city=geocode["city"],
+            place_id=location_place_id,
+        )
+        location = db.session.merge(location)
+        event_date.location = location
+        event_date.tz = tz
+        # date settings not touched
+        # update location of all future eventdates
+    db.session.flush()
+    activity = Activity(verb=u"update", object=event_date, target=event_date.event)
+    # create_notification('UPDATE EVENT', activity, ed.event.followers)
+    db.session.add(activity)
+    db.session.commit()
+
+    return event_date
 
 
 def generate_future_event_dates(
@@ -154,14 +305,12 @@ def generate_future_event_dates(
                 print("has end")
                 event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
                 event_end = event_end.replace(tzinfo=None)
+
             # event start time is specified
             if dateTime.get("startHours", None):
                 print("start date triggered")
                 all_day = False
-                if dateTime.get("startHours") is not None:
-                    event_start = event_start.replace(
-                        hour=int(dateTime.get("startHours"))
-                    )
+                event_start = event_start.replace(hour=int(dateTime.get("startHours")))
                 if dateTime.get("startMinutes") is not None:
                     event_start = event_start.replace(
                         minute=int(dateTime.get("startMinutes"))
@@ -415,138 +564,92 @@ def generateRecurringDates(rp, event_start, event_end):
     return startdates, enddates
 
 
-def query_event_dates(min, max=None, location=None, bounds=None, tags=None, page=None):
+def delete_event_date(id):
+    event_date = get_event_date_or_404(id)
+    db.session.delete(event_date)
+    db.session.commit()
 
-    if min:
-        min = datetime.utcfromtimestamp(int(min) / 1000)
-    else:
-        min = datetime.utcnow()
 
-    if max is None or max == "Infinity":
-        max = datetime.utcnow().replace(
-            year=datetime.utcnow().year + 2
-        )  # two years from now
-    else:
-        max = datetime.utcfromtimestamp(int(max) / 1000)
+def get_event_date_or_404(id):
+    event_date = get_event_date(id)
+    if not event_date:
+        msg = "No such event_date with id {}".format(id)
+        raise exc.RecordNotFound(msg)
+    return event_date
 
-    if location is not None:
-        location = json.loads(location)
-        radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        event_dates = None
-        lat = float(location["lat"])
-        lon = float(location["lon"])
-        # wkt_element = WKTElement("POINT(%f %f)" % (lon, lat), 4326)
-        # return event dates by location and add a distance column
-        for radius in radii:
-            print(radius)
-            count = (
-                db.session.query(
-                    EventDate,
-                    func.ST_Distance(
-                        cast(EventLocation.geo, Geography(srid=4326)),
-                        cast(
-                            "SRID=4326;POINT(%f %f)" % (lon, lat), Geography(srid=4326)
-                        ),
-                    ).label("distance")
-                    # potentially faster to keep geometry type then convert degrees to meters.
-                    # when input is geography type it returns meters
-                )
-                .join(EventLocation)
-                .join(EventDate.event)
-                .filter(
-                    func.ST_DWithin(
-                        cast(EventLocation.geo, Geography(srid=4326)),
-                        cast(
-                            "SRID=4326;POINT(%f %f)" % (lon, lat), Geography(srid=4326)
-                        ),
-                        radius,
-                    )
-                )
-                .count()
+
+def get_event_date(id):
+    return EventDate.query.get(id)
+
+
+def get_event_dates_for_event(event_id):
+    event = events.get_event_by_id_or_404(event_id)
+    return event.event_dates
+
+
+def query_event_dates(**kwargs):
+    print("called")
+    # for nearby search
+    lat = None
+    lng = None
+
+    if "location" in kwargs and kwargs.get("location"):
+        location = kwargs.pop("location")
+        print(location, "test loc")
+        lat = location["lat"]
+        lng = location["lng"]
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        # potentially faster to keep geometry type
+        # than convert degrees to meters.
+        # when input is geography type it returns meters
+        query = (
+            db.session.query(
+                EventDate,
+                func.ST_Distance(
+                    cast(EventLocation.geo, Geography(srid=4326)),
+                    cast("SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)),
+                ).label("distance"),
             )
-            if count >= 5:
-                event_dates = (
-                    db.session.query(
-                        EventDate,
-                        func.ST_Distance(
-                            cast(EventLocation.geo, Geography(srid=4326)),
-                            cast(
-                                "SRID=4326;POINT(%f %f)" % (lon, lat),
-                                Geography(srid=4326),
-                            ),
-                        ).label("distance")
-                        # potentially faster to keep geometry type then convert degrees to meters.
-                        # when input is geography type it returns meters
-                    )
-                    .join(EventLocation)
-                    .join(EventDate.event)
-                    .filter(
-                        func.ST_DWithin(
-                            cast(EventLocation.geo, Geography(srid=4326)),
-                            cast(
-                                "SRID=4326;POINT(%f %f)" % (lon, lat),
-                                Geography(srid=4326),
-                            ),
-                            radius,
-                        )
-                    )
-                )
-                break
-                # using geography instead of geometry for 4326 dwithin function is much faster
-                # could possibly increase performace with boolean use_spheroid = False at the cost of accuracy
-
-        if event_dates is None:
-            return jsonify({"message": "No events in 500km radius"}), 204
+            .join(EventLocation)
+            .join(EventDate.event)
+        )
 
     else:
-        event_dates = (
-            db.session.query(EventDate).join(EventDate.location).join(EventDate.event)
-        )
-        # this used to be EventLocation.event - I don't know why? maybe I broke it
-
-    # filter dates
-    event_dates = event_dates.filter(
-        or_(
-            and_(
-                EventDate.event_start_naive >= min,
-                and_(
-                    EventDate.event_end_naive <= max, EventDate.event_end_naive >= min
-                ),
-            ),
-            and_(
-                EventDate.event_start_naive >= min, EventDate.event_start_naive <= max
-            ),
-        )
-    )
+        query = db.session.query(EventDate)
 
     # filter cancelled events out
-    event_dates = event_dates.filter(EventDate.cancelled is False)
+    query = query.filter(EventDate.cancelled is not True)
 
-    """ the old version of this query will filter any events happening in the range.
-            this is kind of confusing for users. might be good for a 'happening now' type query
-            for homepage.
-            this version was more suitable when navigation was done with a slider, but I think
-            it would also mean that the date list would get clogged up with 'in progress' events
-            (which could feel spammy)
-            event_dates = event_dates.filter(
-                            or_(
-                                and_(EventDate.event_end>min,EventDate.event_end<max),
-                                and_(EventDate.event_start>min,and_(EventDate.event_end<max, EventDate.event_end>min)),
-                                and_(EventDate.event_start>min,EventDate.event_start<max),
-                                and_(EventDate.event_start<min, EventDate.event_end>max)
-                                )
-                            )
-        """
-    print(event_dates.all())
+    if "date_min" in kwargs:
+        query = query.filter(EventDate.event_start_naive >= kwargs.pop("date_min"))
+    if "date_max" in kwargs:
+        date_max = kwargs.pop("date_max")
+        query = query.filter(
+            and_(
+                or_(
+                    EventDate.event_end_naive <= date_max,
+                    EventDate.event_end_naive.is_(None),
+                ),
+                EventDate.event_start_naive <= date_max,
+            )
+        )
 
-    # filter location
-    # filter bounds if no location specified
-    if bounds is not None and location is None:
-        print("bounds: ", bounds)
-        bounds = json.loads(bounds)
+    if "tags" in kwargs:
+        tags = kwargs.pop("tags")
+        query = query.join(Event)
+        for tag in tags:
+            query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
+
+    if "bounds" in kwargs and "location" not in kwargs:
+        # bounds search is to return event dates that are in current view
+        # on the map
+        query = query.join(EventLocation)
+        bounds = kwargs.pop("bounds")
         northEast = bounds["_northEast"]
         southWest = bounds["_southWest"]
-        event_dates = event_dates.filter(
+        query = query.filter(
             and_(
                 EventLocation.lat < northEast["lat"],
                 EventLocation.lat > southWest["lat"],
@@ -555,36 +658,45 @@ def query_event_dates(min, max=None, location=None, bounds=None, tags=None, page
             )
         )
 
-    # filter tags
-    if request.args.get("tags[]"):
-        tags = request.args.getlist("tags[]")
-        print(tags)
-        for tag in tags:
-            event_dates = event_dates.filter(
-                or_(
-                    EventDate.artists.any(EventArtist.artist_name == tag),
-                    Event.event_tags.any(EventTag.tag_id == tag),
-                ),
-            )
+    if lat and lng:
+        # nearby search
+        radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
+        for radius in radii:
+            print(radius)
+            count = query.filter(
+                func.ST_DWithin(
+                    cast(EventLocation.geo, Geography(srid=4326)),
+                    cast("SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)),
+                    radius,
+                )
+            ).count()
 
-    # order by date
-    event_dates = event_dates.order_by(EventDate.event_start.asc())
+            # threshold of events required before trying the next radius
+            if count >= 5:
+                query = query.filter(
+                    func.ST_DWithin(
+                        cast(EventLocation.geo, Geography(srid=4326)),
+                        cast(
+                            "SRID=4326;POINT(%f %f)" % (lng, lat),
+                            Geography(srid=4326),
+                        ),
+                        radius,
+                    )
+                )
+                break
+            """
+                if location is not None:
+                    # if location query has been run,
+                    # append distance to minified object
+                    event_dates_with_location = []
+                    for ed in event_dates:
+                        result = ed[0].minified()
+                        result["distance"] = int(ed[1] / 1000)
+                        event_dates_with_location.append(result)
+                    return event_dates_with_location
 
-    if page is not None and page > 0:
-        # paginate
-        event_dates_paginated = event_dates.paginate(page, per_page)
-        event_dates = event_dates_paginated.items
+            if event_dates is None:
+                return jsonify({"message": "No events in 500km radius"}), 204
+        """
 
-    print(event_dates)
-
-    if location is not None:
-        # if location query has been run,
-        # append distance to minified object
-        event_dates_with_location = []
-        for ed in event_dates:
-            result = ed[0].minified()
-            result["distance"] = int(ed[1] / 1000)
-            event_dates_with_location.append(result)
-        return event_dates_with_location
-    else:
-        return [e.minified() for e in event_dates]
+    return paginated_results(EventDate, query=query, **kwargs)
