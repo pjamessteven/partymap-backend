@@ -1,7 +1,6 @@
 import reverse_geocode
 import pygeohash as pgh
-from sqlalchemy import or_, and_
-
+from flask_login import current_user
 from pmapi.event_location.model import EventLocation, EventLocationType
 from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
@@ -11,16 +10,19 @@ from pmapi.common.controllers import paginated_results
 from pmapi import exceptions as exc
 
 
-def add_new_event_location(**location):
+def add_new_event_location(user=current_user, **kwargs):
 
-    geometry = location.get("geometry")
-    name = location.get("name")
-    description = location.get("description")
-    place_id = location.get("place_id")
-    types = location.get("types")
+    geometry = kwargs.get("geometry")
+    name = kwargs.get("name")
+    description = kwargs.get("description")
+    place_id = kwargs.get("place_id")
+    types = kwargs.get("types")
 
     lat = float(geometry["location"]["lat"])
     lng = float(geometry["location"]["lng"])
+
+    if get_location(place_id) is not None:
+        raise exc.RecordAlreadyExists()
 
     geocode = reverse_geocode.search([(lat, lng)])[0]
 
@@ -40,9 +42,9 @@ def add_new_event_location(**location):
         else:
             type = EventLocationType(type=t)
             db.session.add(type)
+            location_type_objects.append(type)
 
-        location_type_objects.append(type)
-
+    db.session.commit()
     location = EventLocation(
         geohash=pgh.encode(lat, lng),
         # For geodetic coordinates,
@@ -53,14 +55,16 @@ def add_new_event_location(**location):
         types=location_type_objects,
         lat=lat,
         lng=lng,
+        country=geocode["country"],
         country_code=geocode["country_code"],
         city=geocode["city"],
         place_id=place_id,
+        creator_id=user.id,
     )
-
     # merging - is this ok?
-    return db.session.add(location)
+    db.session.add(location)
     db.session.commit()
+    return location
 
 
 def get_location_or_404(place_id):
@@ -77,24 +81,16 @@ def get_location(place_id):
 
 def get_all_locations(**kwargs):
 
-    query = db.session.query(
-        EventLocation
-    ).distinct()  # fixes issues related to pagination
+    query = (
+        db.session.query(EventLocation).join(EventDate).distinct()
+    )  # fixes issues related to pagination
 
-    if "date_min" in kwargs or "date_max" in kwargs:
-        query = query.join(EventDate)
     if "date_min" in kwargs:
         query = query.filter(EventDate.event_start_naive >= kwargs.pop("date_min"))
     if "date_max" in kwargs:
         date_max = kwargs.pop("date_max")
         query = query.filter(
-            and_(
-                or_(
-                    EventDate.event_end_naive <= date_max,
-                    EventDate.event_end_naive.is_(None),
-                ),
-                EventDate.event_start_naive <= date_max,
-            )
+            EventDate.event_start_naive <= date_max,
         )
 
     if "tags" in kwargs:

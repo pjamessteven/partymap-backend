@@ -12,7 +12,7 @@ class EventSchema(Schema):
     description = fields.Str()
     default_url = fields.Str()
     tz = fields.Str()
-    event_dates = fields.Nested("EventDateSchema", many=True, exclude=["event"])
+    event_dates = fields.Nested("EventDateSchema", many=True)
     event_images = fields.Nested(EventImageSchema, many=True)
     event_tags = fields.Nested("EventTagSchema")
     rrule = fields.Nested("RruleSchema")

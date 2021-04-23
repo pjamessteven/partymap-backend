@@ -1,52 +1,76 @@
-from flask import Blueprint, Response, request, jsonify
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-import time
+from flask import Blueprint
+from flask_login import (
+    logout_user,
+    current_user,
+)
+from flask_apispec import doc
+from flask_apispec import marshal_with
+from flask_apispec import MethodResource
+from flask_apispec import use_kwargs
+from marshmallow import fields
 
 import pmapi.exceptions as exc
 from pmapi.user.model import User
-from pmapi.extensions import db, lm, cache
+from pmapi.extensions import lm
+from pmapi.user.schemas import UserSchema
 
-auth_blueprint = Blueprint('auth', __name__)
+auth_blueprint = Blueprint("auth", __name__)
 
 
 @lm.user_loader
 def load_user(user_id):
-    print('load_user called')
+    print("load_user called")
     print(user_id)
     try:
         return User.query.get(user_id)
-    except:
+    except exc:
         return None
 
 
-@auth_blueprint.route('/login/', methods=('POST', 'GET'))
-def login():
-    if request.method == 'POST':
-        data = request.get_json()
-        print(data)
-        user = User.authenticate(**data)
+@doc(tags=["auth"])
+class LoginResource(MethodResource):
+    @doc(
+        summary="Log in.",
+    )
+    @use_kwargs(
+        {
+            "email": fields.String(required=True),
+            "password": fields.String(required=True),
+            "remember": fields.Boolean(required=False),
+        },
+    )
+    @marshal_with(UserSchema(), code=200)
+    def post(self, **kwargs):
+        print(kwargs)
+        return User.authenticate(**kwargs)
 
-        # don't allow pending or disabled accounts to login
-        if user.status == "disabled":
-            raise exc.UserDisabled()
-        elif user.status == "pending":
-            raise exc.UserPending()
-
-        # flask-login
-        login_user(user, remember=True)
-
-        # am I vulnerable to open redirects?
-        return jsonify(user=user.to_dict(), authenticated=True), 201
-
-    if request.method == 'GET':
+    @doc(
+        summary="Get current user info.",
+    )
+    @marshal_with(UserSchema(), code=200)
+    def get(self):
         if current_user.is_authenticated:
-            return jsonify(user=current_user.to_dict(), authenticated=True), 201
-
+            return current_user
         else:
-            return jsonify(message='No login token', authenticated=False), 401
+            raise exc.LoginRequired()
 
 
-@auth_blueprint.route('/logout/', methods=('GET',))
-def logout():
-    logout_user()
-    return ('', 201)
+auth_blueprint.add_url_rule("/login/", view_func=LoginResource.as_view("LoginResource"))
+
+
+@doc(tags=["auth"])
+class LogoutResource(MethodResource):
+    @doc(
+        summary="Log out.",
+    )
+    def get(self):
+        if current_user.is_authenticated:
+            logout_user()
+            return ("", 201)
+        else:
+            raise exc.LoginRequired()
+
+
+auth_blueprint.add_url_rule(
+    "/logout", view_func=LogoutResource.as_view("LogoutResource")
+)

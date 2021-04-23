@@ -105,6 +105,10 @@ def register_blueprints(app):
 
 
 def register_docs(app):
+    from pmapi.auth.resource import (
+        LoginResource,
+        LogoutResource,
+    )
     from pmapi.user.resource import UsersResource
     from pmapi.event_tag.resource import TagsResource
     from pmapi.event_location.resource import (
@@ -117,7 +121,13 @@ def register_docs(app):
         DatesResource,
         EventDatesResource,
     )
+    from pmapi.event.resource import (
+        EventResource,
+        EventsResource,
+    )
 
+    extensions.apidocs.register(LoginResource, "auth.LoginResource")
+    extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
     extensions.apidocs.register(UsersResource, "users.UsersResource")
     extensions.apidocs.register(TagsResource, "tags.TagsResource")
     extensions.apidocs.register(PointsResource, "locations.PointsResource")
@@ -126,6 +136,8 @@ def register_docs(app):
     extensions.apidocs.register(DateResource, "dates.DateResource")
     extensions.apidocs.register(DatesResource, "dates.DatesResource")
     extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
+    extensions.apidocs.register(EventResource, "events.EventResource")
+    extensions.apidocs.register(EventsResource, "events.EventsResource")
 
 
 def register_errorhandlers(app):

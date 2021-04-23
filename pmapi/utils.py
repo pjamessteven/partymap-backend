@@ -1,7 +1,7 @@
 import random
 import string
 
-ROLES = {"USER": 10, "STAFF": 20, "ADMIN": 30}
+ROLES = {"UNPRIVILIGED_USER": 0, "HOST": 10, "STAFF": 20, "ADMIN": 30}
 
 chars = string.ascii_letters + string.digits
 

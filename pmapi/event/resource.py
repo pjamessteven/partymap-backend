@@ -4,8 +4,9 @@ from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
-
+from flask_login import login_required
 from . import controllers as events
+from . import permissions as event_permissions
 from pmapi.exceptions import InvalidUsage
 
 from pmapi.common.controllers import paginated_view_args
@@ -18,7 +19,7 @@ events_blueprint = Blueprint("events", __name__)
 
 
 @doc(tags=["events"])
-class EventResource(MethodResource):
+class EventsResource(MethodResource):
     @doc(
         summary="Get a list of events that are in the db.",
         description="""Returns a list of event dates that are in the db. \n
@@ -39,10 +40,12 @@ class EventResource(MethodResource):
         return events.search_events(**kwargs)
 
     @doc(summary="Add an event", description="Add an event")
+    @login_required
+    @event_permissions.add
     @use_kwargs(
         {
             "dateTime": fields.String(required=True),
-            "location": fields.dict(required=True),
+            "location": fields.Dict(required=True),
             "description": fields.String(required=True),
             "name": fields.String(required=True),
             "url": fields.String(required=False),
@@ -56,7 +59,40 @@ class EventResource(MethodResource):
         return events.add_event(**kwargs)
 
 
-events_blueprint.add_url_rule("/", view_func=EventResource.as_view("EventResource"))
+events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
+
+
+@doc(tags=["events"])
+class EventResource(MethodResource):
+    @doc(summary="Update an event", description="Update an event")
+    @login_required
+    @event_permissions.update
+    @use_kwargs(
+        {
+            "dateTime": fields.String(required=True),
+            "location": fields.Dict(required=True),
+            "description": fields.String(required=True),
+            "url": fields.String(required=False),
+            "tags": fields.List(fields.String(), required=False),
+            "images": fields.List(fields.Dict(), required=False),
+            "rrule": fields.Dict(),
+        },
+    )
+    @marshal_with(EventSchema(), code=200)
+    def put(self, event_id, **kwargs):
+        return events.update_event(event_id, **kwargs)
+
+    @doc(summary="Delete an event", description="Delete an event")
+    @login_required
+    @event_permissions.delete
+    def delete(self, event_id):
+        events.delete_event(event_id)
+        return "", 204
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>", view_func=EventResource.as_view("EventResource")
+)
 
 
 @events_blueprint.errorhandler(InvalidUsage)
@@ -77,7 +113,7 @@ def get_following():
 
 @events_blueprint.route("/<string:id>/", methods=("GET",))
 def get_event(id):
-    e = events.get_event_by_id_or_404(id)
+    e = events.get_event_or_404(id)
     if current_user.is_authenticated:
         return jsonify(e.to_dict(current_user))
     else:
@@ -87,7 +123,7 @@ def get_event(id):
 # get an events revisions
 @events_blueprint.route("/<int:id>/revisions/", methods=("GET",))
 def get_event_revisions(id):
-    e = events.get_event_by_id_or_404(id)
+    e = events.get_event_or_404(id)
 
     return jsonify(e.revisions())
 
@@ -95,7 +131,7 @@ def get_event_revisions(id):
 # get an events activities
 @events_blueprint.route("/<int:id>/activity/", methods=("GET",))
 def get_event_activity(id):
-    e = events.get_event_by_id_or_404(id)
+    e = events.get_event_or_404(id)
 
     return jsonify(activities.get_activities_for_item(e))
 

@@ -42,7 +42,7 @@ def test_get_user_or_404_raises_RecordNotFound(db):
         users.get_user_or_404("some_username")
 
 
-def test_create_user_with_valid_token(db):
+def test_create_user_with_token_valid_token(db):
     # create token
     token = EmailAction(action="account_create")
     db.session.add(token)
@@ -55,13 +55,13 @@ def test_create_user_with_valid_token(db):
         "token": token.id,
     }
 
-    user = users.create_user(**user_args)
+    user = users.create_user_with_token(**user_args)
     assert user.username == user_args.get("username")
     assert user.email == user_args.get("email")
     assert user.active is False
 
 
-def test_create_user_with_invalid_token(db):
+def test_create_user_with_token_invalid_token():
     user_args = {
         "username": "new_user",
         "email": "test@example.com",
@@ -71,10 +71,10 @@ def test_create_user_with_invalid_token(db):
     }
 
     with pytest.raises(RecordNotFound):
-        users.create_user(**user_args)
+        users.create_user_with_token(**user_args)
 
 
-def test_create_user_with_no_token(db):
+def test_create_user_with_token_no_token():
     user_args = {
         "username": "new_user",
         "email": "test@example.com",
@@ -83,10 +83,10 @@ def test_create_user_with_no_token(db):
     }
 
     with pytest.raises(RecordNotFound):
-        users.create_user(**user_args)
+        users.create_user_with_token(**user_args)
 
 
-def test_create_user_fails_with_dupe_name(admin_user, db):
+def test_create_user_fails_with_token_dupe_name(admin_user, db):
     # create token
     token = EmailAction(action="account_create")
     db.session.add(token)
@@ -100,10 +100,10 @@ def test_create_user_fails_with_dupe_name(admin_user, db):
         "token": token.id,
     }
     with pytest.raises(RecordAlreadyExists):
-        users.create_user(**user_args)
+        users.create_user_with_token(**user_args)
 
 
-def test_create_user_fails_with_dupe_email(admin_user, db):
+def test_create_user_with_token_fails_dupe_email(admin_user, db):
     # create token
     token = EmailAction(action="account_create")
     db.session.add(token)
@@ -134,7 +134,7 @@ def test_activate_user(db):
         "token": token.id,
     }
 
-    user = users.create_user(**user_args)
+    user = users.create_user_with_token(**user_args)
 
     # find activate token from db
     email_verify_action = (
@@ -168,6 +168,6 @@ def test_confirmation_email_sent_to_pending_user(db, emailer):
         "token": token.id,
     }
 
-    pending_user = users.create_user(**user_args)
+    pending_user = users.create_user_with_token(**user_args)
     assert emailer.mail_sent == 1
     assert pending_user.status == "pending"

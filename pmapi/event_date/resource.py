@@ -5,11 +5,11 @@ from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
-
+from flask_login import login_required
 from .schemas import EventDateSchema, EventDateListSchema
+from . import permissions as event_date_permissions
 import pmapi.event_date.controllers as event_dates
 from pmapi.common.controllers import paginated_view_args
-
 
 per_page = 20
 
@@ -67,6 +67,8 @@ class DateResource(MethodResource):
         description="""Delete an event date. Must be event creator or admin.""",
         params={"id": {"description": "event date ID"}},
     )
+    @login_required
+    @event_date_permissions.delete
     def delete(self, id):
         event_dates.delete_event_date(id)
         return "", 204
@@ -86,6 +88,8 @@ class DateResource(MethodResource):
         }
     )
     @marshal_with(EventDateSchema(), code=200)
+    @login_required
+    @event_date_permissions.update
     def put(self, id, **kwargs):
         return event_dates.update_event_date(id, **kwargs)
 
@@ -108,10 +112,12 @@ class EventDatesResource(MethodResource):
             "url": fields.Str(),
             "dateTime": fields.Dict(),
             "location": fields.Dict(),
-            "cancelled": fields.Boolean(),
+            "event_id": fields.UUID(),
         }
     )
     @marshal_with(EventDateSchema(), code=200)
+    @login_required
+    @event_date_permissions.add
     def post(self, event_id, **kwargs):
         return event_dates.add_event_date(event_id, **kwargs)
 

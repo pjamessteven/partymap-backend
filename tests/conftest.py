@@ -2,11 +2,17 @@ from pmapi.application import create_app
 from pmapi.extensions import db as _db
 from pmapi.user.model import User
 from pmapi.event.model import Event
+from pmapi.event_location.model import EventLocation, EventLocationType
+from pmapi.event_date.model import EventDate
+from pmapi.event_tag.model import Tag, EventTag
 from pmapi.config import BaseConfig
 from pmapi.extensions import mail
-
+import pmapi.exceptions as exc
+import pygeohash as pgh
+from datetime import datetime
 from flask_login import AnonymousUserMixin
 import pytest
+import uuid
 
 
 class Config_Test(BaseConfig):
@@ -60,7 +66,7 @@ def clear_db(request):
     def _clear_db():
         db = request.getfixturevalue("db")
         meta = db.metadata
-        for table in meta.sorted_tables:
+        for table in reversed(meta.sorted_tables):
             db.session.execute(table.delete())
         db.session.commit()
 
@@ -101,10 +107,42 @@ def user_factory(app, db):
 
 
 @pytest.fixture
-def event_factory(app, db, regular_user):
+def complete_event_factory(
+    app,
+    db,
+    regular_user,
+    event_factory,
+    event_date_factory,
+    event_tag_factory,
+    event_location_factory,
+):
+    """
+    Factory function for creating complete events in the db.
+    Includes event tags, event date and event location.
+    """
+
+    def _gen_event(
+        name="test event",
+        tags=["test1", "test2"],
+        start=datetime(year=2006, month=1, day=1),
+        end=None,
+        geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}},
+    ):
+        event = event_factory(name=name)
+        event_location = event_location_factory(geometry=geometry)
+        event_tag_factory(tags=tags, event=event)
+        event_date_factory(start, end, event, event_location)
+
+        return event
+
+    return _gen_event
+
+
+@pytest.fixture
+def event_factory(app, db, regular_user, user_factory):
     """Factory function for creating events in the db."""
 
-    def _gen_event(name):
+    def _gen_event(name="test event"):
         event = Event(
             name=name,
             creator_id=regular_user.id,
@@ -121,6 +159,148 @@ def event_factory(app, db, regular_user):
         return event
 
     return _gen_event
+
+
+@pytest.fixture
+def event_date_factory(app, db, regular_user, event_factory, event_location_factory):
+    """Factory function for creating events in the db."""
+
+    def _gen_event_date(
+        start=datetime(year=2006, month=1, day=1),
+        end=None,
+        event=None,
+        event_location=None,
+    ):
+
+        if event is None:
+            event = event_factory()
+        if event_location is None:
+            event_location = event_location_factory()
+
+        ed = EventDate(
+            event_id=event.id,
+            event_start_naive=start,
+            event_end_naive=end,
+            event_end=end,
+            event_start=start,
+            all_day=False,
+            tz="Pacific/Auckland",
+            location_id=event_location.place_id,
+            url="https://test.com",
+        )
+        db.session.add(ed)
+        db.session.commit()
+
+        # Patch a web client for making authenticated requests onto the user
+        # user.client = app.test_client(username=username, password=password)
+
+        return ed
+
+    return _gen_event_date
+
+
+@pytest.fixture
+def event_tag_factory(app, db, regular_user, event_factory):
+    """Factory function for creating events in the db."""
+
+    def _gen_event_tags(tags=["test"], event=None):
+        if event is None:
+            event = event_factory()
+        event_tags = []
+        for t in tags:
+            tag = Tag(tag=t)
+
+            # check if tag is already in db
+            if db.session.query(Tag).filter(Tag.tag == t).count():
+                tag = db.session.query(Tag).filter(Tag.tag == t).one()
+
+            # don't add duplicate event tag
+            if (
+                db.session.query(EventTag)
+                .filter(EventTag.tag == tag, EventTag.event == event)
+                .count()
+            ):
+                raise exc.RecordAlreadyExists("Tag already exists for event")
+
+            et = EventTag(tag=tag, event=event, creator_id=regular_user.id)
+            db.session.add(et)
+            event_tags.append(et)
+
+        db.session.commit()
+
+        return event_tags
+
+    return _gen_event_tags
+
+
+@pytest.fixture
+def event_location_type_factory(app, db, regular_user):
+    """Factory function for creating events location types in the db."""
+
+    def _gen_event_location_type(type="test type"):
+        el_type = None
+        # check if type is already in db
+        if (
+            db.session.query(EventLocationType)
+            .filter(EventLocationType.type == type)
+            .count()
+        ):
+            el_type = (
+                db.session.query(EventLocationType)
+                .filter(EventLocationType.type == type)
+                .one()
+            )
+        else:
+            el_type = EventLocationType(type=type)
+            db.session.add(el_type)
+            db.session.commit()
+
+        # Patch a web client for making authenticated requests onto the user
+        # user.client = app.test_client(username=username, password=password)
+
+        return el_type
+
+    return _gen_event_location_type
+
+
+@pytest.fixture
+def event_location_factory(app, db, regular_user, event_location_type_factory):
+    """Factory function for creating events in the db."""
+
+    def _gen_event_location(
+        name="place name",
+        geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}},
+    ):
+        place_id = str(uuid.uuid4())  # random primary key
+        description = name
+        types = [
+            event_location_type_factory(type="locality"),
+            event_location_type_factory(type="political"),
+        ]
+
+        lat = float(geometry["location"]["lat"])
+        lng = float(geometry["location"]["lng"])
+
+        el = EventLocation(
+            geohash=pgh.encode(lat, lng),
+            # For geodetic coordinates,
+            # X is longitude and Y is latitude
+            geo="SRID=4326;POINT ({0} {1})".format(lng, lat),
+            name=name,
+            description=description,
+            types=types,
+            lat=lat,
+            lng=lng,
+            place_id=place_id,
+            creator_id=regular_user.id,
+        )
+        db.session.add(el)
+
+        db.session.commit()
+
+        return el
+
+    return _gen_event_location
 
 
 @pytest.fixture

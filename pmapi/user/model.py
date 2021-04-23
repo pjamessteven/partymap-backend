@@ -2,11 +2,12 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask
 from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
-
+from flask_login import (
+    login_user,
+)
 from pmapi.extensions import db
 
 # from pmapi.favorite_events.model import favorites_association_table
-from pmapi.event.model import Event
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
 
@@ -22,7 +23,7 @@ class User(db.Model):
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    role = db.Column(db.Integer, nullable=False, default=ROLES["USER"])
+    role = db.Column(db.Integer, nullable=False, default=ROLES["UNPRIVILIGED_USER"])
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     # Username can be null before social user has chosen a username
     username = db.Column(db.String(80), unique=True, nullable=True)
@@ -64,13 +65,25 @@ class User(db.Model):
     def authenticate(cls, **kwargs):
         email = kwargs.get("email")
         password = kwargs.get("password")
+        remember = kwargs.get("remember", False)
+
         if not email or not password:
             raise exc.LoginRequired()
 
         user = cls.query.filter_by(email=email).first()
 
+        # don't allow pending or disabled accounts to login
+        if user.status == "disabled":
+            raise exc.UserDisabled()
+        elif user.status == "pending":
+            raise exc.UserPending()
+
         if not user or not check_password_hash(user.password, password):
             raise exc.LoginRequired()
+
+        # flask-login
+        login_user(user, remember=remember)
+
         return user
 
     def to_dict(self):
@@ -151,10 +164,11 @@ class User(db.Model):
         eiupvotesresults = db.engine.execute(eiupvotes)
         eidownvotesresults = db.engine.execute(eidownvotes)
 
-        total = ecupvotes.rowcount-ecdownvotes.rowcount+eiupvotes.rowcount-eidownvotes.rowcount
+        total = ecupvotes.rowcount-
+        ecdownvotes.rowcount+eiupvotes.rowcount-eidownvotes.rowcount
         return total
 
-        """
+"""
 
 
 class OAuth(OAuthConsumerMixin, db.Model):

@@ -58,13 +58,13 @@ def user_role_is_at_least(user, role):
     return user.role >= ROLES.get(role, None)
 
 
-class requires_dev_role(Permission):
-    """Developer user required"""
+class requires_host_user_role(Permission):
+    """Host required"""
 
     def can(self, **kwargs):
-        if current_user_role_is_at_least("DEVELOPER"):
+        if current_user_role_is_at_least("HOST"):
             return True
-        raise InvalidPermissions("DEVELOPER or higher role required")
+        raise InvalidPermissions("HOST or higher role required")
 
 
 # Permissions decorators / context managers

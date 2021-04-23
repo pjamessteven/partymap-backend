@@ -26,11 +26,60 @@ from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, W
 Activity = activity_plugin.activity_cls
 
 
+def add_event_date_with_datetime(event_id, dateTime, location, description, url):
+    # this function is used by the post eventdate endpoint
+    event = events.get_event_or_404(event_id)
+
+    if dateTime:
+        date = dateTime.get("date")
+
+        event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        event_start = event_start.replace(tzinfo=None)
+        event_end = None
+        all_day = True
+
+        if date.get("end", None):
+            print("has end")
+            event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            event_end = event_end.replace(tzinfo=None)
+
+        # event start time is specified
+        if dateTime.get("startHours", None):
+            print("start date triggered")
+            all_day = False
+            event_start = event_start.replace(hour=int(dateTime.get("startHours")))
+            if dateTime.get("startMinutes") is not None:
+                event_start = event_start.replace(
+                    minute=int(dateTime.get("startMinutes"))
+                )
+
+        # event end time is specified
+        if dateTime.get("endHours", None) and date.get("end", None):
+            print("end date triggered")
+            all_day = False
+            event_end = event_end.replace(hour=int(dateTime.get("endHours")))
+            if dateTime.get("endMinutes") is not None:
+                event_end = event_end.replace(minute=int(dateTime.get("endMinutes")))
+
+        return add_event_date(
+            event,
+            event_start,
+            end=event_end,
+            all_day=all_day,
+            location=location,
+            description=description,
+            url=url,
+        )
+
+    else:
+        raise exc.InvalidAPIRequest()
+
+
 def add_event_date(
     event,
     start,
-    end,
-    all_day,
+    end=None,
+    all_day=False,
     event_location=None,
     location=None,
     tz=None,
@@ -110,7 +159,7 @@ def update_event_date(id, **kwargs):
         event_end = None
         all_day = True
 
-        if date.get("end", None):
+        if dateTime.get("end", None):
             print("has end")
             event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -583,7 +632,7 @@ def get_event_date(id):
 
 
 def get_event_dates_for_event(event_id):
-    event = events.get_event_by_id_or_404(event_id)
+    event = events.get_event_or_404(event_id)
     return event.event_dates
 
 

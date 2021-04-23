@@ -9,15 +9,15 @@ import pmapi.event_location.controllers as event_locations
 from pmapi.common.controllers import paginated_results
 
 
-def get_event_by_id_or_404(id):
-    event = get_event_by_id(id)
+def get_event_or_404(id):
+    event = get_event(id)
     if not event:
         msg = "No such event with id {}".format(id)
         raise exc.RecordNotFound(msg)
     return event
 
 
-def get_event_by_id(id):
+def get_event(id):
     return Event.query.get(id)
 
 
@@ -76,7 +76,7 @@ def add_event(**kwargs):
 
 
 def update_event(event_id, **kwargs):
-    event = get_event_by_id_or_404(event_id)
+    event = get_event_or_404(event_id)
 
     rrule = kwargs.get("rrule")
     url = kwargs.get("url")
@@ -109,3 +109,9 @@ def update_event(event_id, **kwargs):
     db.session.commit()
 
     return event
+
+
+def delete_event(event_id):
+    event = get_event_or_404(event_id)
+    db.session.delete(event)
+    db.session.commit()

@@ -26,6 +26,7 @@ class TagsResource(MethodResource):
     )
     @marshal_with(TagListSchema(), code=200)
     def get(self, **kwargs):
+        print(kwargs)
         return event_tags.get_tags(**kwargs)
 
 

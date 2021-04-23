@@ -32,6 +32,7 @@ class EventLocation(db.Model):
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
     country_code = db.Column(db.String)
+    country = db.Column(db.String)
     city = db.Column(db.String)
     types = db.relationship(
         "EventLocationType",

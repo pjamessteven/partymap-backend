@@ -1,12 +1,5 @@
-from flask import Blueprint, Response, request, jsonify
-from flask_login import (
-    LoginManager,
-    UserMixin,
-    login_user,
-    logout_user,
-    current_user,
-    login_required,
-)
+from flask import Blueprint, jsonify
+
 from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
@@ -16,10 +9,7 @@ from marshmallow.validate import OneOf
 
 from pmapi.utils import ROLES
 from pmapi.common.controllers import paginated_view_args
-from pmapi.event.model import *
-from pmapi.user.model import User
 from pmapi.exceptions import InvalidUsage
-from pmapi.extensions import apidocs
 import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
 
@@ -63,7 +53,7 @@ class UsersResource(MethodResource):
     )
     @marshal_with(UserSchema(), code=200)
     def post(self, **kwargs):
-        return users.create_user(**kwargs)
+        return users.create_user_with_token(**kwargs)
 
 
 users_blueprint.add_url_rule("/", view_func=UsersResource.as_view("UsersResource"))
@@ -79,7 +69,8 @@ def user():
             # if 'email' in data:
             # user.email = data['email']
             if 'username' in data:
-                if db.session.query(User).filter(User.username == data['username']).count():
+                if db.session.query(User).filter(User.username ==
+                data['username']).count():
                     raise InvalidUsage(
                         message='username_already_registered', status_code=400)
                 else:
