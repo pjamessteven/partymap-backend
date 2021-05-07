@@ -14,10 +14,32 @@ def test_add_location(regular_user):
         "description": "test description",
         "place_id": "12345678",
         "types": ["restaurant", "cafe"],
+        "address_components": [
+            {
+                "long_name": "Barcelona",
+                "short_name": "Barcelona",
+                "types": ["locality", "political"],
+            },
+            {
+                "long_name": "Barcelona",
+                "short_name": "B",
+                "types": ["administrative_area_level_2", "political"],
+            },
+            {
+                "long_name": "Catalonia",
+                "short_name": "CT",
+                "types": ["administrative_area_level_1", "political"],
+            },
+            {
+                "long_name": "Spain",
+                "short_name": "ES",
+                "types": ["country", "political"],
+            },
+        ],
     }
 
     location = event_locations.add_new_event_location(
-        user=regular_user, **location_data
+        creator=regular_user, **location_data
     )
     # test get location while we're at it
     location = event_locations.get_location(location_data["place_id"])
@@ -30,6 +52,7 @@ def test_add_location(regular_user):
     assert location.city == "Wellington"
     assert location.country == "New Zealand"
     assert location.country_code == "NZ"
+    assert location.address_components == location_data["address_components"]
 
 
 def test_add_dupliacte_location(regular_user):
@@ -41,10 +64,10 @@ def test_add_dupliacte_location(regular_user):
         "types": ["restaurant", "cafe"],
     }
 
-    event_locations.add_new_event_location(user=regular_user, **location_data)
+    event_locations.add_new_event_location(creator=regular_user, **location_data)
 
     with pytest.raises(RecordAlreadyExists):
-        event_locations.add_new_event_location(user=regular_user, **location_data)
+        event_locations.add_new_event_location(creator=regular_user, **location_data)
 
 
 def test_add_event_location_types(regular_user, db):
@@ -56,7 +79,7 @@ def test_add_event_location_types(regular_user, db):
         "types": ["restaurant", "cafe"],
     }
 
-    event_locations.add_new_event_location(user=regular_user, **location_data)
+    event_locations.add_new_event_location(creator=regular_user, **location_data)
     location_types = db.session.query(EventLocationType).all()
     assert len(location_types) == len(location_data["types"])
     for t in location_types:
@@ -73,7 +96,7 @@ def test_add_multiple_of_same_location_types(regular_user, db):
     }
 
     event_location = event_locations.add_new_event_location(
-        user=regular_user, **location_data
+        creator=regular_user, **location_data
     )
     location_types = db.session.query(EventLocationType).all()
     # check event_location object has two types
@@ -92,9 +115,8 @@ def test_get_event_location_or_404(regular_user):
     }
 
     event_location = event_locations.add_new_event_location(
-        user=regular_user, **location_data
+        creator=regular_user, **location_data
     )
-    print()
     assert (
         event_location.place_id
         == event_locations.get_location_or_404(event_location.place_id).place_id

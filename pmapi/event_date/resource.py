@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint
 
 from marshmallow import fields
@@ -6,6 +7,7 @@ from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
+from flask_login import current_user
 from .schemas import EventDateSchema, EventDateListSchema
 from . import permissions as event_date_permissions
 import pmapi.event_date.controllers as event_dates
@@ -31,14 +33,19 @@ class DatesResource(MethodResource):
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
             "tags": fields.List(fields.Str(), required=False),
-            "location": fields.Dict(required=False),
-            "bounds": fields.Dict(required=False),
+            "location": fields.Str(),
+            "bounds": fields.Str(),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
     )
     @marshal_with(EventDateListSchema(), code=200)
     def get(self, **kwargs):
+        # get json from query string
+        if kwargs.get("location"):
+            kwargs["location"] = json.loads(kwargs["location"])
+        if kwargs.get("bounds"):
+            kwargs["bounds"] = json.loads(kwargs["bounds"])
         return event_dates.query_event_dates(**kwargs)
 
 
@@ -119,7 +126,7 @@ class EventDatesResource(MethodResource):
     @login_required
     @event_date_permissions.add
     def post(self, event_id, **kwargs):
-        return event_dates.add_event_date(event_id, **kwargs)
+        return event_dates.add_event_date(event_id, **kwargs, creator=current_user)
 
     @doc(
         summary="Get dates of an event.",

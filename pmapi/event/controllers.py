@@ -1,5 +1,4 @@
-from flask_login import current_user
-from .model import Event
+from .model import Event, Rrule
 from pmapi import exceptions as exc
 from pmapi.extensions import db
 import pmapi.event_tag.controllers as event_tags
@@ -41,21 +40,32 @@ def search_events(**kwargs):
 
 
 def add_event(**kwargs):
-
+    creator = kwargs.pop("creator", None)
     name = kwargs.pop("name")
     description = kwargs.pop("description")
     location = kwargs.pop("location")
     dateTime = kwargs.pop("dateTime")
-    rrule = kwargs.pop("rrule")
+    rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
     tags = kwargs.pop("tags", None)
     images = kwargs.pop("images", None)
 
-    event = Event(
-        name=name, creator_id=current_user.id, default_url=url, description=description
-    )
+    event = Event(name=name, creator=creator, default_url=url, description=description)
     db.session.add(event)
     db.session.flush()
+
+    if rrule:
+        rrule = Rrule(
+            event=event,
+            recurring_type=rrule["recurringType"],
+            separation_count=rrule["separationCount"],
+            day_of_week=rrule["dayOfWeek"],
+            week_of_month=rrule["weekOfMonth"],
+            day_of_year=rrule["dayOfYear"],
+            month_of_year=rrule["monthOfYear"],
+        )
+        db.session.add(rrule)
+        db.session.flush()
 
     if tags:
         event_tags.add_tags_to_event(tags, event)
@@ -64,9 +74,11 @@ def add_event(**kwargs):
         event_images.add_images_to_event(event, images)
 
     # LOCATION
-    event.event_location = event_locations.get_event_location(location["place_id"])
+    event.event_location = event_locations.get_location(location["place_id"])
     if event.event_location is None:
-        event.event_location = event_locations.add_new_event_location(**location)
+        event.event_location = event_locations.add_new_event_location(
+            creator, **location
+        )
 
     # DATES
     event_dates.generate_future_event_dates(event, dateTime, location, rrule, url)
@@ -95,6 +107,24 @@ def update_event(event_id, **kwargs):
     if rrule is not None and rrule is False:
         db.session.delete(event.rrule)
 
+    elif rrule:
+        # delete existing rrule if exists
+        if event.rrule:
+            db.session.delete(event.rrule)
+        rrule = (
+            Rrule(
+                event=event,
+                recurring_type=rrule["recurringType"],
+                separation_count=rrule["separationCount"],
+                day_of_week=rrule["dayOfWeek"],
+                week_of_month=rrule["weekOfMonth"],
+                day_of_year=rrule["dayOfYear"],
+                month_of_year=rrule["monthOfYear"],
+            ),
+        )
+        db.session.add(rrule)
+
+    # require these three fields to update
     if dateTime and location and rrule:
         return event_dates.generate_future_event_dates(
             event, dateTime, location, rrule, url

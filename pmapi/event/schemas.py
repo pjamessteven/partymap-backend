@@ -14,7 +14,7 @@ class EventSchema(Schema):
     tz = fields.Str()
     event_dates = fields.Nested("EventDateSchema", many=True)
     event_images = fields.Nested(EventImageSchema, many=True)
-    event_tags = fields.Nested("EventTagSchema")
+    event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
 
 

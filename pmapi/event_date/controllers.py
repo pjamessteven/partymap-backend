@@ -3,9 +3,9 @@ from pytz.exceptions import UnknownTimeZoneError
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask import jsonify
+from flask_login import current_user
 from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_
-from pytz import timezone, utc
 import reverse_geocode
 import pygeohash as pgh
 
@@ -26,49 +26,49 @@ from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, W
 Activity = activity_plugin.activity_cls
 
 
-def add_event_date_with_datetime(event_id, dateTime, location, description, url):
+def add_event_date_with_datetime(
+    event_id, dateTime, location, description=None, url=None, creator=None
+):
     # this function is used by the post eventdate endpoint
     event = events.get_event_or_404(event_id)
 
     if dateTime:
         date = dateTime.get("date")
 
-        event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        event_start = event_start.replace(tzinfo=None)
-        event_end = None
-        all_day = True
+        start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        start_naive = start.replace(tzinfo=None)
+        print("start naive", start_naive)
+        end = None
 
         if date.get("end", None):
-            print("has end")
-            event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            event_end = event_end.replace(tzinfo=None)
+            end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            end_naive = end.replace(tzinfo=None)
+            print("end naive", end_naive)
 
         # event start time is specified
         if dateTime.get("startHours", None):
-            print("start date triggered")
-            all_day = False
-            event_start = event_start.replace(hour=int(dateTime.get("startHours")))
+            start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
             if dateTime.get("startMinutes") is not None:
-                event_start = event_start.replace(
+                start_naive = start_naive.replace(
                     minute=int(dateTime.get("startMinutes"))
                 )
+            print("start hours", start)
 
         # event end time is specified
         if dateTime.get("endHours", None) and date.get("end", None):
-            print("end date triggered")
-            all_day = False
-            event_end = event_end.replace(hour=int(dateTime.get("endHours")))
+            end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
             if dateTime.get("endMinutes") is not None:
-                event_end = event_end.replace(minute=int(dateTime.get("endMinutes")))
+                end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+            print("end_hours", end)
 
         return add_event_date(
-            event,
-            event_start,
-            end=event_end,
-            all_day=all_day,
+            event=event,
+            start_naive=start_naive,
+            end_naive=end_naive,
             location=location,
             description=description,
             url=url,
+            creator=creator,
         )
 
     else:
@@ -76,56 +76,66 @@ def add_event_date_with_datetime(event_id, dateTime, location, description, url)
 
 
 def add_event_date(
+    start_naive,
     event,
-    start,
-    end=None,
-    all_day=False,
-    event_location=None,
-    location=None,
+    location=None,  # this parameter is used by direct api calls to this function
+    event_location=None,  # this parameter is only used by generate_event_dates
+    creator=None,
+    end_naive=None,
     tz=None,
     url=None,
     description=None,
-    **kwargs
 ):
     """accepts naive start and end dates and derives timezone from location
     if it not provided"""
 
-    location = kwargs.pop("location")
-
-    if "tz" in kwargs:
-        tz_obj = pytz.timezone(kwargs.pop("tz"))
+    if not event_location:
+        # get EventLocation from location object place_id
+        if not location:
+            raise exc.InvalidAPIRequest("Location required")
+        event_location = event_locations.get_location(location["place_id"])
+        if not event_location:
+            event_location = event_locations.add_new_event_location(
+                creator=creator, **location
+            )
+    if tz:
+        tz_obj = pytz.timezone(tz)
     else:
         tf = TimezoneFinder()
-        tz = tf.timezone_at(lng=location.lng, lat=location.lat)
+        tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
         tz_obj = pytz.timezone(tz)
 
-    event_location = event_locations.get_event_location(location.place_id)
-    if not event_location:
-        event_location = event_locations.add_new_event_location(**location)
-
-    start_localized = tz_obj.localize(kwargs.pop("start"))
-    start_localized = start_localized.astimezone(timezone.utc)
+    start_localized = tz_obj.localize(start_naive)
+    start_localized = start_localized.astimezone(pytz.utc)
     # strip tz info before adding to db. very important!
     start_localized = start_localized.replace(tzinfo=None)
     # check if there is an enddate
     end_localized = None
 
-    if end:
-        end_localized = end
-        end_localized = end_localized.astimezone(timezone.utc)
+    if end_naive:
+        end_localized = tz_obj.localize(end_naive)
+        end_localized = end_localized.astimezone(pytz.utc)
         end_localized = end_localized.replace(tzinfo=None)
-    ed = EventDate(
+
+        if end_naive < start_naive:
+            raise exc.InvalidAPIRequest("End date must be before start date")
+
+    print(start_localized)
+    event_date = EventDate(
         event=event,
-        event_start_naive=start,
-        event_end_naive=end,
-        event_end=end_localized,
-        event_start=start_localized,
-        all_day=all_day,
+        start_naive=start_naive,
+        end_naive=end_naive,
+        end=end_localized,
+        start=start_localized,
         tz=tz,
         location=event_location,
+        description=description,
         url=url,
+        creator=creator,
     )
-    db.session.add(ed)
+    db.session.add(event_date)
+    db.session.commit()
+    return event_date
 
 
 def update_event_date(id, **kwargs):
@@ -133,6 +143,98 @@ def update_event_date(id, **kwargs):
 
     dateTime = kwargs.get("dateTime", None)
     location = kwargs.get("location", None)
+
+    if "dateTime":
+        # location required for timezone info
+        if "location":
+            lat = location["geometry"]["location"]["lat"]
+            lng = location["geometry"]["location"]["lng"]
+        else:
+            lat = event_date.location.lat
+            lng = event_date.location.lng
+
+        date = dateTime.get("date")
+        start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        end = None
+
+        if date.get("end", None):
+            print("has end")
+            end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        # event start time is specified
+        if dateTime.get("startHours", None):
+            start = start.replace(hour=int(dateTime.get("startHours")))
+            if dateTime.get("startMinutes") is not None:
+                start = start.replace(minute=int(dateTime.get("startMinutes")))
+
+        # event end time is specified
+        if dateTime.get("endHours", None) is not None and end is not None:
+            end = end.replace(hour=int(dateTime.get("endHours")))
+            if dateTime.get("endMinutes") is not None:
+                end = end.replace(minute=int(dateTime.get("endMinutes")))
+        #
+        try:
+            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
+            tf = TimezoneFinder()
+            tz = tf.timezone_at(lng=lng, lat=lat)
+            tz_obj = pytz.timezone(tz)
+
+        except UnknownTimeZoneError:
+            print("TIMEZONE ERROR")
+            pass  # {handle error}
+
+        """
+        Date should be received as a naive date
+        ie. the local time where the event is happening with no tz info.
+        """
+        start = start.replace(tzinfo=None)
+        start_naive = start
+        start = tz_obj.localize(start)
+        start = start.astimezone(pytz.utc)
+        start = start.replace(tzinfo=None)
+        end_naive = None
+        if end is not None:
+            end = end.replace(tzinfo=None)
+            end_naive = end
+            end = tz_obj.localize(end)
+            end = end.astimezone(pytz.utc)
+            end = end.replace(tzinfo=None)
+
+            if end < start:
+                raise exc.InvalidAPIRequest("End date must be before start date")
+
+        event_date.start = start
+        event_date.end = end
+        event_date.start_naive = start_naive
+        event_date.end_naive = end_naive
+        event_date.tz = tz
+
+    if location:
+        lat = location["geometry"]["location"]["lat"]
+        lng = location["geometry"]["location"]["lng"]
+
+        try:
+            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
+            tf = TimezoneFinder()
+            tz = tf.timezone_at(lng=lng, lat=lat)
+            tz_obj = pytz.timezone(tz)
+
+        except UnknownTimeZoneError:
+            print("TIMEZONE ERROR")
+            pass  # {handle error}
+
+        if current_user.is_authenticated:
+            event_location_creator = current_user
+        else:
+            event_location_creator = None
+
+        event_location = event_locations.add_new_event_location(
+            event_location_creator, **location
+        )
+        event_date.location = event_location
+        event_date.tz = tz
+        # date settings not touched
+        # update location of all future eventdates
 
     if "cancelled" in kwargs:
         event_date.cancelled = kwargs.pop("cancelled")
@@ -143,133 +245,11 @@ def update_event_date(id, **kwargs):
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
 
-    if "dateTime":
-        # location required for timezone info
-        if "location":
-            lat = location["geometry"]["location"]["lat"]
-            lng = location["geometry"]["location"]["lng"]
-        else:
-            lat = event_date.location.lat
-            lng = event_date.location.lng
-        geocode = reverse_geocode.search([(lat, lng)])[0]
-
-        date = dateTime.get("date")
-        event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
-
-        event_end = None
-        all_day = True
-
-        if dateTime.get("end", None):
-            print("has end")
-            event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-
-        # event start time is specified
-        if dateTime.get("startHours", None):
-            print("start date triggered")
-            all_day = False
-            event_start = event_start.replace(hour=int(dateTime.get("startHours")))
-            if dateTime.get("startMinutes") is not None:
-                event_start = event_start.replace(
-                    minute=int(dateTime.get("startMinutes"))
-                )
-
-        # event end time is specified
-        if dateTime.get("endHours", None) is not None and event_end is not None:
-            print("end date triggered")
-            all_day = False
-            event_end = event_end.replace(hour=int(dateTime.get("endHours")))
-            if dateTime.get("endMinutes") is not None:
-                event_end = event_end.replace(minute=int(dateTime.get("endMinutes")))
-        #
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
-        """
-        Date should be received as a naive date
-        ie. the local time where the event is happening with no tz info.
-        """
-        event_start = event_start.replace(tzinfo=None)
-        event_start_naive = event_start
-        event_start = tz_obj.localize(event_start)
-        event_start = event_start.astimezone(utc)
-        event_start = event_start.replace(tzinfo=None)
-        event_end_naive = None
-        if event_end is not None:
-            event_end = event_end.replace(tzinfo=None)
-            event_end_naive = event_end
-            event_end = tz_obj.localize(event_end)
-            event_end = event_end.astimezone(utc)
-            event_end = event_end.replace(tzinfo=None)
-
-        event_date.event_start = event_start
-        event_date.event_end = event_end
-        event_date.event_start_naive = event_start_naive
-        event_date.event_end_naive = event_end_naive
-        event_date.all_day = all_day
-        event_date.tz = tz
-        print("start naive")
-        print(event_start_naive)
-        print("end naive")
-        print(event_end_naive)
-        print("start")
-        print(event_start)
-        print("end")
-        print(event_end)
-
-    if location:
-        lat = location["geometry"]["location"]["lat"]
-        lng = location["geometry"]["location"]["lng"]
-        location_name = location["name"]
-        location_description = location["description"]
-        location_types = location["types"]
-        location_place_id = location["place_id"]
-
-        geocode = reverse_geocode.search([(lat, lng)])[0]
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
-        location_type_objects = []
-        for t in location_types:
-            elt = EventLocationType(type=t)
-            db.session.merge(elt)
-            location_type_objects.append(elt)
-
-        location = EventLocation(
-            geohash=pgh.encode(lat, lng),
-            # For geodetic coordinates, X is longitude and Y is latitude
-            geo="SRID=4326;POINT ({0} {1})".format(lng, lat),
-            name=location_name,
-            description=location_description,
-            types=location_type_objects,
-            lat=lat,
-            lng=lng,
-            country_code=geocode["country_code"],
-            city=geocode["city"],
-            place_id=location_place_id,
-        )
-        location = db.session.merge(location)
-        event_date.location = location
-        event_date.tz = tz
-        # date settings not touched
-        # update location of all future eventdates
     db.session.flush()
-    activity = Activity(verb=u"update", object=event_date, target=event_date.event)
+    # had to abandon sqlalchemy-continuum because it requires big integer ID types
+    # activity = Activity(verb=u"update", object=event_date, target=event_date.event)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
-    db.session.add(activity)
+    # db.session.add(activity)
     db.session.commit()
 
     return event_date
@@ -279,178 +259,124 @@ def generate_future_event_dates(
     event, dateTime=None, location=None, rrule=None, url=None
 ):
 
-    if event:
-        print("if event")
-        if url:
-            event.default_url = url
-            print("if url")
+    if url:
+        event.default_url = url
 
-        else:
-            url = event.default_url
-            print("else url")
+    else:
+        url = event.default_url
 
-        if rrule:
-            print(rrule)
-            recurring_type = rrule.get("recurringType")
-            print(recurring_type)
-            separation_count = rrule.get("separationCount")
-            day_of_week = (
-                int(rrule.get("dayOfWeek"))
-                if rrule.get("dayOfWeek") is not None
-                else None
-            )
-            day_of_month = (
-                int(rrule.get("dayOfMonth"))
-                if rrule.get("dayOfMonth") is not None
-                else None
-            )
-            week_of_month = (
-                int(rrule.get("weekOfMonth"))
-                if rrule.get("weekOfMonth") is not None
-                else None
-            )
-            month_of_year = (
-                int(rrule.get("monthOfYear"))
-                if rrule.get("monthOfYear") is not None
-                else None
-            )
+    if rrule is None:
+        rrule = event.rrule
 
-            # update event rrule
-            if event.rrule:
-                db.session.delete(event.rrule)
-                db.session.commit()
+    if location:
+        event_location = event_locations.get_location(location["place_id"])
+        if event_location is None:
+            event_location = event_locations.add_new_event_location(**location)
 
-            rrule = Rrule(
-                event=event,
-                recurring_type=recurring_type,
-                separation_count=separation_count,
-                day_of_week=day_of_week,
-                day_of_month=day_of_month,
-                week_of_month=week_of_month,
-                month_of_year=month_of_year,
-            )
-            db.session.add(rrule)
-            db.session.flush()
-        else:
-            rrule = event.rrule
+    else:
+        event_location = event.default_location
 
-        if location:
-            event_location = event_locations.get_event_location(location["place_id"])
-            if event_location is None:
-                event_location = event_locations.add_new_event_location(**location)
+    if dateTime:
+        date = dateTime.get("date")
 
-        else:
-            event_location = event.last_event().location
+        start_naive = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        start_naive = start_naive.replace(tzinfo=None)
+        end_naive = None
 
-        if dateTime:
-            date = dateTime.get("date")
+        if date.get("end", None):
+            end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            end_naive = end_naive.replace(tzinfo=None)
 
-            event_start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            event_start = event_start.replace(tzinfo=None)
-            event_end = None
-            all_day = True
-
-            if date.get("end", None):
-                print("has end")
-                event_end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-                event_end = event_end.replace(tzinfo=None)
-
-            # event start time is specified
-            if dateTime.get("startHours", None):
-                print("start date triggered")
-                all_day = False
-                event_start = event_start.replace(hour=int(dateTime.get("startHours")))
-                if dateTime.get("startMinutes") is not None:
-                    event_start = event_start.replace(
-                        minute=int(dateTime.get("startMinutes"))
-                    )
-
-            # event end time is specified
-            if dateTime.get("endHours", None) and date.get("end", None):
-                print("end date triggered")
-                all_day = False
-                event_end = event_end.replace(hour=int(dateTime.get("endHours")))
-                if dateTime.get("endMinutes") is not None:
-                    event_end = event_end.replace(
-                        minute=int(dateTime.get("endMinutes"))
-                    )
-
-            # Find timezone info
-            try:
-                tf = TimezoneFinder()
-                tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
-
-            except UnknownTimeZoneError:
-                print("TIMEZONE ERROR")
-
-            # delete any event dates in the future
-            now = datetime.utcnow()
-            for ed in event.event_dates:
-                if ed.event_start > now:
-                    db.session.delete(ed)
-
-        else:
-            # if dateTime not provided,
-            # work something out to generate new event dates from
-            event_start = event.last_event().event_start_naive
-            event_end = event.last_event().event_end_naive
-
-            tz = event.last_event().tz
-
-        if separation_count != 0:
-            event.recurring = True
-            print(event_end)
-            startdates, enddates = generateRecurringDates(rrule, event_start, event_end)
-
-            # work out how many dates to generate
-            if dateTime:
-                limit = 10 - len(event.future_event_dates())
-                if event.last_event():
-                    print("last event", event.last_event())
-                    db.session.delete(event.last_event())
-            else:
-                limit = 10
-
-            # limit event dates to 10
-            # for start, end in zip(startdates[:10], enddates[:10]):
-            for index, startdate_naive in enumerate(startdates[:limit]):
-                enddate_naive = None
-                try:
-                    if enddates[index] is not None:
-                        enddate_naive = enddates[index]
-                except IndexError:
-                    print("no enddate")
-                add_event_date(
-                    event=event,
-                    start=startdate_naive,
-                    end=enddate_naive,
-                    location=event_location,
-                    all_day=all_day,
-                    tz=tz,
-                    url=url,
+        # event start time is specified
+        if dateTime.get("startHours", None):
+            start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
+            if dateTime.get("startMinutes") is not None:
+                start_naive = start_naive.replace(
+                    minute=int(dateTime.get("startMinutes"))
                 )
-        else:
-            # event is a one-off
-            event.recurring = False
+
+        # event end time is specified
+        if dateTime.get("endHours", None) and date.get("end", None):
+            end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
+            if dateTime.get("endMinutes") is not None:
+                end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+
+        # Find timezone info
+        try:
+            tf = TimezoneFinder()
+            tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
+
+        except UnknownTimeZoneError:
+            print("TIMEZONE ERROR")
+
+        # delete any event dates in the future
+        # because the new recurring profile overrides all old dates
+        now = datetime.utcnow()
+        for ed in event.event_dates:
+            if ed.start > now:
+                db.session.delete(ed)
+
+    else:
+        # if dateTime not provided,
+        # work something out to generate new event dates from
+        start_naive = event.last_event().start_naive
+        end_naive = event.last_event().end_naive
+
+        tz = event.last_event().tz
+
+    if rrule.separation_count == 0 or rrule is None:
+        # event is a one-off
+        event.recurring = False
+        add_event_date(
+            event=event,
+            start_naive=start_naive,
+            end_naive=end_naive,
+            event_location=event_location,
+            tz=tz,
+            url=url,
+        )
+
+    else:
+        # event is recurring
+        event.recurring = True
+        startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
+
+        # work out how many dates to generate
+        limit = 10 - len(event.future_event_dates())
+        # if event.last_event():
+        # db.session.delete(event.last_event())
+
+        print("limit", limit)
+        print("startdates", startdates)
+
+        # generate new event dates
+        # limit event dates to 10
+        # for start, end in zip(startdates[:10], enddates[:10]):
+        for index, start_naive in enumerate(startdates[:limit]):
+            end_naive = None
+            try:
+                if enddates[index] is not None:
+                    end_naive = enddates[index]
+            except IndexError:
+                print("no enddate")
+
             add_event_date(
                 event=event,
-                start=event_start,
-                end=event_end,
-                location=event_location,
-                all_day=all_day,
+                start_naive=start_naive,
+                end_naive=end_naive,
+                event_location=event_location,
                 tz=tz,
                 url=url,
             )
 
-        db.session.commit()
-        return jsonify(event.to_dict()), 201
-
-    else:
-        print("failed - no event")
-        return
+    db.session.commit()
+    return event
 
 
-def generateRecurringDates(rp, event_start, event_end):
+# used by events.add_event and events.update_event functions
+# to generate a series of dates for an event
+# ( should become an automated task in the future )
+def generateRecurringDates(rp, start, end=None):
 
     days = [MO, TU, WE, TH, FR, SA, SU]
 
@@ -470,145 +396,135 @@ def generateRecurringDates(rp, event_start, event_end):
     startdates = []
     enddates = []
 
-    print(rp.to_dict())
+    two_years_away = start.replace(year=start.year + 2)
+    ten_years_away = start.replace(year=start.year + 10)
 
-    two_years_away = event_start.replace(year=event_start.year + 2)
-    ten_years_away = event_start.replace(year=event_start.year + 10)
+    start_weekday = start.weekday()
+    start_day = start.day
+    start_month = start.month
+    start_week_of_month = getWeekInMonth(start)
 
-    start_weekday = event_start.weekday()
-    end_weekday = event_end.weekday()
-
-    start_day = event_start.day
-    end_day = event_end.day
-
-    start_month = event_start.month
-    end_month = event_end.month
-
-    start_week_of_month = getWeekInMonth(event_start)
-    end_week_of_month = getWeekInMonth(event_end)
+    end_weekday = None
+    end_day = None
+    end_month = None
+    end_week_of_month = None
+    if end:
+        end_weekday = end.weekday()
+        end_day = end.day
+        end_month = end.month
+        end_week_of_month = getWeekInMonth(end)
 
     if rp.recurring_type == 2:
         if rp.week_of_month:
-            print("recurring monthly event")
-            print(days[rp.day_of_week])
-            print(event_start)
             startdates = list(
                 rrule(
                     MONTHLY,
                     interval=rp.separation_count,
                     byweekday=days[start_weekday](start_week_of_month),
-                    dtstart=event_start,
+                    dtstart=start,
                     until=ten_years_away,
                 )
             )
 
-            if event_end:
+            if end:
                 enddates = list(
                     rrule(
                         MONTHLY,
                         interval=rp.separation_count,
                         byweekday=days[end_weekday](end_week_of_month),
-                        dtstart=event_end,
+                        dtstart=end,
                         until=ten_years_away,
                     )
                 )
         else:
-            print("absolute monthly event")
             startdates = list(
                 rrule(
                     MONTHLY,
                     interval=rp.separation_count,
                     bymonthday=start_day,
-                    dtstart=event_start,
+                    dtstart=start,
                     until=ten_years_away,
                 )
             )
 
-            if event_end:
+            if end:
                 enddates = list(
                     rrule(
                         MONTHLY,
                         interval=rp.separation_count,
                         bymonthday=end_day,
-                        dtstart=event_end,
+                        dtstart=end,
                         until=ten_years_away,
                     )
                 )
 
     elif rp.recurring_type == 3:
         if rp.week_of_month:
-            print("recurring yearly event")
             startdates = list(
                 rrule(
                     YEARLY,
                     interval=rp.separation_count,
                     bymonth=start_month,
                     byweekday=days[start_weekday](start_week_of_month),
-                    dtstart=event_start,
+                    dtstart=start,
                     until=ten_years_away,
                 )
             )
 
-            if event_end:
+            if end:
                 enddates = list(
                     rrule(
                         YEARLY,
                         interval=rp.separation_count,
                         bymonth=end_month,
                         byweekday=days[end_weekday](end_week_of_month),
-                        dtstart=event_end,
+                        dtstart=end,
                         until=ten_years_away,
                     )
                 )
         else:
-            print("absolute yearly event")
             startdates = list(
                 rrule(
                     YEARLY,
                     interval=rp.separation_count,
                     bymonth=start_month,
                     bymonthday=start_day,
-                    dtstart=event_start,
+                    dtstart=start,
                     until=ten_years_away,
                 )
             )
-            if event_end:
+            if end:
                 enddates = list(
                     rrule(
                         YEARLY,
                         interval=rp.separation_count,
                         bymonth=end_month,
                         bymonthday=end_day,
-                        dtstart=event_end,
+                        dtstart=end,
                         until=ten_years_away,
                     )
                 )
 
     elif rp.recurring_type == 1:
-        print("recurring weekly event")
         startdates = list(
             rrule(
                 freq=WEEKLY,
                 interval=rp.separation_count,
                 byweekday=start_weekday,
-                dtstart=event_start,
+                dtstart=start,
                 until=two_years_away,
             )
         )
-        if event_end:
+        if end:
             enddates = list(
                 rrule(
                     freq=WEEKLY,
                     interval=rp.separation_count,
                     byweekday=end_weekday,
-                    dtstart=event_end,
+                    dtstart=end,
                     until=two_years_away,
                 )
             )
-
-    print("recurring dates:")
-    print(startdates)
-    print(enddates)
 
     return startdates, enddates
 
@@ -641,12 +557,13 @@ def query_event_dates(**kwargs):
     # for nearby search
     lat = None
     lng = None
+    print(kwargs)
 
     if "location" in kwargs and kwargs.get("location"):
         location = kwargs.pop("location")
         print(location, "test loc")
         lat = location["lat"]
-        lng = location["lng"]
+        lng = location["lon"]
         if lat is None or lng is None:
             raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
 
@@ -672,16 +589,16 @@ def query_event_dates(**kwargs):
     query = query.filter(EventDate.cancelled is not True)
 
     if "date_min" in kwargs:
-        query = query.filter(EventDate.event_start_naive >= kwargs.pop("date_min"))
+        query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
     if "date_max" in kwargs:
         date_max = kwargs.pop("date_max")
         query = query.filter(
             and_(
                 or_(
-                    EventDate.event_end_naive <= date_max,
-                    EventDate.event_end_naive.is_(None),
+                    EventDate.end_naive <= date_max,
+                    EventDate.end_naive.is_(None),
                 ),
-                EventDate.event_start_naive <= date_max,
+                EventDate.start_naive <= date_max,
             )
         )
 
@@ -692,6 +609,7 @@ def query_event_dates(**kwargs):
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
     if "bounds" in kwargs and "location" not in kwargs:
+        print("bounds")
         # bounds search is to return event dates that are in current view
         # on the map
         query = query.join(EventLocation)
@@ -706,7 +624,6 @@ def query_event_dates(**kwargs):
                 EventLocation.lng > southWest["lng"],
             )
         )
-
     if lat and lng:
         # nearby search
         radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]

@@ -5,6 +5,7 @@ from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
+from flask_login import current_user
 from . import controllers as events
 from . import permissions as event_permissions
 from pmapi.exceptions import InvalidUsage
@@ -44,7 +45,7 @@ class EventsResource(MethodResource):
     @event_permissions.add
     @use_kwargs(
         {
-            "dateTime": fields.String(required=True),
+            "dateTime": fields.Dict(required=True),
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
             "name": fields.String(required=True),
@@ -56,7 +57,7 @@ class EventsResource(MethodResource):
     )
     @marshal_with(EventSchema(), code=200)
     def post(self, **kwargs):
-        return events.add_event(**kwargs)
+        return events.add_event(**kwargs, creator=current_user)
 
 
 events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
@@ -64,6 +65,11 @@ events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResou
 
 @doc(tags=["events"])
 class EventResource(MethodResource):
+    @doc(summary="Get an event", description="Update an event")
+    @marshal_with(EventSchema(), code=200)
+    def get(self, event_id, **kwargs):
+        return events.get_event_or_404(event_id)
+
     @doc(summary="Update an event", description="Update an event")
     @login_required
     @event_permissions.update

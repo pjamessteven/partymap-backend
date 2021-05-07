@@ -93,11 +93,11 @@ def register_blueprints(app):
 
     # app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
     app.register_blueprint(auth_blueprint, url_prefix="/api/auth")
-    app.register_blueprint(event_tags_blueprint, url_prefix="/api/tags")
-    app.register_blueprint(event_dates_blueprint, url_prefix="/api/dates")
+    app.register_blueprint(event_tags_blueprint, url_prefix="/api/tag")
+    app.register_blueprint(event_dates_blueprint, url_prefix="/api/date")
     app.register_blueprint(events_blueprint, url_prefix="/api/event")
-    app.register_blueprint(locations_blueprint, url_prefix="/api/locations")
-    app.register_blueprint(users_blueprint, url_prefix="/api/users")
+    app.register_blueprint(locations_blueprint, url_prefix="/api/location")
+    app.register_blueprint(users_blueprint, url_prefix="/api/user")
     # app.register_blueprint(event_contribution_blueprint,
     # url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")

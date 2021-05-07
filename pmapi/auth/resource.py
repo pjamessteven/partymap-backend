@@ -23,7 +23,7 @@ def load_user(user_id):
     print(user_id)
     try:
         return User.query.get(user_id)
-    except exc:
+    except exc.RecordNotFound:
         return None
 
 

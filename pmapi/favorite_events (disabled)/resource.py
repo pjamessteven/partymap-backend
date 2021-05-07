@@ -34,7 +34,7 @@ def fetch_favorites():
     if not current_user.is_authenticated:
         return jsonify({ 'message': 'Not authenticated', }), 401
     favorites = Event.query.join(favorites_association_table).join(EventDate).filter((favorites_association_table.c.user == current_user.id))
-    favorites = favorites.order_by(EventDate.event_start).all()
+    favorites = favorites.order_by(EventDate.start).all()
     return jsonify ([e.next_event().minified() for e in favorites]), 201
 
 #toggle whether or not this event is faved by current user

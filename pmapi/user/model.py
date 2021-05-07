@@ -126,7 +126,7 @@ class User(db.Model):
         )
         rs = db.engine.execute(select).fetchall()
         events = []
-        events.sort(key=lambda x: x.event_start, reverse=True)
+        events.sort(key=lambda x: x.start, reverse=True)
         for r in rs:
             events.append(Event.query.get(r[1]))
         return events

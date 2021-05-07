@@ -1,6 +1,7 @@
 from datetime import datetime
 from geoalchemy2.types import Geometry
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB
 
 from pmapi.extensions import db
 
@@ -39,7 +40,7 @@ class EventLocation(db.Model):
         secondary="event_location_type_association",
         back_populates="event_locations",
     )
-
+    address_components = db.Column(JSONB)
     event = db.relationship("Event", back_populates="default_location")
     # event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
 
@@ -98,7 +99,7 @@ class EventLocation(db.Model):
 
     def next_event_at_location(self):
         now = datetime.utcnow()
-        eventdate = min(self.event_dates, key=lambda x: abs(x.event_start - now))
+        eventdate = min(self.event_dates, key=lambda x: abs(x.start - now))
         return eventdate.to_dict()
 
 

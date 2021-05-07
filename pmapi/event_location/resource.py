@@ -44,6 +44,23 @@ locations_blueprint.add_url_rule(
 
 
 @doc(tags=["locations"])
+class LocationResource(MethodResource):
+    @doc(
+        summary="Get location information, including upcoming events.",
+        description="Returns information about a specific place_id.",
+        params={"place_id": {"description": "place_id of location"}},
+    )
+    @marshal_with(LocationSchema(), code=200)
+    def get(self, place_id):
+        return event_locations.get_location_or_404(place_id)
+
+
+locations_blueprint.add_url_rule(
+    "/<place_id>", view_func=LocationResource.as_view("LocationResource")
+)
+
+
+@doc(tags=["locations"])
 class PointsResource(MethodResource):
     @doc(
         summary="Get all event location points",
@@ -70,21 +87,4 @@ class PointsResource(MethodResource):
 
 locations_blueprint.add_url_rule(
     "/points/", view_func=PointsResource.as_view("PointsResource")
-)
-
-
-@doc(tags=["locations"])
-class LocationResource(MethodResource):
-    @doc(
-        summary="Get location information, including upcoming events.",
-        description="Returns information about a specific place_id.",
-        params={"place_id": {"description": "place_id of location"}},
-    )
-    @marshal_with(LocationSchema(), code=200)
-    def get(self, place_id):
-        return event_locations.get_location_or_404(place_id)
-
-
-locations_blueprint.add_url_rule(
-    "/<place_id>", view_func=LocationResource.as_view("LocationResource")
 )

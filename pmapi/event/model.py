@@ -121,29 +121,26 @@ class Event(db.Model):
 
     def next_event(self):
         now = datetime.utcnow()
-        future_eventdates = [i for i in self.event_dates if i.event_start > now]
+        future_eventdates = [i for i in self.event_dates if i.start > now]
         if len(future_eventdates) > 0:
-            return min(future_eventdates, key=lambda x: abs(x.event_start - now))
+            return min(future_eventdates, key=lambda x: abs(x.start - now))
         else:
             return None
 
     def last_event(self):
         now = datetime.utcnow()
-        future_eventdates = [i for i in self.event_dates if i.event_start > now]
+        future_eventdates = [i for i in self.event_dates if i.start > now]
         if len(future_eventdates) > 0:
-            return max(future_eventdates, key=lambda x: abs(x.event_start - now))
+            return max(future_eventdates, key=lambda x: abs(x.start - now))
         else:
             return None
 
     def future_event_dates(self):
         now = datetime.utcnow()
-        eds = (
-            db.session.query(EventDate)
-            .filter(and_(EventDate.event_start >= now, EventDate.event_id == self.id))
-            .order_by(EventDate.event_start.asc())
-            .all()
-        )
-        return eds
+        eds = db.session.query(EventDate)
+        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.order_by(EventDate.start.asc())
+        return eds.all()
 
     """
     def favorite(self, user_id):
@@ -212,8 +209,8 @@ class Rrule(db.Model):
     event = db.relationship("Event", back_populates="rrule")
     # recurring_type 0=daily(not a thing), 1=weekly, 2=monthly, 3=annually
     recurring_type = db.Column(db.Integer, nullable=False)
-    # if separation_count is 1, there is one interval skipped,
-    # if 2, two intervals skipped etc.
+    # if separation_count is 1, there is one interval,
+    # if 2, two intervals (every two weeks) etc.
     separation_count = db.Column(db.Integer, nullable=True)
     day_of_week = db.Column(db.Integer, nullable=True)
     # 1st, 2nd, 3rd, 4th and 10 is last

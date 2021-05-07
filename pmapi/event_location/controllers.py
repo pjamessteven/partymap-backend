@@ -1,6 +1,5 @@
 import reverse_geocode
 import pygeohash as pgh
-from flask_login import current_user
 from pmapi.event_location.model import EventLocation, EventLocationType
 from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
@@ -10,19 +9,21 @@ from pmapi.common.controllers import paginated_results
 from pmapi import exceptions as exc
 
 
-def add_new_event_location(user=current_user, **kwargs):
+def add_new_event_location(creator=None, **kwargs):
 
     geometry = kwargs.get("geometry")
     name = kwargs.get("name")
     description = kwargs.get("description")
     place_id = kwargs.get("place_id")
     types = kwargs.get("types")
+    address_components = kwargs.get("address_components")
 
     lat = float(geometry["location"]["lat"])
     lng = float(geometry["location"]["lng"])
 
+    # return location if it already exists
     if get_location(place_id) is not None:
-        raise exc.RecordAlreadyExists()
+        return get_location(place_id)
 
     geocode = reverse_geocode.search([(lat, lng)])[0]
 
@@ -59,9 +60,9 @@ def add_new_event_location(user=current_user, **kwargs):
         country_code=geocode["country_code"],
         city=geocode["city"],
         place_id=place_id,
-        creator_id=user.id,
+        creator=creator,
+        address_components=address_components,
     )
-    # merging - is this ok?
     db.session.add(location)
     db.session.commit()
     return location
@@ -81,23 +82,26 @@ def get_location(place_id):
 
 def get_all_locations(**kwargs):
 
-    query = (
-        db.session.query(EventLocation).join(EventDate).distinct()
-    )  # fixes issues related to pagination
+    query = db.session.query(EventLocation)
 
-    if "date_min" in kwargs:
-        query = query.filter(EventDate.event_start_naive >= kwargs.pop("date_min"))
-    if "date_max" in kwargs:
-        date_max = kwargs.pop("date_max")
-        query = query.filter(
-            EventDate.event_start_naive <= date_max,
-        )
+    if "date_min" in kwargs or "date_max" in kwargs or "tags" in kwargs:
+        query = (
+            db.session.query(EventLocation).join(EventDate).distinct()
+        )  # fixes issues related to pagination
 
-    if "tags" in kwargs:
-        tags = kwargs.pop("tags")
-        query = query.join(Event)
-        for tag in tags:
-            query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
+        if "date_min" in kwargs:
+            query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
+        if "date_max" in kwargs:
+            date_max = kwargs.pop("date_max")
+            query = query.filter(
+                EventDate.start_naive <= date_max,
+            )
+        if "tags" in kwargs:
+            tags = kwargs.pop("tags")
+            query = query.join(Event)
+            for tag in tags:
+                query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
+
     return query
 
 

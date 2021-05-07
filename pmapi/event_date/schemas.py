@@ -10,14 +10,13 @@ class EventDateSchema(Schema):
     id = fields.UUID()
     event_id = fields.UUID()
     name = fields.Str(attribute="event.name")
-    start = fields.Str(attribute="event_start")
-    end = fields.Str(attribute="event_end")
-    start_naive = fields.Str(attribute="event_start_naive")
-    end_naive = fields.Str(attribute="event_end_naive")
+    start = fields.Str(attribute="start")
+    end = fields.Str(attribute="end")
+    start_naive = fields.Str(attribute="start_naive")
+    end_naive = fields.Str(attribute="end_naive")
     tz = fields.Str()
-    tags = fields.Nested(EventTagSchema, many=True)
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
-    # event = fields.Nested(EventSchema, exclude=["event_dates"])
+    event = fields.Nested("EventSchema", only=["event_tags"])
 
 
 class EventDateListSchema(PaginatedSchema):

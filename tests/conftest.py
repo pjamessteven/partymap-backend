@@ -1,7 +1,7 @@
 from pmapi.application import create_app
 from pmapi.extensions import db as _db
 from pmapi.user.model import User
-from pmapi.event.model import Event
+from pmapi.event.model import Event, Rrule
 from pmapi.event_location.model import EventLocation, EventLocationType
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import Tag, EventTag
@@ -9,7 +9,7 @@ from pmapi.config import BaseConfig
 from pmapi.extensions import mail
 import pmapi.exceptions as exc
 import pygeohash as pgh
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import AnonymousUserMixin
 import pytest
 import uuid
@@ -124,12 +124,12 @@ def complete_event_factory(
     def _gen_event(
         name="test event",
         tags=["test1", "test2"],
-        start=datetime(year=2006, month=1, day=1),
+        start=datetime.now() + timedelta(days=1),
         end=None,
         geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}},
     ):
-        event = event_factory(name=name)
         event_location = event_location_factory(geometry=geometry)
+        event = event_factory(name=name, location=event_location)
         event_tag_factory(tags=tags, event=event)
         event_date_factory(start, end, event, event_location)
 
@@ -142,12 +142,13 @@ def complete_event_factory(
 def event_factory(app, db, regular_user, user_factory):
     """Factory function for creating events in the db."""
 
-    def _gen_event(name="test event"):
+    def _gen_event(name="test event", location=None):
         event = Event(
             name=name,
             creator_id=regular_user.id,
             default_url="test.com",
             description="test event",
+            default_location=location,
         )
 
         db.session.add(event)
@@ -166,7 +167,7 @@ def event_date_factory(app, db, regular_user, event_factory, event_location_fact
     """Factory function for creating events in the db."""
 
     def _gen_event_date(
-        start=datetime(year=2006, month=1, day=1),
+        start=datetime.now() + timedelta(days=1),
         end=None,
         event=None,
         event_location=None,
@@ -179,11 +180,10 @@ def event_date_factory(app, db, regular_user, event_factory, event_location_fact
 
         ed = EventDate(
             event_id=event.id,
-            event_start_naive=start,
-            event_end_naive=end,
-            event_end=end,
-            event_start=start,
-            all_day=False,
+            start_naive=start,
+            end_naive=end,
+            end=end,
+            start=start,
             tz="Pacific/Auckland",
             location_id=event_location.place_id,
             url="https://test.com",
@@ -197,6 +197,33 @@ def event_date_factory(app, db, regular_user, event_factory, event_location_fact
         return ed
 
     return _gen_event_date
+
+
+@pytest.fixture
+def rrule_factory(app, db, regular_user):
+    """Factory function for creating events in the db."""
+
+    def _gen_rrule(
+        event,
+        rrule={  # every month on the 1st day
+            "recurring_type": 2,
+            "separation_count": 1,
+            "day_of_week": 4,
+            "week_of_month": None,
+            "day_of_month": 1,
+            "month_of_year": 5,
+        },
+    ):
+        rrule = Rrule(event=event, **rrule)
+        db.session.add(rrule)
+        db.session.commit()
+
+        # Patch a web client for making authenticated requests onto the user
+        # user.client = app.test_client(username=username, password=password)
+
+        return rrule
+
+    return _gen_rrule
 
 
 @pytest.fixture
