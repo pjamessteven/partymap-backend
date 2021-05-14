@@ -88,8 +88,8 @@ def get_all_locations(**kwargs):
         query = (
             db.session.query(EventLocation).join(EventDate).distinct()
         )  # fixes issues related to pagination
-
         if "date_min" in kwargs:
+            print("datemin", kwargs["date_min"])
             query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
         if "date_max" in kwargs:
             date_max = kwargs.pop("date_max")
@@ -101,7 +101,6 @@ def get_all_locations(**kwargs):
             query = query.join(Event)
             for tag in tags:
                 query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
-
     return query
 
 

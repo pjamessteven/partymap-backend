@@ -58,10 +58,7 @@ event_dates_blueprint.add_url_rule(
 class DateResource(MethodResource):
     @doc(
         summary="Get an event date.",
-        description="""Returns a list of event dates that are in the db. \n
-        ### Usage:  \n
-        Start and end date format must be in ISO-8601 format.
-        eg: 2020-05-23T05:00:00",
+        description="""Returns an event date \n
         """,
         params={"id": {"description": "event date ID"}},
     )
@@ -126,7 +123,9 @@ class EventDatesResource(MethodResource):
     @login_required
     @event_date_permissions.add
     def post(self, event_id, **kwargs):
-        return event_dates.add_event_date(event_id, **kwargs, creator=current_user)
+        return event_dates.add_event_date_with_datetime(
+            event_id, **kwargs, creator=current_user
+        )
 
     @doc(
         summary="Get dates of an event.",

@@ -35,6 +35,7 @@ class Event(db.Model):
     creator = db.relationship(
         "User", back_populates="created_events", foreign_keys=[creator_id]
     )
+    deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
@@ -127,7 +128,15 @@ class Event(db.Model):
         else:
             return None
 
-    def last_event(self):
+    def last_event_date(self):
+        # returns the last event_date on the time line (could be in the past)
+        eds = db.session.query(EventDate)
+        eds = eds.filter(EventDate.event_id == self.id)
+        eds = eds.order_by(EventDate.start.desc())
+        return eds.first()
+
+    def last_future_event_date(self):
+        # returns the last event_date on the time line (only if it's in the future)
         now = datetime.utcnow()
         future_eventdates = [i for i in self.event_dates if i.start > now]
         if len(future_eventdates) > 0:

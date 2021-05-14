@@ -71,7 +71,6 @@ class User(db.Model):
             raise exc.LoginRequired()
 
         user = cls.query.filter_by(email=email).first()
-
         # don't allow pending or disabled accounts to login
         if user.status == "disabled":
             raise exc.UserDisabled()

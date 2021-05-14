@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import query_expression
 import uuid
 
 from pmapi.extensions import db
@@ -25,6 +26,7 @@ class EventDate(db.Model):
     # info can change for each event
     location_id = db.Column(db.String, db.ForeignKey("event_locations.place_id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
+    distance = query_expression()
     # artists = db.relationship('EventArtist', back_populates="event_date")
     # contributions = db.relationship('EventContribution', back_populates="event_date")
     description = db.Column(db.Text)

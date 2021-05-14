@@ -41,8 +41,10 @@ class LoginResource(MethodResource):
     )
     @marshal_with(UserSchema(), code=200)
     def post(self, **kwargs):
-        print(kwargs)
-        return User.authenticate(**kwargs)
+        print("login", kwargs)
+        auth = User.authenticate(**kwargs)
+        print("auth", auth)
+        return auth
 
     @doc(
         summary="Get current user info.",

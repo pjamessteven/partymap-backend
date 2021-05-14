@@ -10,25 +10,32 @@ from pmapi.common.controllers import paginated_results
 
 def get_event_or_404(id):
     event = get_event(id)
-    if not event:
+    if not event or event.deleted:
         msg = "No such event with id {}".format(id)
         raise exc.RecordNotFound(msg)
     return event
 
 
 def get_event(id):
-    return Event.query.get(id)
+    event = Event.query.get(str(id))  # uuid to string
+    if event and not event.deleted:
+        return event
+    else:
+        return None
 
 
 def search_events(**kwargs):
     query = db.session.query(Event)
 
+    # filter out deleted events
+    query = query.filter(Event.deleted is not True)
+
     if "query" in kwargs:
-        query = kwargs.pop("query")
+        query_string = kwargs.pop("query")
         query_text = ""
-        for word in query.split():
+        for word in query_string.split():
             # this is to formulate a query string like 'twisted:* frequncey:*'
-            if word == query.split()[-1]:
+            if word == query_string.split()[-1]:
                 query_text = query_text + (str(word) + str(":*"))
             else:
                 query_text = query_text + (str(word) + str(":* & "))
@@ -36,6 +43,7 @@ def search_events(**kwargs):
         query = query.filter(
             Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
         )
+
     return paginated_results(Event, query, **kwargs)
 
 
@@ -61,8 +69,8 @@ def add_event(**kwargs):
             separation_count=rrule["separationCount"],
             day_of_week=rrule["dayOfWeek"],
             week_of_month=rrule["weekOfMonth"],
-            day_of_year=rrule["dayOfYear"],
             month_of_year=rrule["monthOfYear"],
+            day_of_month=rrule["dayOfMonth"],
         )
         db.session.add(rrule)
         db.session.flush()
@@ -71,25 +79,25 @@ def add_event(**kwargs):
         event_tags.add_tags_to_event(tags, event)
 
     if images:
-        event_images.add_images_to_event(event, images)
+        event_images.add_images_to_event(event, images, creator)
 
     # LOCATION
-    event.event_location = event_locations.get_location(location["place_id"])
-    if event.event_location is None:
-        event.event_location = event_locations.add_new_event_location(
+    event.default_location = event_locations.get_location(location["place_id"])
+    if event.default_location is None:
+        event.default_location = event_locations.add_new_event_location(
             creator, **location
         )
 
     # DATES
-    event_dates.generate_future_event_dates(event, dateTime, location, rrule, url)
+    event_dates.generate_future_event_dates(
+        event, dateTime, event.default_location, rrule, url
+    )
 
     db.session.commit()
     return event
 
 
 def update_event(event_id, **kwargs):
-    event = get_event_or_404(event_id)
-
     rrule = kwargs.get("rrule")
     url = kwargs.get("url")
     location = kwargs.get("location")
@@ -97,6 +105,11 @@ def update_event(event_id, **kwargs):
     description = kwargs.get("description")
     tags = kwargs.get("tags")
     images = kwargs.get("images")
+
+    event = get_event_or_404(event_id)
+
+    if url:
+        event.default_url = url
 
     if description:
         event.description = description
@@ -107,27 +120,32 @@ def update_event(event_id, **kwargs):
     if rrule is not None and rrule is False:
         db.session.delete(event.rrule)
 
-    elif rrule:
+    # require these three fields to update
+    if dateTime and location and rrule:
         # delete existing rrule if exists
         if event.rrule:
             db.session.delete(event.rrule)
-        rrule = (
-            Rrule(
-                event=event,
-                recurring_type=rrule["recurringType"],
-                separation_count=rrule["separationCount"],
-                day_of_week=rrule["dayOfWeek"],
-                week_of_month=rrule["weekOfMonth"],
-                day_of_year=rrule["dayOfYear"],
-                month_of_year=rrule["monthOfYear"],
-            ),
+            db.session.flush()
+
+        rrule = Rrule(
+            event=event,
+            recurring_type=rrule["recurringType"],
+            separation_count=rrule["separationCount"],
+            day_of_week=rrule["dayOfWeek"],
+            week_of_month=rrule["weekOfMonth"],
+            day_of_month=rrule["dayOfMonth"],
+            month_of_year=rrule["monthOfYear"],
         )
         db.session.add(rrule)
 
-    # require these three fields to update
-    if dateTime and location and rrule:
+        # location
+        event_location = event_locations.get_location(location["place_id"])
+        if event_location is None:
+            event_location = event_locations.add_new_event_location(**location)
+        event.default_location = event_location
+
         return event_dates.generate_future_event_dates(
-            event, dateTime, location, rrule, url
+            event, dateTime, event_location, rrule, url
         )
 
     if tags:
@@ -143,5 +161,5 @@ def update_event(event_id, **kwargs):
 
 def delete_event(event_id):
     event = get_event_or_404(event_id)
-    db.session.delete(event)
+    event.deleted = True
     db.session.commit()

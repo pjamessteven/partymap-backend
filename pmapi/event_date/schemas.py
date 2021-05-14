@@ -1,7 +1,6 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
-from pmapi.event_tag.schemas import EventTagSchema
 
 # from pmapi.event.schemas import EventSchema
 
@@ -17,6 +16,11 @@ class EventDateSchema(Schema):
     tz = fields.Str()
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     event = fields.Nested("EventSchema", only=["event_tags"])
+    description = fields.Str()
+    url = fields.Str()
+    tz = fields.Str()
+    cancelled = fields.Boolean()
+    distance = fields.Float()
 
 
 class EventDateListSchema(PaginatedSchema):

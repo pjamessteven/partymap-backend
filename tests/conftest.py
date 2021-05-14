@@ -3,16 +3,18 @@ from pmapi.extensions import db as _db
 from pmapi.user.model import User
 from pmapi.event.model import Event, Rrule
 from pmapi.event_location.model import EventLocation, EventLocationType
-from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import Tag, EventTag
 from pmapi.config import BaseConfig
 from pmapi.extensions import mail
 import pmapi.exceptions as exc
 import pygeohash as pgh
-from datetime import datetime, timedelta
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from flask_login import AnonymousUserMixin
+from flask import url_for
 import pytest
 import uuid
+import pmapi.event_date.controllers as event_dates
 
 
 class Config_Test(BaseConfig):
@@ -99,11 +101,39 @@ def user_factory(app, db):
         db.session.commit()
 
         # Patch a web client for making authenticated requests onto the user
-        # user.client = app.test_client(username=username, password=password)
+        user.client = app.test_client()
+        print(user.email)
 
+        # log in to client
+        payload = {"email": "{}@example.com".format(username), "password": password}
+        user.client.post(
+            url_for("auth.LoginResource"), json=payload, follow_redirects=True
+        )
         return user
 
     return _gen_user
+
+
+@pytest.fixture
+def first_saturday_of_next_month_at_1330pm():
+    def _gen_date():
+        a_month_from_now = datetime.now() + relativedelta(months=1)
+        first_day_of_next_month = a_month_from_now.replace(day=1)
+        first_day_of_next_month = first_day_of_next_month.replace(
+            hour=13, minute=30, second=0, microsecond=0, tzinfo=None
+        )
+        first_saturday_of_next_month = None
+
+        for x in range(0, 7):
+            date = first_day_of_next_month + relativedelta(days=x)
+            # find first saturday
+            if date.weekday() == 5:
+                first_saturday_of_next_month = date
+                break
+
+        return first_saturday_of_next_month
+
+    return _gen_date
 
 
 @pytest.fixture
@@ -115,21 +145,30 @@ def complete_event_factory(
     event_date_factory,
     event_tag_factory,
     event_location_factory,
+    first_saturday_of_next_month_at_1330pm,
 ):
     """
     Factory function for creating complete events in the db.
     Includes event tags, event date and event location.
     """
+    start = first_saturday_of_next_month_at_1330pm()
 
     def _gen_event(
         name="test event",
+        description="description",
         tags=["test1", "test2"],
-        start=datetime.now() + timedelta(days=1),
+        start=start,
         end=None,
-        geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}},
+        creator=regular_user,
+        event_location=None,
     ):
-        event_location = event_location_factory(geometry=geometry)
-        event = event_factory(name=name, location=event_location)
+        if not event_location:
+            event_location = event_location_factory(
+                geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}}
+            )
+        event = event_factory(
+            name=name, location=event_location, description=description, creator=creator
+        )
         event_tag_factory(tags=tags, event=event)
         event_date_factory(start, end, event, event_location)
 
@@ -142,12 +181,17 @@ def complete_event_factory(
 def event_factory(app, db, regular_user, user_factory):
     """Factory function for creating events in the db."""
 
-    def _gen_event(name="test event", location=None):
+    def _gen_event(
+        name="test event",
+        location=None,
+        description="description",
+        creator=regular_user,
+    ):
         event = Event(
             name=name,
-            creator_id=regular_user.id,
+            creator_id=creator.id,
             default_url="test.com",
-            description="test event",
+            description=description,
             default_location=location,
         )
 
@@ -163,33 +207,37 @@ def event_factory(app, db, regular_user, user_factory):
 
 
 @pytest.fixture
-def event_date_factory(app, db, regular_user, event_factory, event_location_factory):
+def event_date_factory(
+    app,
+    db,
+    regular_user,
+    event_factory,
+    event_location_factory,
+    first_saturday_of_next_month_at_1330pm,
+):
     """Factory function for creating events in the db."""
+    start = first_saturday_of_next_month_at_1330pm()
 
     def _gen_event_date(
-        start=datetime.now() + timedelta(days=1),
-        end=None,
+        start_naive=start,
+        end_naive=None,
         event=None,
         event_location=None,
+        creator=regular_user,
     ):
 
         if event is None:
-            event = event_factory()
+            event = event_factory(creator=creator)
         if event_location is None:
             event_location = event_location_factory()
-
-        ed = EventDate(
-            event_id=event.id,
-            start_naive=start,
-            end_naive=end,
-            end=end,
-            start=start,
-            tz="Pacific/Auckland",
-            location_id=event_location.place_id,
+        ed = event_dates.add_event_date(
+            start_naive,
+            event,
+            event_location=event_location,
+            end_naive=end_naive,
             url="https://test.com",
+            creator=creator,
         )
-        db.session.add(ed)
-        db.session.commit()
 
         # Patch a web client for making authenticated requests onto the user
         # user.client = app.test_client(username=username, password=password)
@@ -352,6 +400,20 @@ def regular_user(db, user_factory):
         role=10,
         password="user_password",
     )
+
+
+@pytest.fixture
+def regular_user_factory(db, user_factory):
+    """Regular user factory for the tests."""
+
+    def _gen_regular_user():
+        return user_factory(
+            username=str(uuid.uuid4()),
+            role=10,
+            password="password",
+        )
+
+    return _gen_regular_user
 
 
 @pytest.fixture

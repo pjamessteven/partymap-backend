@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 
 import pmapi.event_location.controllers as event_locations
 from pmapi.event_location.model import EventLocationType
-from pmapi.exceptions import RecordAlreadyExists
 from pmapi.exceptions import RecordNotFound
 
 
@@ -64,10 +63,11 @@ def test_add_dupliacte_location(regular_user):
         "types": ["restaurant", "cafe"],
     }
 
-    event_locations.add_new_event_location(creator=regular_user, **location_data)
+    el1 = event_locations.add_new_event_location(creator=regular_user, **location_data)
 
-    with pytest.raises(RecordAlreadyExists):
-        event_locations.add_new_event_location(creator=regular_user, **location_data)
+    el2 = event_locations.add_new_event_location(creator=regular_user, **location_data)
+    # should return original event_location
+    assert el1 is el2
 
 
 def test_add_event_location_types(regular_user, db):
@@ -130,8 +130,8 @@ def test_get_event_location_or_404_error():
 
 def test_get_all_locations(regular_user, event_date_factory):
     event_date_factory(
-        start=datetime(year=2006, month=1, day=1),
-        end=datetime(year=2006, month=1, day=5),
+        start_naive=datetime(year=2006, month=1, day=1),
+        end_naive=datetime(year=2006, month=1, day=5),
     )
     locations = event_locations.get_all_locations()
     assert len(locations.all()) == 1
@@ -166,7 +166,6 @@ def test_get_all_locations_tag_search(db, regular_user, complete_event_factory):
     start = datetime(year=2006, month=1, day=1)
     complete_event_factory(start=start, tags=["test1"])
     locations = event_locations.get_all_locations(tags=["test1"])
-    print(locations.all())
     assert len(locations.all()) == 1
 
 

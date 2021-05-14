@@ -6,7 +6,7 @@ import pmapi.exceptions as exc
 from .model import Tag, EventTag
 
 
-def add_tags_to_event(tags, event, user=current_user):
+def add_tags_to_event(tags, event):
     for t in tags:
         tag = Tag(tag=t)
 
@@ -23,7 +23,7 @@ def add_tags_to_event(tags, event, user=current_user):
             raise exc.RecordAlreadyExists("Tag already exists for event")
 
         else:
-            et = EventTag(tag=tag, event=event, creator_id=user.id)
+            et = EventTag(tag=tag, event=event)
             db.session.add(et)
     db.session.commit()
     return tags

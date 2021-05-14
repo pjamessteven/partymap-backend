@@ -43,6 +43,7 @@ class add(permissions.Permission):
     """Can update if owner or STAFF"""
 
     def can(self, **kwargs):
+        print(kwargs)
         event = events.get_event(kwargs.pop("event_id"))
 
         if (

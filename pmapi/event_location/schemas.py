@@ -12,7 +12,9 @@ class LocationSchema(Schema):
     name = fields.Str()
     description = fields.Str()
     country_code = fields.Str()
+    country = fields.Str()
     city = fields.Str()
+    address_components = fields.Str()
     place_id = fields.Str()
     event_dates = fields.Nested(EventDateSchema, many=True)
 
