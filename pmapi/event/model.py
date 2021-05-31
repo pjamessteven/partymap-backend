@@ -46,6 +46,7 @@ class Event(db.Model):
     # event_contributions = db.relationship(
     #    'EventContribution', back_populates="event")
     event_images = db.relationship("EventImage", back_populates="event")
+    event_albums = db.relationship("EventAlbum", back_populates="event")
 
     default_url = db.Column(db.String)
     default_location = db.relationship("EventLocation", back_populates="event")

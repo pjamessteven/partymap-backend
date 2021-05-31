@@ -1,7 +1,7 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
-from pmapi.event_image.schemas import EventImageSchema
+from pmapi.event_album.schemas import EventAlbumSchema
 
 
 class EventSchema(Schema):
@@ -13,7 +13,7 @@ class EventSchema(Schema):
     default_url = fields.Str()
     tz = fields.Str()
     event_dates = fields.Nested("EventDateSchema", many=True)
-    event_images = fields.Nested(EventImageSchema, many=True)
+    event_albums = fields.Nested(EventAlbumSchema, many=True)
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
 

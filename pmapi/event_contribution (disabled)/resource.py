@@ -3,10 +3,10 @@ from flask_login import current_user, login_required
 
 from pmapi.extensions import db
 from pmapi.event.model import Event
-from pmapi.event_image.model import EventImage
+from pmapi.event_album.model import EventImage
 from pmapi.event_contribution.model import EventContribution
 from pmapi.exceptions import InvalidUsage, InvalidAPIRequest
-from pmapi.event_image import controllers as event_images
+from pmapi.event_album import controllers as event_images
 from pmapi.report.model import Report
 
 from .controllers import add_contribution

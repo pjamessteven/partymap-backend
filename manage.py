@@ -29,7 +29,7 @@ def shell_ctx():
     from pmapi.event_tag.model import Tag, EventTag
     from pmapi.event.model import Event, Rrule
     from pmapi.user.model import User
-    from pmapi.event_image.model import EventImage
+    from pmapi.event_album.model import EventImage
     from pmapi.event_location.model import EventLocation
     from pmapi.event_date.model import EventDate
     from pmapi.notification.model import Notification, UserNotification, EmailAction

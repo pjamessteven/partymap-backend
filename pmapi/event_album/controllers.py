@@ -7,29 +7,60 @@ from mimetypes import guess_extension
 import uuid
 import re
 from flask_login import current_user
-from .model import EventImage
+from .model import EventImage, EventAlbum
 from pmapi.extensions import db
+from pmapi import exceptions as exc
 
 
-def add_images_to_event(event, images, text=None, creator=current_user):
+def get_event_album_or_404(album_id):
+    album = get_album_by_id(album_id)
+    if album is None:
+        msg = "No such event_album with id {}".format(album_id)
+        raise exc.RecordNotFound(msg)
+    return album
+
+
+def get_album_by_id(album_id):
+    return EventAlbum.query.get(album_id)
+
+
+def delete_event_album(album):
+    for image in album.event_images:
+        db.session.delete(image)
+    db.session.flush()
+    db.session.delete(album)
+    db.session.commit()
+
+
+def create_album_for_event(event, images=None, creator=current_user):
+    album = EventAlbum(event=event, creator=creator)
+    db.session.add(album)
+    db.session.commit()
+    if images:
+        add_images_to_album(images, album)
+    return album
+
+
+def add_images_to_album(images, album, creator=current_user):
+    # add images to db
     event_images = []
     for i in images:
         file = i["base64Image"]
-        filename, thumb_filename = save_event_image(file, event.id)
+        filename, thumb_filename = save_event_image(file, album.event.id, album.id)
         event_image = EventImage(
-            event_id=event.id,
+            event_id=album.event.id,
             caption=i["caption"],
             filename=filename,
             thumb_filename=thumb_filename,
             creator=creator,
+            album=album,
         )
         event_images.append(event_image)
         db.session.add(event_image)
     db.session.commit()
-    return event_images
 
 
-def save_event_image(file, eventId):
+def save_event_image(file, eventId, albumId):
 
     mimetype = file[file.find("data:") + 5 : file.find(";base64,")]
     file_extension = guess_extension(mimetype)
@@ -44,10 +75,7 @@ def save_event_image(file, eventId):
         print("filename: " + filename)
         print("thumb_filename:" + thumb_filename)
         path = os.path.join(
-            current_app.config["IMAGE_UPLOAD_FOLDER"]
-            + str("event/")
-            + str(eventId)
-            + str("/")
+            current_app.config["IMAGE_UPLOAD_FOLDER"] + str("album/") + str(albumId)
         )
 
         if not (os.path.exists(path)):

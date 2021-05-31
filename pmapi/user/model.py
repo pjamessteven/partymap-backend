@@ -44,6 +44,7 @@ class User(db.Model):
     #        'EventContribution', back_populates="creator")
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
+    created_event_albums = db.relationship("EventAlbum", back_populates="creator")
     created_event_images = db.relationship("EventImage", back_populates="creator")
     created_event_locations = db.relationship("EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")

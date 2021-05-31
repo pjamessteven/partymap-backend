@@ -16,7 +16,7 @@ from flask import (
 )
 from pmapi.user.model import User
 from pmapi.event_tag.model import EventTag, Tag
-from pmapi.event_image.model import EventImage
+from pmapi.event_album.model import EventImage
 from pmapi.event.model import Event, Rrule
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation

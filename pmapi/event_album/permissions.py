@@ -1,17 +1,18 @@
 from pmapi.common import permissions
 import pmapi.exceptions as exc
+from . import controllers as event_albums
 from pmapi.event import controllers as events
 from flask_login import current_user
 
 
 class delete(permissions.Permission):
-    """Can delete if staff or event owner"""
+    """Can delete if owner or STAFF"""
 
     def can(self, **kwargs):
-        event = events.get_event_or_404(kwargs.pop("event_id"))
+        album = event_albums.get_event_album_or_404(kwargs.pop("id"))
 
         if (
-            event.creator_id != current_user.id
+            album.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -22,12 +23,13 @@ class delete(permissions.Permission):
 
 
 class update(permissions.Permission):
-    """Can update if staff or event owner"""
+    """Can update if owner or STAFF"""
 
     def can(self, **kwargs):
-        event = events.get_event_or_404(kwargs.pop("event_id"))
+        album = event_albums.get_event_album_or_404(kwargs.pop("id"))
+
         if (
-            event.creator_id != current_user.id
+            album.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -38,10 +40,17 @@ class update(permissions.Permission):
 
 
 class add(permissions.Permission):
-    """Can create if at least HOST"""
+    """Can add if event owner or STAFF"""
 
     def can(self, **kwargs):
-        if not permissions.current_user_role_is_at_least("HOST"):
-            raise exc.InvalidPermissions("You don't have permission to create events.")
+        event = events.get_event(kwargs.pop("event_id"))
+
+        if (
+            event.creator_id != current_user.id
+            and not permissions.current_user_role_is_at_least("STAFF")
+        ):
+            raise exc.InvalidPermissions(
+                "You don't have permission to create a new date for this event."
+            )
 
         return True

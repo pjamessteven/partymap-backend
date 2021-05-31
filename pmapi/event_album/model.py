@@ -1,6 +1,7 @@
-import calendar
 from datetime import datetime
 import os
+import utils
+from math import log
 from flask import current_app
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import UUID
@@ -21,6 +22,22 @@ event_image_downvotes = db.Table(
 )
 
 
+class EventAlbum(db.Model):
+    __tablename__ = "event_albums"
+
+    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator = db.relationship("User", back_populates="created_event_albums")
+
+    event_id = db.Column(UUID, db.ForeignKey("events.id"))
+    event = db.relationship("Event", back_populates="event_albums")
+
+    name = db.Column(db.String)
+    caption = db.Column(db.Text)
+    images = db.relationship("EventImage")
+
+
 class EventImage(db.Model):
     __tablename__ = "event_images"
 
@@ -35,6 +52,8 @@ class EventImage(db.Model):
 
     # contribution_id = db.Column(UUID, db.ForeignKey('event_contributions.id'))
     # contribution = db.relationship("EventContribution", back_populates="images")
+    album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
+    album = db.relationship("EventAlbum", back_populates="images")
     event_id = db.Column(UUID, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_images")
     status = db.Column(db.SmallInteger, default=1)
@@ -128,7 +147,8 @@ class EventImage(db.Model):
 
     def has_voted(self, user_id):
         """
-        did the user vote ? will return 1 if upvoted, -1 if downvoted and 0 if not voted.
+        did the user vote ? will return 1 if upvoted,
+        -1 if downvoted and 0 if not voted.
         """
         select_upvotes = event_image_upvotes.select(
             db.and_(

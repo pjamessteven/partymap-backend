@@ -2,7 +2,7 @@ from .model import Event, Rrule
 from pmapi import exceptions as exc
 from pmapi.extensions import db
 import pmapi.event_tag.controllers as event_tags
-import pmapi.event_image.controllers as event_images
+import pmapi.event_album.controllers as event_images
 import pmapi.event_date.controllers as event_dates
 import pmapi.event_location.controllers as event_locations
 from pmapi.common.controllers import paginated_results
@@ -79,7 +79,8 @@ def add_event(**kwargs):
         event_tags.add_tags_to_event(tags, event)
 
     if images:
-        event_images.add_images_to_event(event, images, creator)
+        # create new album and add images
+        event_images.create_album_for_event(event, images, creator)
 
     # LOCATION
     event.default_location = event_locations.get_location(location["place_id"])
@@ -104,8 +105,8 @@ def update_event(event_id, **kwargs):
     dateTime = kwargs.get("dateTime")
     description = kwargs.get("description")
     tags = kwargs.get("tags")
-    images = kwargs.get("images")
 
+    print(kwargs)
     event = get_event_or_404(event_id)
 
     if url:
@@ -150,9 +151,6 @@ def update_event(event_id, **kwargs):
 
     if tags:
         event_tags.add_tags_to_event(tags, event)
-
-    if images:
-        event_images.add_images_to_event(event, images)
 
     db.session.commit()
 

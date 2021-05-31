@@ -49,9 +49,9 @@ class EventsResource(MethodResource):
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
             "name": fields.String(required=True),
-            "url": fields.String(required=False),
-            "tags": fields.List(fields.String(), required=False),
-            "images": fields.List(fields.Dict(), required=False),
+            "url": fields.String(required=False, allow_none=True),
+            "tags": fields.List(fields.String(), required=False, allow_none=True),
+            "images": fields.List(fields.Dict(), required=False, allow_none=True),
             "rrule": fields.Dict(),
         },
     )
@@ -71,16 +71,15 @@ class EventResource(MethodResource):
         return events.get_event_or_404(event_id)
 
     @doc(summary="Update an event", description="Update an event")
-    @login_required
     @event_permissions.update
+    @login_required
     @use_kwargs(
         {
-            "dateTime": fields.String(required=True),
-            "location": fields.Dict(required=True),
-            "description": fields.String(required=True),
-            "url": fields.String(required=False),
-            "tags": fields.List(fields.String(), required=False),
-            "images": fields.List(fields.Dict(), required=False),
+            "dateTime": fields.Dict(),
+            "location": fields.Dict(),
+            "description": fields.String(),
+            "url": fields.String(),
+            "tags": fields.List(fields.String()),
             "rrule": fields.Dict(),
         },
     )
@@ -97,7 +96,7 @@ class EventResource(MethodResource):
 
 
 events_blueprint.add_url_rule(
-    "/<event_id>", view_func=EventResource.as_view("EventResource")
+    "/<event_id>/", view_func=EventResource.as_view("EventResource")
 )
 
 
