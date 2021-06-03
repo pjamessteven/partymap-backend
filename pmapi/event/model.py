@@ -37,6 +37,11 @@ class Event(db.Model):
     )
     deleted = db.Column(db.Boolean, nullable=False, default=False)
 
+    cover_album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
+    cover_album = db.relationship(
+        "EventAlbum", primaryjoin="Event.cover_album_id==EventAlbum.id"
+    )
+
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     rrule = db.relationship("Rrule", uselist=False, back_populates="event")
@@ -46,7 +51,11 @@ class Event(db.Model):
     # event_contributions = db.relationship(
     #    'EventContribution', back_populates="event")
     event_images = db.relationship("EventImage", back_populates="event")
-    event_albums = db.relationship("EventAlbum", back_populates="event")
+    event_albums = db.relationship(
+        "EventAlbum",
+        back_populates="event",
+        primaryjoin="Event.id == EventAlbum.event_id",
+    )
 
     default_url = db.Column(db.String)
     default_location = db.relationship("EventLocation", back_populates="event")
@@ -61,6 +70,10 @@ class Event(db.Model):
     # this was causing tests to fail, unsure if needed
     # __table_args__ = (Index("idx_events_fts",
     # __ts_vector__, postgresql_using="gin"),)
+
+    @property
+    def cover_images(self):
+        return self.cover_album.images[0:5]
 
     def minified(self):
         return dict(

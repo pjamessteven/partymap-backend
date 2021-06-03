@@ -105,6 +105,7 @@ def update_event(event_id, **kwargs):
     dateTime = kwargs.get("dateTime")
     description = kwargs.get("description")
     tags = kwargs.get("tags")
+    cover_album_id = kwargs.get("cover_album_id")
 
     print(kwargs)
     event = get_event_or_404(event_id)
@@ -151,6 +152,10 @@ def update_event(event_id, **kwargs):
 
     if tags:
         event_tags.add_tags_to_event(tags, event)
+
+    if cover_album_id:
+        album = event_images.get_event_album_or_404(cover_album_id)
+        event.cover_album = album
 
     db.session.commit()
 

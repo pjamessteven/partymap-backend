@@ -16,6 +16,7 @@ class EventSchema(Schema):
     event_albums = fields.Nested(EventAlbumSchema, many=True)
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
+    cover_images = fields.Nested("EventAlbumSchema", many=True)
 
 
 class EventListSchema(PaginatedSchema):

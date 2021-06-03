@@ -31,7 +31,9 @@ class EventAlbum(db.Model):
     creator = db.relationship("User", back_populates="created_event_albums")
 
     event_id = db.Column(UUID, db.ForeignKey("events.id"))
-    event = db.relationship("Event", back_populates="event_albums")
+    event = db.relationship(
+        "Event", back_populates="event_albums", foreign_keys=[event_id]
+    )
 
     name = db.Column(db.String)
     caption = db.Column(db.Text)
@@ -54,6 +56,7 @@ class EventImage(db.Model):
     # contribution = db.relationship("EventContribution", back_populates="images")
     album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
     album = db.relationship("EventAlbum", back_populates="images")
+
     event_id = db.Column(UUID, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_images")
     status = db.Column(db.SmallInteger, default=1)

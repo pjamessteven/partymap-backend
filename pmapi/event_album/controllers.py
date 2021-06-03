@@ -12,6 +12,14 @@ from pmapi.extensions import db
 from pmapi import exceptions as exc
 
 
+def get_image_or_404(image_id):
+    image = get_image_by_id(image_id)
+    if image is None:
+        msg = "No such image with id {}".format(image_id)
+        raise exc.RecordNotFound(msg)
+    return image
+
+
 def get_event_album_or_404(album_id):
     album = get_album_by_id(album_id)
     if album is None:
@@ -22,6 +30,10 @@ def get_event_album_or_404(album_id):
 
 def get_album_by_id(album_id):
     return EventAlbum.query.get(album_id)
+
+
+def get_image_by_id(image_id):
+    return EventImage.query.get(image_id)
 
 
 def delete_event_album(album):
