@@ -9,9 +9,10 @@ make_versioned(plugins=[extensions.flask_plugin, extensions.activity_plugin])
 
 from pmapi.user.model import User
 from pmapi.event_tag.model import EventTag, Tag
-from pmapi.event_album.model import EventImage
+from pmapi.event_album.model import AlbumItem, EventAlbum
 from pmapi.event.model import Event, Rrule
 from pmapi.event_date.model import EventDate
+
 # from pmapi.event_artist.model import EventArtist
 # from pmapi.event_contribution.model import EventContribution
 from pmapi.notification.model import Notification, UserNotification

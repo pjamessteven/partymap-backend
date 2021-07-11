@@ -15,7 +15,7 @@ class EventDateSchema(Schema):
     end_naive = fields.Str(attribute="end_naive")
     tz = fields.Str()
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
-    event = fields.Nested("EventSchema", only=["event_tags"])
+    event = fields.Nested("EventSchema", only=["event_tags", "cover_items"])
     description = fields.Str()
     url = fields.Str()
     tz = fields.Str()

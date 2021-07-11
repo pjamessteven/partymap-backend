@@ -79,27 +79,29 @@ def register_extensions(app):
 
 
 def register_blueprints(app):
-    # from pmapi.auth.oauth_resource import oauth_blueprint
+    from pmapi.auth.oauth_resource import oauth_blueprint
     from pmapi.auth.resource import auth_blueprint
     from pmapi.event_tag.resource import event_tags_blueprint
     from pmapi.event_date.resource import event_dates_blueprint
     from pmapi.event.resource import events_blueprint
     from pmapi.event_location.resource import locations_blueprint
+    from pmapi.event_album.resource import event_albums_blueprint
     from pmapi.user.resource import users_blueprint
 
-    # from pmapi.event_contribution.resource import event_contribution_blueprint
+    from pmapi.event_contribution.resource import event_contribution_blueprint
+
     # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
 
-    # app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
+    app.register_blueprint(oauth_blueprint, url_prefix="/api/oauth")
     app.register_blueprint(auth_blueprint, url_prefix="/api/auth")
     app.register_blueprint(event_tags_blueprint, url_prefix="/api/tag")
     app.register_blueprint(event_dates_blueprint, url_prefix="/api/date")
     app.register_blueprint(events_blueprint, url_prefix="/api/event")
+    app.register_blueprint(event_albums_blueprint, url_prefix="/api/album")
     app.register_blueprint(locations_blueprint, url_prefix="/api/location")
     app.register_blueprint(users_blueprint, url_prefix="/api/user")
-    # app.register_blueprint(event_contribution_blueprint,
-    # url_prefix="/api/contribution")
+    app.register_blueprint(event_contribution_blueprint, url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
 

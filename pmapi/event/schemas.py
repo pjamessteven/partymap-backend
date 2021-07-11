@@ -7,7 +7,7 @@ from pmapi.event_album.schemas import EventAlbumSchema
 class EventSchema(Schema):
     id = fields.UUID()
     name = fields.Str()
-    creator_id = fields.UUID()
+    creator = fields.Nested("UserSchema", only=["username"])
     created_at = fields.DateTime()
     description = fields.Str()
     default_url = fields.Str()
@@ -16,7 +16,8 @@ class EventSchema(Schema):
     event_albums = fields.Nested(EventAlbumSchema, many=True)
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
-    cover_images = fields.Nested("EventAlbumSchema", many=True)
+    featured_album = fields.Nested("EventAlbumSchema", only=["items"])
+    cover_items = fields.Nested("AlbumItemSchema", many=True)
 
 
 class EventListSchema(PaginatedSchema):

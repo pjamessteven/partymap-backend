@@ -5,7 +5,7 @@ from pmapi.event import controllers as events
 from flask_login import current_user
 
 
-class delete(permissions.Permission):
+class delete_album(permissions.Permission):
     """Can delete if owner or STAFF"""
 
     def can(self, **kwargs):
@@ -22,7 +22,7 @@ class delete(permissions.Permission):
         return True
 
 
-class update(permissions.Permission):
+class update_album(permissions.Permission):
     """Can update if owner or STAFF"""
 
     def can(self, **kwargs):
@@ -39,18 +39,35 @@ class update(permissions.Permission):
         return True
 
 
-class add(permissions.Permission):
-    """Can add if event owner or STAFF"""
+class update_album_item(permissions.Permission):
+    """Can update if owner or STAFF"""
 
     def can(self, **kwargs):
-        event = events.get_event(kwargs.pop("event_id"))
+        item = event_albums.get_album_item_or_404(kwargs.pop("id"))
 
         if (
-            event.creator_id != current_user.id
+            item.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
-                "You don't have permission to create a new date for this event."
+                "You don't have permission to update this event date."
+            )
+
+        return True
+
+
+class delete_album_item(permissions.Permission):
+    """Can update if owner or STAFF"""
+
+    def can(self, **kwargs):
+        item = event_albums.get_album_item_or_404(kwargs.pop("id"))
+
+        if (
+            item.creator_id != current_user.id
+            and not permissions.current_user_role_is_at_least("STAFF")
+        ):
+            raise exc.InvalidPermissions(
+                "You don't have permission to update this event date."
             )
 
         return True

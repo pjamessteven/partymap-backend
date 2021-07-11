@@ -7,17 +7,48 @@ from mimetypes import guess_extension
 import uuid
 import re
 from flask_login import current_user
-from .model import EventImage, EventAlbum
+from .model import EventAlbum, AlbumItem
 from pmapi.extensions import db
 from pmapi import exceptions as exc
 
 
-def get_image_or_404(image_id):
-    image = get_image_by_id(image_id)
-    if image is None:
-        msg = "No such image with id {}".format(image_id)
+def delete_item(id):
+    item = get_album_item_by_id(id)
+    db.session.delete(item)
+    db.session.commit()
+    return "", 204
+
+
+def update_item(id, **kwargs):
+    item = get_album_item_or_404(id)
+    if "caption" in kwargs:
+        item.caption = kwargs.pop("caption")
+
+    if "position" in kwargs:
+        position = kwargs.pop("position")
+        print(position)
+        # pop from current position in list
+        print(item.position)
+
+        item.album.items.pop(item.position)
+        # add item to list again
+        item.album.items.insert(position, item)
+        print(item.position)
+
+    db.session.commit()
+    return item
+
+
+def get_album_item_or_404(item_id):
+    item = get_album_item_by_id(item_id)
+    if item is None:
+        msg = "No such item with id {}".format(item_id)
         raise exc.RecordNotFound(msg)
-    return image
+    return item
+
+
+def get_album_item_by_id(item_id):
+    return AlbumItem.query.get(item_id)
 
 
 def get_event_album_or_404(album_id):
@@ -32,10 +63,6 @@ def get_album_by_id(album_id):
     return EventAlbum.query.get(album_id)
 
 
-def get_image_by_id(image_id):
-    return EventImage.query.get(image_id)
-
-
 def delete_event_album(album):
     for image in album.event_images:
         db.session.delete(image)
@@ -47,29 +74,50 @@ def delete_event_album(album):
 def create_album_for_event(event, images=None, creator=current_user):
     album = EventAlbum(event=event, creator=creator)
     db.session.add(album)
-    db.session.commit()
+    db.session.flush()
     if images:
-        add_images_to_album(images, album)
+        add_items_to_album(images, album, creator)
+    db.session.commit()
     return album
 
 
-def add_images_to_album(images, album, creator=current_user):
+def create_album_for_event_date(event_date, images=None, creator=current_user):
+    if event_date.event_album:
+        # event date can only have one album
+        album = event_date.event_album
+    else:
+        album = EventAlbum(
+            event=event_date.event, event_date=event_date, creator=creator
+        )
+        db.session.add(album)
+        db.session.flush()
+
+    if images:
+        add_items_to_album(images, album, creator)
+
+    db.session.commit()
+    return album
+
+
+def add_items_to_album(items, album, creator=current_user):
     # add images to db
-    event_images = []
-    for i in images:
+    album_items = []
+    for i in items:
         file = i["base64Image"]
         filename, thumb_filename = save_event_image(file, album.event.id, album.id)
-        event_image = EventImage(
-            event_id=album.event.id,
+        album_item = AlbumItem(
+            event=album.event,
             caption=i["caption"],
             filename=filename,
             thumb_filename=thumb_filename,
             creator=creator,
-            album=album,
         )
-        event_images.append(event_image)
-        db.session.add(event_image)
+        album_items.append(album_item)
+        db.session.add(album_item)
+        db.session.flush()
+        album.items.append(album_item)
     db.session.commit()
+    return album_items
 
 
 def save_event_image(file, eventId, albumId):
@@ -111,7 +159,7 @@ def save_event_image(file, eventId, albumId):
             Image.ANTIALIAS)
         """
         img = Image.open(os.path.join(path, filename))
-        img.thumbnail((250, 250), Image.ANTIALIAS)
+        img.thumbnail((512, 512), Image.ANTIALIAS)
         img.save(os.path.join(path, thumb_filename))
 
         return filename, thumb_filename

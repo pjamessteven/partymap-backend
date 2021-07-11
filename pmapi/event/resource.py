@@ -81,6 +81,7 @@ class EventResource(MethodResource):
             "url": fields.String(),
             "tags": fields.List(fields.String()),
             "rrule": fields.Dict(),
+            "featured_album_id": fields.String(),
         },
     )
     @marshal_with(EventSchema(), code=200)

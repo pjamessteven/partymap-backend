@@ -6,64 +6,54 @@ from flask import current_app
 from flask_login import current_user
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-
+from sqlalchemy.ext.orderinglist import ordering_list
 from pmapi.extensions import db
 
-event_image_upvotes = db.Table(
-    "event_image_upvotes",
+"""
+media_item_upvotes = db.Table(
+    "media_item_upvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_image_id", UUID, db.ForeignKey("event_images.id")),
+    db.Column("album_item_id", UUID, db.ForeignKey("album_items.id")),
 )
 
-event_image_downvotes = db.Table(
-    "event_image_downvotes",
+media_item_downvotes = db.Table(
+    "media_item_downvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_image_id", UUID, db.ForeignKey("event_images.id")),
+    db.Column("album_item_id", UUID, db.ForeignKey("album_items.id")),
 )
+"""
 
 
-class EventAlbum(db.Model):
-    __tablename__ = "event_albums"
+class MediaItem(db.Model):
+    __tablename__ = "media_items"
 
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
-    creator = db.relationship("User", back_populates="created_event_albums")
+    creator = db.relationship("User", back_populates="created_media_items")
 
-    event_id = db.Column(UUID, db.ForeignKey("events.id"))
-    event = db.relationship(
-        "Event", back_populates="event_albums", foreign_keys=[event_id]
-    )
-
-    name = db.Column(db.String)
-    caption = db.Column(db.Text)
-    images = db.relationship("EventImage")
-
-
-class EventImage(db.Model):
-    __tablename__ = "event_images"
-
-    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
-    creator = db.relationship("User", back_populates="created_event_images")
+    position = db.Column(db.Integer)
 
     filename = db.Column(db.String, default=None, nullable=False)
     thumb_filename = db.Column(db.String, default=None, nullable=False)
     caption = db.Column(db.Text)
+    type = db.Column(db.Enum("image", "video", name="media_type"))
 
-    # contribution_id = db.Column(UUID, db.ForeignKey('event_contributions.id'))
-    # contribution = db.relationship("EventContribution", back_populates="images")
-    album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
-    album = db.relationship("EventAlbum", back_populates="images")
+    contribution_id = db.Column(UUID, db.ForeignKey("event_contributions.id"))
+    contribution = db.relationship("EventContribution", back_populates="media_items")
+
+    event_date_id = db.Column(UUID, db.ForeignKey("event_dates.id"))
+    event_date = db.relationship("EventDate", userlist=False)
 
     event_id = db.Column(UUID, db.ForeignKey("events.id"))
-    event = db.relationship("Event", back_populates="event_images")
+    event = db.relationship("Event", back_populates="media_items")
+
     status = db.Column(db.SmallInteger, default=1)
 
     score = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)
 
+    """
     def to_dict(self):
 
         path = os.path.join(

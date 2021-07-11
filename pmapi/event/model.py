@@ -37,9 +37,11 @@ class Event(db.Model):
     )
     deleted = db.Column(db.Boolean, nullable=False, default=False)
 
-    cover_album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
-    cover_album = db.relationship(
-        "EventAlbum", primaryjoin="Event.cover_album_id==EventAlbum.id"
+    featured_album_id = db.Column(
+        UUID, db.ForeignKey("event_albums.id", use_alter=True)
+    )
+    featured_album = db.relationship(
+        "EventAlbum", primaryjoin="Event.featured_album_id==EventAlbum.id"
     )
 
     name = db.Column(db.Text, nullable=False)
@@ -48,13 +50,13 @@ class Event(db.Model):
 
     event_dates = db.relationship("EventDate", back_populates="event")
     event_tags = db.relationship("EventTag", back_populates="event")
-    # event_contributions = db.relationship(
-    #    'EventContribution', back_populates="event")
-    event_images = db.relationship("EventImage", back_populates="event")
-    event_albums = db.relationship(
-        "EventAlbum",
+    event_contributions = db.relationship("EventContribution", back_populates="event")
+
+    media_items = db.relationship(
+        "MediaItem",
         back_populates="event",
-        primaryjoin="Event.id == EventAlbum.event_id",
+        order_by="MediaItem.position",
+        collection_class=ordering_list("position"),
     )
 
     default_url = db.Column(db.String)
@@ -72,8 +74,9 @@ class Event(db.Model):
     # __ts_vector__, postgresql_using="gin"),)
 
     @property
-    def cover_images(self):
-        return self.cover_album.images[0:5]
+    def cover_items(self):
+        # return first three items for cover images
+        return self.featured_album.items[0:2]
 
     def minified(self):
         return dict(

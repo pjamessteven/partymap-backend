@@ -6,69 +6,53 @@ from sqlalchemy.dialects.postgresql import UUID
 from pmapi.extensions import db
 
 event_contribution_upvotes = db.Table(
-    'event_contribution_upvotes',
-    db.Column('user_id',
-              db.Integer,
-              db.ForeignKey('users.id')),
-    db.Column('event_contribution_id',
-              db.Integer,
-              db.ForeignKey('event_contributions.id'))
+    "event_contribution_upvotes",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id")),
+    db.Column(
+        "event_contribution_id", db.Integer, db.ForeignKey("event_contributions.id")
+    ),
 )
 
 event_contribution_downvotes = db.Table(
-    'event_contribution_downvotes',
-    db.Column('user_id',
-              db.Integer,
-              db.ForeignKey('users.id')),
-    db.Column('event_contribution_id',
-              db.Integer,
-              db.ForeignKey('event_contributions.id'))
+    "event_contribution_downvotes",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id")),
+    db.Column(
+        "event_contribution_id", db.Integer, db.ForeignKey("event_contributions.id")
+    ),
 )
 
 
 class EventContribution(db.Model):
-    __tablename__ = 'event_contributions'
+    __tablename__ = "event_contributions"
 
     id = db.Column(UUID, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    creator_id = db.Column(UUID,
-                           db.ForeignKey('users.id'), nullable=False)
-    creator = db.relationship('User', back_populates="created_contributions")
+    creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)
+    creator = db.relationship("User", back_populates="created_contributions")
 
-    event_id = db.Column(UUID,
-                         db.ForeignKey('events.id'), nullable=False)
-    event = db.relationship('Event', back_populates="event_contributions")
-    event_date_id = db.Column(UUID, db.ForeignKey('event_dates.id'))
-    event_date = db.relationship('EventDate', back_populates="contributions")
+    event_id = db.Column(UUID, db.ForeignKey("events.id"), nullable=False)
+    event = db.relationship("Event", back_populates="event_contributions")
+    event_date_id = db.Column(UUID, db.ForeignKey("event_dates.id"))
+    event_date = db.relationship("EventDate", back_populates="contributions")
 
     text = db.Column(db.Text)
-    images = db.relationship('EventImage', back_populates="contribution")
+    media_items = db.relationship("MediaItem", back_populates="contribution")
 
     status = db.Column(db.SmallInteger, default=1)
     score = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)
-    reports = db.relationship('Report', back_populates="event_contribution")
+    reports = db.relationship("Report", back_populates="event_contribution")
 
     def to_dict(self):
-        print('before contribution')
-        if current_user.is_authenticated:
-            return dict(id=self.id,
-                        text=self.text,
-                        created=self.created_at,
-                        votes=self.score,
-                        creator=self.creator.username,
-                        event_id=self.event_id,
-                        images=[i.to_dict() for i in self.images],
-                        has_voted=self.has_voted(current_user.id))
-        else:
-            return dict(id=self.id,
-                        text=self.text,
-                        created=self.created_at,
-                        votes=self.score,
-                        creator=self.creator.username,
-                        images=[i.to_dict() for i in self.images],
-                        event_id=self.event_id)
+        return dict(
+            id=self.id,
+            text=self.text,
+            created=self.created_at,
+            votes=self.score,
+            creator=self.creator.username,
+            event_id=self.event_id,
+        )
 
     def get_status(self):
         """
@@ -80,8 +64,9 @@ class EventContribution(db.Model):
         """
         returns the reddit hotness algorithm (votes/(age^1.5))
         """
-        order = math.log(max(abs(self.score), 1),
-                         10)  # Max/abs are not needed in our case
+        order = math.log(
+            max(abs(self.score), 1), 10
+        )  # Max/abs are not needed in our case
         seconds = self.get_age() - 1134028003
         return round(order + seconds / 45000, 6)
 
@@ -92,19 +77,13 @@ class EventContribution(db.Model):
         self.hotness = self.get_hotness()
         db.session.commit()
 
-    def pretty_date(self):
-        """
-        returns a humanized version of the raw age of this item,
-        eg: 34 minutes ago versus 2040 seconds ago.
-        """
-        return utils.pretty_date(self.created_at)
-
     def get_upvoter_ids(self):
         """
         return ids of users who voted this item up
         """
         select = event_contribution_upvotes.select(
-            event_contribution_upvotes.c.thread_id == self.id)
+            event_contribution_upvotes.c.thread_id == self.id
+        )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
         return ids
@@ -114,7 +93,8 @@ class EventContribution(db.Model):
         return ids of users who voted this item down
         """
         select = event_contribution_downvotes.select(
-            event_contribution_downvotes.c.thread_id == self.id)
+            event_contribution_downvotes.c.thread_id == self.id
+        )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
         return ids
@@ -127,13 +107,13 @@ class EventContribution(db.Model):
         select_upvotes = event_contribution_upvotes.select(
             db.and_(
                 event_contribution_upvotes.c.user_id == user_id,
-                event_contribution_upvotes.c.event_contribution_id == self.id
+                event_contribution_upvotes.c.event_contribution_id == self.id,
             )
         )
         select_downvotes = event_contribution_downvotes.select(
             db.and_(
                 event_contribution_downvotes.c.user_id == user_id,
-                event_contribution_downvotes.c.event_contribution_id == self.id
+                event_contribution_downvotes.c.event_contribution_id == self.id,
             )
         )
         rs = db.engine.execute(select_upvotes).fetchall()
@@ -164,7 +144,7 @@ class EventContribution(db.Model):
                 db.engine.execute(
                     event_contribution_upvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id
+                    event_contribution_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = 1
@@ -173,7 +153,7 @@ class EventContribution(db.Model):
                 db.engine.execute(
                     event_contribution_downvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id
+                    event_contribution_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -1
@@ -186,7 +166,8 @@ class EventContribution(db.Model):
                     event_contribution_upvotes.delete(
                         db.and_(
                             event_contribution_upvotes.c.user_id == user_id,
-                            event_contribution_upvotes.c.event_contribution_id == self.id
+                            event_contribution_upvotes.c.event_contribution_id
+                            == self.id,
                         )
                     )
                 )
@@ -199,7 +180,8 @@ class EventContribution(db.Model):
                     event_contribution_upvotes.delete(
                         db.and_(
                             event_contribution_upvotes.c.user_id == user_id,
-                            event_contribution_upvotes.c.event_contribution_id == self.id
+                            event_contribution_upvotes.c.event_contribution_id
+                            == self.id,
                         )
                     )
                 )
@@ -208,7 +190,7 @@ class EventContribution(db.Model):
                 db.engine.execute(
                     event_contribution_downvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id
+                    event_contribution_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -2
@@ -221,7 +203,8 @@ class EventContribution(db.Model):
                     event_contribution_downvotes.delete(
                         db.and_(
                             event_contribution_downvotes.c.user_id == user_id,
-                            event_contribution_downvotes.c.event_contribution_id == self.id
+                            event_contribution_downvotes.c.event_contribution_id
+                            == self.id,
                         )
                     )
                 )
@@ -233,7 +216,8 @@ class EventContribution(db.Model):
                     event_contribution_downvotes.delete(
                         db.and_(
                             event_contribution_downvotes.c.user_id == user_id,
-                            event_contribution_downvotes.c.event_contribution_id == self.id
+                            event_contribution_downvotes.c.event_contribution_id
+                            == self.id,
                         )
                     )
                 )
@@ -242,7 +226,7 @@ class EventContribution(db.Model):
                 db.engine.execute(
                     event_contribution_upvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id
+                    event_contribution_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = +2

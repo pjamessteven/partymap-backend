@@ -99,15 +99,16 @@ def add_event(**kwargs):
 
 
 def update_event(event_id, **kwargs):
+    print(kwargs)
+
     rrule = kwargs.get("rrule")
     url = kwargs.get("url")
     location = kwargs.get("location")
     dateTime = kwargs.get("dateTime")
     description = kwargs.get("description")
     tags = kwargs.get("tags")
-    cover_album_id = kwargs.get("cover_album_id")
+    featured_album_id = kwargs.get("featured_album_id")
 
-    print(kwargs)
     event = get_event_or_404(event_id)
 
     if url:
@@ -153,9 +154,9 @@ def update_event(event_id, **kwargs):
     if tags:
         event_tags.add_tags_to_event(tags, event)
 
-    if cover_album_id:
-        album = event_images.get_event_album_or_404(cover_album_id)
-        event.cover_album = album
+    if featured_album_id:
+        album = event_images.get_event_album_or_404(featured_album_id)
+        event.featured_album = album
 
     db.session.commit()
 

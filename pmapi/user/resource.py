@@ -46,59 +46,50 @@ class UsersResource(MethodResource):
         {
             "username": fields.Str(required=True),
             "email": fields.Email(required=True),
-            "activate": fields.Boolean(default=False),
+            # "activate": fields.Boolean(default=False),
             "password": fields.Str(default=None),
             "token": fields.Str(default=None),
         }
     )
     @marshal_with(UserSchema(), code=200)
     def post(self, **kwargs):
-        return users.create_user_with_token(**kwargs)
+        return users.create_user(**kwargs)
 
 
 users_blueprint.add_url_rule("/", view_func=UsersResource.as_view("UsersResource"))
 
-"""
-@users_blueprint.route('/', methods=('PUT', 'POST'))
-def user():
-    if request.method == 'PUT':
-        user = User.query.get(current_user.id)
-        data = request.get_json()
-        print(data)
-        if user:
-            # if 'email' in data:
-            # user.email = data['email']
-            if 'username' in data:
-                if db.session.query(User).filter(User.username ==
-                data['username']).count():
-                    raise InvalidUsage(
-                        message='username_already_registered', status_code=400)
-                else:
-                    user.username = data['username']
-                    db.session.commit()
-                    return jsonify(user=current_user.to_dict(), authenticated=True), 201
-        else:
-            raise InvalidUsage(message='Not authorized', status_code=401)
-    elif request.method == 'POST':
-        data = request.get_json()
-        print(data)
-        user = users.create_user(**data)
-        return jsonify(user.to_dict()), 201
 
-    else:
-        raise InvalidUsage(message='Method not allowed', status_code=405)
-"""
+@doc(tags=["users"])
+class UserResource(MethodResource):
+    @doc(summary="Edit a User", description="Edits a User")
+    @use_kwargs(
+        {
+            "username": fields.Str(required=False),
+            "email": fields.Email(required=False),
+            "password": fields.Str(required=False),
+            "password_confirm": fields.Str(required=False),
+        }
+    )
+    @marshal_with(UserSchema(), code=200)
+    def put(self, user_id, **kwargs):
+        return users.edit_user(user_id, **kwargs)
 
 
-@users_blueprint.route("/<string:id>", methods=("GET",))
-def user_profile():
-    pass
+users_blueprint.add_url_rule(
+    "/<user_id>/", view_func=UserResource.as_view("UserResource")
+)
 
 
 @users_blueprint.route("/activate/<string:token>", methods=("POST",))
 def activate(token):
     activated_user = users.activate_user(token)
     return jsonify(activated_user.to_dict()), 200
+
+
+@users_blueprint.route("/update_email/<string:token>", methods=("POST",))
+def confirm_update_email(token):
+    user = users.confirm_update_email(token)
+    return jsonify(user.to_dict()), 200
 
 
 @users_blueprint.route("/<string:username>/activity", methods=("GET",))

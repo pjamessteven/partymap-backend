@@ -74,5 +74,5 @@ class LogoutResource(MethodResource):
 
 
 auth_blueprint.add_url_rule(
-    "/logout", view_func=LogoutResource.as_view("LogoutResource")
+    "/logout/", view_func=LogoutResource.as_view("LogoutResource")
 )

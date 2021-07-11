@@ -28,10 +28,13 @@ class EventDate(db.Model):
     location = db.relationship("EventLocation", back_populates="event_dates")
     distance = query_expression()
     # artists = db.relationship('EventArtist', back_populates="event_date")
-    # contributions = db.relationship('EventContribution', back_populates="event_date")
     description = db.Column(db.Text)
     url = db.Column(db.String)
     cancelled = db.Column(db.Boolean, default=False)
+
+    contributions = db.relationship("EventContribution", back_populates="event_date")
+    event_album_id = db.Column(UUID, db.ForeignKey("event_albums.id"))
+    event_album = db.relationship("EventAlbum", uselist=False)
 
     def minified(self):
 
