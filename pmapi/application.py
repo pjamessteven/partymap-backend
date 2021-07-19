@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
+from .tasks import configure_celery
 
 import os
 import logging
@@ -41,6 +42,7 @@ def create_app(config, app_name="PARTYMAP"):
     app = Flask(app_name)
     app.config.from_object(config)
 
+    configure_celery(app)
     register_extensions(app)
     register_blueprints(app)
     register_errorhandlers(app)
@@ -85,8 +87,9 @@ def register_blueprints(app):
     from pmapi.event_date.resource import event_dates_blueprint
     from pmapi.event.resource import events_blueprint
     from pmapi.event_location.resource import locations_blueprint
-    from pmapi.event_album.resource import event_albums_blueprint
+    from pmapi.media_item.resource import media_blueprint
     from pmapi.user.resource import users_blueprint
+    from pmapi.report.resource import reports_blueprint
 
     from pmapi.event_contribution.resource import event_contribution_blueprint
 
@@ -98,12 +101,13 @@ def register_blueprints(app):
     app.register_blueprint(event_tags_blueprint, url_prefix="/api/tag")
     app.register_blueprint(event_dates_blueprint, url_prefix="/api/date")
     app.register_blueprint(events_blueprint, url_prefix="/api/event")
-    app.register_blueprint(event_albums_blueprint, url_prefix="/api/album")
+    app.register_blueprint(media_blueprint, url_prefix="/api/media")
     app.register_blueprint(locations_blueprint, url_prefix="/api/location")
     app.register_blueprint(users_blueprint, url_prefix="/api/user")
     app.register_blueprint(event_contribution_blueprint, url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
+    app.register_blueprint(reports_blueprint, url_prefix="/api/report")
 
 
 def register_docs(app):

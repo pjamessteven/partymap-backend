@@ -51,7 +51,7 @@ class EventsResource(MethodResource):
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
-            "images": fields.List(fields.Dict(), required=False, allow_none=True),
+            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "rrule": fields.Dict(),
         },
     )
@@ -75,13 +75,13 @@ class EventResource(MethodResource):
     @login_required
     @use_kwargs(
         {
-            "dateTime": fields.Dict(),
-            "location": fields.Dict(),
-            "description": fields.String(),
-            "url": fields.String(),
-            "tags": fields.List(fields.String()),
-            "rrule": fields.Dict(),
-            "featured_album_id": fields.String(),
+            "dateTime": fields.Dict(required=False, allow_none=True),
+            "location": fields.Dict(required=False, allow_none=True),
+            "description": fields.String(required=False, allow_none=True),
+            "url": fields.String(required=False, allow_none=True),
+            "tags": fields.List(fields.String(), required=False, allow_none=True),
+            "rrule": fields.Dict(required=False, allow_none=True),
+            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
         },
     )
     @marshal_with(EventSchema(), code=200)

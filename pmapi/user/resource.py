@@ -4,6 +4,7 @@ from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
+from flask_login import login_required
 from marshmallow import fields
 from marshmallow.validate import OneOf
 
@@ -14,6 +15,7 @@ import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
 
 from .schemas import UserSchema
+from . import permissions as user_permissions
 
 users_blueprint = Blueprint("users", __name__)
 
@@ -71,8 +73,16 @@ class UserResource(MethodResource):
         }
     )
     @marshal_with(UserSchema(), code=200)
+    @login_required
+    @user_permissions.update_user
     def put(self, user_id, **kwargs):
         return users.edit_user(user_id, **kwargs)
+
+    @login_required
+    @user_permissions.delete_user
+    @doc(summary="Delete a User", description="Deletes a User")
+    def delete(self, user_id):
+        return users.delete_user(user_id)
 
 
 users_blueprint.add_url_rule(
@@ -86,7 +96,7 @@ def activate(token):
     return jsonify(activated_user.to_dict()), 200
 
 
-@users_blueprint.route("/update_email/<string:token>", methods=("POST",))
+@users_blueprint.route("/confirm_email/<string:token>", methods=("POST",))
 def confirm_update_email(token):
     user = users.confirm_update_email(token)
     return jsonify(user.to_dict()), 200

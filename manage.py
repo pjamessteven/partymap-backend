@@ -23,13 +23,15 @@ manager.add_command("db", MigrateCommand)
 manager.add_command("populate", Populate)
 manager.add_command("cluster", ClusterEventLocations)
 
+
 # enable python shell with application context
 @manager.shell
 def shell_ctx():
     from pmapi.event_tag.model import Tag, EventTag
     from pmapi.event.model import Event, Rrule
     from pmapi.user.model import User
-    from pmapi.event_album.model import EventAlbum, AlbumItem
+    from pmapi.media.model import MediaItem
+    from pmapi.report.model import Report
     from pmapi.event_location.model import EventLocation
     from pmapi.event_date.model import EventDate
     from pmapi.notification.model import Notification, UserNotification, EmailAction
@@ -44,12 +46,12 @@ def shell_ctx():
         Activity=Activity,
         Event=Event,
         User=User,
-        EventAlbum=EventAlbum,
-        AlbumItem=AlbumItem,
+        MediaItem=MediaItem,
         EventTag=EventTag,
         EventDate=EventDate,
         EventLocation=EventLocation,
         Rrule=Rrule,
+        Report=Report,
         Notification=Notification,
         UserNotification=UserNotification,
         EmailAction=EmailAction,

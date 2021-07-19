@@ -245,6 +245,7 @@ def update_event_date(id, **kwargs):
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
 
+    event_date.event.updated_at = datetime.utcnow()
     db.session.flush()
     # had to abandon sqlalchemy-continuum because it requires big integer ID types
     # activity = Activity(verb=u"update", object=event_date, target=event_date.event)
@@ -620,9 +621,6 @@ def query_event_dates(**kwargs):
 
     # filter cancelled events out
     query = query.filter(EventDate.cancelled is not True)
-
-    # filter deleted events out
-    query = query.filter(Event.deleted is not True)
 
     if "date_min" in kwargs:
         print("min", kwargs["date_min"])

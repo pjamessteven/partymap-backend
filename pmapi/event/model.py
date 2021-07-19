@@ -3,6 +3,8 @@ from flask import current_app
 from sqlalchemy import func
 from sqlalchemy import and_
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.orderinglist import ordering_list
+
 import uuid
 
 from pmapi.extensions import db
@@ -30,19 +32,13 @@ class Event(db.Model):
 
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
         "User", back_populates="created_events", foreign_keys=[creator_id]
     )
-    deleted = db.Column(db.Boolean, nullable=False, default=False)
-
-    featured_album_id = db.Column(
-        UUID, db.ForeignKey("event_albums.id", use_alter=True)
-    )
-    featured_album = db.relationship(
-        "EventAlbum", primaryjoin="Event.featured_album_id==EventAlbum.id"
-    )
+    # deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
@@ -67,6 +63,8 @@ class Event(db.Model):
 
     settings = db.Column(JSONB)
 
+    reports = db.relationship("Report", back_populates="event")
+
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events
     # this was causing tests to fail, unsure if needed
@@ -76,7 +74,7 @@ class Event(db.Model):
     @property
     def cover_items(self):
         # return first three items for cover images
-        return self.featured_album.items[0:2]
+        return self.media_items[0:3]
 
     def minified(self):
         return dict(
@@ -233,9 +231,9 @@ class Rrule(db.Model):
         UUID, db.ForeignKey("events.id"), primary_key=True, nullable=False
     )
     event = db.relationship("Event", back_populates="rrule")
-    # recurring_type 0=daily(not a thing), 1=weekly, 2=monthly, 3=annually
+    # recurring_type  1=weekly, 2=monthly, 3=annually
     recurring_type = db.Column(db.Integer, nullable=False)
-    # if separation_count is 1, there is one interval,
+    # if separation_count is 0, no recurrance. 1, there is one interval,
     # if 2, two intervals (every two weeks) etc.
     separation_count = db.Column(db.Integer, nullable=True)
     day_of_week = db.Column(db.Integer, nullable=True)

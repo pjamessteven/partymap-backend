@@ -1,13 +1,4 @@
-from flask import Blueprint, request, jsonify
-from flask_login import current_user, login_required
-
-from pmapi.extensions import db
-from pmapi.event.model import Event
-from pmapi.event_album.model import EventImage
-from pmapi.event_contribution.model import EventContribution
-from pmapi.exceptions import InvalidUsage, InvalidAPIRequest
-from pmapi.event_album import controllers as event_images
-from pmapi.report.model import Report
+from flask import Blueprint
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
@@ -26,7 +17,7 @@ class AddEventContributionResource(MethodResource):
     @use_kwargs(
         {
             "text": fields.Str(required=False),
-            "images": fields.List(fields.Dict(), required=False, allow_none=True),
+            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "event_date_id": fields.UUID(required=False),
         }
     )

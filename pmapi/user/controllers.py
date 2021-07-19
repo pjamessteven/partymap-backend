@@ -2,7 +2,7 @@ from sqlalchemy import or_
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
 
-from .model import User
+from .model import User, OAuth
 from pmapi import validate
 import pmapi.exceptions as exc
 from pmapi.common.controllers import paginated_results
@@ -56,6 +56,12 @@ def check_user_does_not_exist(username, email):
             raise exc.RecordAlreadyExists(code="USERNAME_TAKEN")
         else:
             raise exc.RecordAlreadyExists(code="EMAIL_ALREADY_REGISTERED")
+
+
+def check_email_not_registered(email):
+    existing_user = User.query.filter(User.email == email).first()
+    if existing_user:
+        raise exc.RecordAlreadyExists(code="EMAIL_ALREADY_REGISTERED")
 
 
 def create_user(**kwargs):
@@ -169,6 +175,7 @@ def edit_user(user_id, **kwargs):
 
     if email:
         validate.email(email)
+        check_email_not_registered(email)
         # send verification email to user
         # save new email address as extra data so it can be retrieved at vfcation
         email_action = EmailAction(user=user, action="email_verify", extra_data=email)
@@ -178,3 +185,31 @@ def edit_user(user_id, **kwargs):
 
     db.session.commit()
     return user
+
+
+def delete_user(user_id):
+    user = get_user_or_404(user_id)
+    # delete oauth token
+    if user.oauth:
+        token = OAuth.query.filter(OAuth.user_id == user_id).first()
+        db.session.delete(token)
+
+    if user.created_media_items:
+        for item in user.created_media_items:
+            db.session.delete(item)
+
+    if user.created_event_dates:
+        for item in user.created_event_dates:
+            db.session.delete(item)
+
+    if user.created_event_tags:
+        for item in user.created_event_tags:
+            db.session.delete(item)
+
+    if user.created_events:
+        for item in user.created_events:
+            db.session.delete(item)
+
+    db.session.delete(user)
+    db.session.commit()
+    return

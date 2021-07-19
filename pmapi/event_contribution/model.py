@@ -1,24 +1,19 @@
 import math
 from datetime import datetime
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
 from sqlalchemy.dialects.postgresql import UUID
 
 from pmapi.extensions import db
 
 event_contribution_upvotes = db.Table(
     "event_contribution_upvotes",
-    db.Column("user_id", db.Integer, db.ForeignKey("users.id")),
-    db.Column(
-        "event_contribution_id", db.Integer, db.ForeignKey("event_contributions.id")
-    ),
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_contribution_id", UUID, db.ForeignKey("event_contributions.id")),
 )
 
 event_contribution_downvotes = db.Table(
     "event_contribution_downvotes",
-    db.Column("user_id", db.Integer, db.ForeignKey("users.id")),
-    db.Column(
-        "event_contribution_id", db.Integer, db.ForeignKey("event_contributions.id")
-    ),
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_contribution_id", UUID, db.ForeignKey("event_contributions.id")),
 )
 
 

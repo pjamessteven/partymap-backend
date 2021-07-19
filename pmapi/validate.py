@@ -49,22 +49,15 @@ def password(password):
     Maximum 72 chars
     all characters allowed
     """
-    if not password or \
-       len(password) < PASSWORD_LENGTH_MIN or \
-       len(password) > PASSWORD_LENGTH_MAX:
+    if (
+        not password
+        or len(password) < PASSWORD_LENGTH_MIN
+        or len(password) > PASSWORD_LENGTH_MAX
+    ):
 
-        msg = "Password must be between {min} and {max} characters long"\
-            .format(min=PASSWORD_LENGTH_MIN, max=PASSWORD_LENGTH_MAX)
-        raise InvalidAPIRequest(msg)
-
-    return True
-
-
-def allowed_file(extension):
-    if not '.' in extension and \
-           extension.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']:
-        msg = "File must be of one of the following formats:  {0}".format(
-            current_app.config['ALLOWED_EXTENSIONS'])
+        msg = "Password must be between {min} and {max} characters long".format(
+            min=PASSWORD_LENGTH_MIN, max=PASSWORD_LENGTH_MAX
+        )
         raise InvalidAPIRequest(msg)
 
     return True

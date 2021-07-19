@@ -1,3 +1,9 @@
+Celery requires rabbitmq
+
+
+Video converter requires ffmpeg and ffprobe
+
+
 Recreate database:
 sudo su - postgres -c "dropdb partymap"
 sudo su - postgres -c "createdb partymap"

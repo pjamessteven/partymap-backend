@@ -1,5 +1,4 @@
 from flask import current_app, render_template, request
-from pmapi.extensions import mail
 from datetime import datetime
 
 
@@ -84,7 +83,7 @@ def send_password_reset_request(user, action_id):
         #     action_id=action_id),
         "support_email": user.domain.support_email,
         "user_username": user.username,
-        "year": now().year,
+        "year": datetime.now().year,
     }
     try:
         request_info = {
@@ -105,4 +104,25 @@ def send_password_reset_request(user, action_id):
         content=content,
         content_type="text/html",
         msg_type="password.reset",
+    )
+
+
+def send_report_notification_email(report_id, description, user):
+    template = "email/content_takedown.html"
+    subject = "Content takedown request"
+
+    context = {
+        "report_id": report_id,
+        "description": description,
+        "creator_email": user.email,
+        "creator_username": user.username,
+    }
+
+    content = render_template(template, **context)
+    return send_mail(
+        to=current_app.config["SUPPORT_EMAIL"],
+        subject=subject,
+        content=content,
+        content_type="text/html",
+        msg_type="report.notification",
     )

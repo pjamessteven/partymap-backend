@@ -1,8 +1,11 @@
 from .model import Event, Rrule
 from pmapi import exceptions as exc
 from pmapi.extensions import db
+from datetime import datetime
+from flask_login import current_user
+
 import pmapi.event_tag.controllers as event_tags
-import pmapi.event_album.controllers as event_images
+import pmapi.media_item.controllers as media_items
 import pmapi.event_date.controllers as event_dates
 import pmapi.event_location.controllers as event_locations
 from pmapi.common.controllers import paginated_results
@@ -10,7 +13,7 @@ from pmapi.common.controllers import paginated_results
 
 def get_event_or_404(id):
     event = get_event(id)
-    if not event or event.deleted:
+    if not event:
         msg = "No such event with id {}".format(id)
         raise exc.RecordNotFound(msg)
     return event
@@ -18,7 +21,7 @@ def get_event_or_404(id):
 
 def get_event(id):
     event = Event.query.get(str(id))  # uuid to string
-    if event and not event.deleted:
+    if event:
         return event
     else:
         return None
@@ -26,9 +29,6 @@ def get_event(id):
 
 def search_events(**kwargs):
     query = db.session.query(Event)
-
-    # filter out deleted events
-    query = query.filter(Event.deleted is not True)
 
     if "query" in kwargs:
         query_string = kwargs.pop("query")
@@ -56,7 +56,7 @@ def add_event(**kwargs):
     rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
     tags = kwargs.pop("tags", None)
-    images = kwargs.pop("images", None)
+    media = kwargs.pop("media_items", None)
 
     event = Event(name=name, creator=creator, default_url=url, description=description)
     db.session.add(event)
@@ -78,9 +78,8 @@ def add_event(**kwargs):
     if tags:
         event_tags.add_tags_to_event(tags, event)
 
-    if images:
-        # create new album and add images
-        event_images.create_album_for_event(event, images, creator)
+    if media:
+        media_items.add_media_to_event(media, event, creator=creator)
 
     # LOCATION
     event.default_location = event_locations.get_location(location["place_id"])
@@ -107,9 +106,10 @@ def update_event(event_id, **kwargs):
     dateTime = kwargs.get("dateTime")
     description = kwargs.get("description")
     tags = kwargs.get("tags")
-    featured_album_id = kwargs.get("featured_album_id")
+    media = kwargs.pop("media_items", None)
 
     event = get_event_or_404(event_id)
+    event.updated_at = datetime.utcnow()
 
     if url:
         event.default_url = url
@@ -154,9 +154,8 @@ def update_event(event_id, **kwargs):
     if tags:
         event_tags.add_tags_to_event(tags, event)
 
-    if featured_album_id:
-        album = event_images.get_event_album_or_404(featured_album_id)
-        event.featured_album = album
+    if media:
+        media_items.add_media_to_event(media, event, creator=current_user)
 
     db.session.commit()
 
@@ -165,5 +164,5 @@ def update_event(event_id, **kwargs):
 
 def delete_event(event_id):
     event = get_event_or_404(event_id)
-    event.deleted = True
+    db.session.delete(event)
     db.session.commit()
