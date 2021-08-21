@@ -11,6 +11,7 @@ class MediaItemSchema(Schema):
     created_at = fields.DateTime()
     filename = fields.Str()
     position = fields.Int()
+    duration = fields.Int()
     caption = fields.Str()
     image_url = fields.Function(
         lambda obj: generate_filepath(obj, obj.image_filename)
@@ -37,6 +38,11 @@ class MediaItemSchema(Schema):
         if obj.thumb_filename
         else None
     )
+    poster_url = fields.Function(
+        lambda obj: generate_filepath(obj, obj.video_poster_filename)
+        if obj.video_poster_filename
+        else None
+    )
 
 
 class MediaItemSchemaListSchema(PaginatedSchema):
@@ -46,7 +52,7 @@ class MediaItemSchemaListSchema(PaginatedSchema):
 def generate_filepath(item, filename):
     return os.path.join(
         current_app.config["UPLOADS_URL"]
-        + "/event/"
+        + "event/"
         + str(item.event_id)
         + "/"
         + str(filename)

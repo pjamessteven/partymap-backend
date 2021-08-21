@@ -9,8 +9,7 @@ from flask import current_app, flash
 from PIL import Image
 from mimetypes import guess_extension
 from flask_login import current_user
-from ffmpy import FFmpeg, FFprobe
-from pprint import pprint
+from ffmpy import FFprobe
 
 # import magic
 
@@ -18,6 +17,7 @@ from .model import MediaItem
 from pmapi.extensions import db
 from pmapi import exceptions as exc
 import pmapi.event.controllers as events
+import pmapi.tasks as tasks
 
 
 def delete_item(id):
@@ -118,7 +118,6 @@ def save_media_item(file, eventId):
     file_extension = guess_extension(mimetype)
     if file_extension == ".jpeg":
         file_extension = ".jpg"
-    print(mimetype)
 
     unique_filename = str(uuid.uuid4())
 
@@ -170,9 +169,7 @@ def save_media_item(file, eventId):
         # save a copy to work with
         with open(filepath, "wb") as fh:
             fh.write(base64.b64decode(base64_string))
-        print(filepath)
 
-        # video_info = c.probe(filepath)
         video_info = FFprobe(
             inputs={filepath: None},
             global_options=[
@@ -186,36 +183,25 @@ def save_media_item(file, eventId):
         ).run(stdout=subprocess.PIPE)
         video_info = json.loads(video_info[0].decode("utf-8"))
 
-        duration = float(video_info["format"]["duration"]) / 60  # in minutes
+        duration = int(float(video_info["format"]["duration"]))
 
-        if duration > 20:
+        if duration / 60 > 20:  # in minutes
             raise exc.InvalidAPIRequest("Video must be shorter than 20 minutes")
 
         width = int(video_info["streams"][0]["width"])
         height = int(video_info["streams"][0]["height"])
 
         # create thumbnails
-        thumbnail_width, thumbnail_height = get_new_video_dimensions(
+        thumb_width, thumb_height = get_new_video_dimensions(
             width, height, max_width=512, max_height=512
         )
-        ff = FFmpeg(
-            inputs={filepath: None},
-            outputs={
-                os.path.join(
-                    path, thumb_filename
-                ): "-ss 00:00:01.000 -vframes 1 -vf scale={0}x{1}".format(
-                    thumbnail_width, thumbnail_height
-                )
-            },
+        tasks.get_video_thumbnail(
+            input_filepath=filepath,
+            thumb_out_filepath=os.path.join(path, thumb_filename),
+            poster_out_filepath=os.path.join(path, video_poster_filename),
+            thumb_height=thumb_height,
+            thumb_width=thumb_width,
         )
-        ff.run()
-        ff = FFmpeg(
-            inputs={filepath: None},
-            outputs={
-                os.path.join(path, video_poster_filename): "-ss 00:00:01.000 -vframes 1"
-            },
-        )
-        ff.run()
 
         # create lowres webm
         lowres_width, lowres_height = get_new_video_dimensions(
@@ -223,59 +209,46 @@ def save_media_item(file, eventId):
         )
         video_low_filename = unique_filename + "_v_low" + file_extension
 
-        ff = FFmpeg(
-            inputs={filepath: None},
-            outputs={
-                os.path.join(
-                    path, video_low_filename
-                ): "-c:a libvorbis -c:v vp9 -b:v 600k -minrate 400k -maxrate 800k \
-                 -quality good -speed 4 -c:a libvorbis -vf scale={0}x{1}".format(
-                    lowres_width, lowres_height
-                )
-            },
+        tasks.run_video_conversion.delay(
+            input_filepath=filepath,
+            output_filepath=os.path.join(path, video_low_filename),
+            min_bitrate=400,
+            target_bitrate=600,
+            max_bitrate=800,
+            width=lowres_width,
+            height=lowres_height,
         )
-        print(ff.cmd)
-        ff.run()
 
         if (width >= 1920 and height >= 1080) or (height >= 1920 and width >= 1080):
             midres_width, midres_height = get_new_video_dimensions(
                 width, height, max_width=1920, max_height=1080
             )
             video_med_filename = unique_filename + "_v_med" + file_extension
-            ff = FFmpeg(
-                inputs={filepath: None},
-                outputs={
-                    os.path.join(
-                        path, video_med_filename
-                    ): "-c:a libvorbis -c:v vp9 -b:v 1000k -minrate 600 -maxrate 1200k \
-                     -quality good -speed 4 -c:a libvorbis -vf scale={0}x{1}".format(
-                        midres_width, midres_height
-                    )
-                },
-            )
-            print(ff.cmd)
-            ff.run()
 
+            tasks.run_video_conversion.delay(
+                input_filepath=filepath,
+                output_filepath=os.path.join(path, video_med_filename),
+                min_bitrate=600,
+                target_bitrate=1000,
+                max_bitrate=1200,
+                width=midres_width,
+                height=midres_height,
+            )
             # save 4k copy
             if (width >= 3840 and height >= 2160) or (height >= 3840 and width >= 2160):
                 highres_width, highres_height = get_new_video_dimensions(
                     width, height, max_width=3840, max_height=2160
                 )
                 video_high_filename = unique_filename + "_v_high" + file_extension
-                ff = FFmpeg(
-                    inputs={filepath: None},
-                    outputs={
-                        os.path.join(
-                            path, video_high_filename
-                        ): "-c:a libvorbis -c:v vp9 -b:v 1500k -minrate 1000 \
-                        -maxrate 2000k -quality good -speed 4 -c:a libvorbis -vf \
-                        scale={0}x{1}".format(
-                            highres_width, highres_height
-                        )
-                    },
+                tasks.run_video_conversion.delay(
+                    input_filepath=filepath,
+                    output_filepath=os.path.join(path, video_high_filename),
+                    min_bitrate=1000,
+                    target_bitrate=1500,
+                    max_bitrate=2000,
+                    width=highres_width,
+                    height=highres_height,
                 )
-                print(ff.cmd)
-                ff.run()
 
         return (
             thumb_filename,

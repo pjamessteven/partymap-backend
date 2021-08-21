@@ -37,7 +37,7 @@ class MediaItem(db.Model):
     video_med_filename = db.Column(db.String, default=None, nullable=True)
     video_high_filename = db.Column(db.String, default=None, nullable=True)
     video_poster_filename = db.Column(db.String, default=None, nullable=True)
-    duration = db.Column(db.Integer)
+    duration = db.Column(db.Integer)  # in seconds
 
     contribution_id = db.Column(UUID, db.ForeignKey("event_contributions.id"))
     contribution = db.relationship("EventContribution", back_populates="media_items")

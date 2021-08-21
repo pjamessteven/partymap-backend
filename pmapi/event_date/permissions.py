@@ -12,7 +12,7 @@ class delete(permissions.Permission):
         ed = event_dates.get_event_date_or_404(kwargs.pop("id"))
 
         if (
-            ed.creator_id != current_user.id
+            ed.event.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -27,9 +27,8 @@ class update(permissions.Permission):
 
     def can(self, **kwargs):
         ed = event_dates.get_event_date_or_404(kwargs.pop("id"))
-
         if (
-            ed.creator_id != current_user.id
+            ed.event.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(

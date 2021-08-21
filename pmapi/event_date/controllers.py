@@ -34,29 +34,29 @@ def add_event_date_with_datetime(
 
         start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
         start_naive = start.replace(tzinfo=None, minute=0, second=0, microsecond=0)
-        print("start naive", start_naive)
         end = None
+        start_time = False
+        end_time = False
 
         if date.get("end", None):
             end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
             end_naive = end.replace(tzinfo=None, minute=0, second=0, microsecond=0)
-            print("end naive", end_naive)
 
         # event start time is specified
         if dateTime.get("startHours", None):
+            start_time = True
             start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
             if dateTime.get("startMinutes") is not None:
                 start_naive = start_naive.replace(
                     minute=int(dateTime.get("startMinutes"))
                 )
-            print("start hours", start)
 
         # event end time is specified
         if dateTime.get("endHours", None) and date.get("end", None):
+            end_time = True
             end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
             if dateTime.get("endMinutes") is not None:
                 end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
-            print("end_hours", end)
 
         return add_event_date(
             event=event,
@@ -64,8 +64,9 @@ def add_event_date_with_datetime(
             end_naive=end_naive,
             location=location,
             description=description,
+            start_time=start_time,
+            end_time=end_time,
             url=url,
-            creator=creator,
         )
 
     else:
@@ -81,6 +82,8 @@ def add_event_date(
     end_naive=None,
     tz=None,
     url=None,
+    start_time=False,
+    end_time=False,
     description=None,
 ):
     """accepts naive start and end dates and derives timezone from location
@@ -123,11 +126,12 @@ def add_event_date(
         end_naive=end_naive,
         end=end_localized,
         start=start_localized,
+        start_time=start_time,
+        end_time=end_time,
         tz=tz,
         location=event_location,
         description=description,
         url=url,
-        creator=creator,
     )
     db.session.add(event_date)
     db.session.commit()
@@ -140,9 +144,9 @@ def update_event_date(id, **kwargs):
     dateTime = kwargs.get("dateTime", None)
     location = kwargs.get("location", None)
 
-    if "dateTime":
+    if dateTime:
         # location required for timezone info
-        if "location":
+        if location:
             lat = location["geometry"]["location"]["lat"]
             lng = location["geometry"]["location"]["lng"]
         else:
@@ -155,9 +159,9 @@ def update_event_date(id, **kwargs):
             tzinfo=None, minute=0, second=0, microsecond=0
         )
         end_naive = None
+        end = None
 
         if date.get("end", None):
-            print("has end")
             end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
             end_naive = end_naive.replace(
                 tzinfo=None, minute=0, second=0, microsecond=0
@@ -165,17 +169,24 @@ def update_event_date(id, **kwargs):
 
         # event start time is specified
         if dateTime.get("startHours", None):
+            event_date.start_time = True
             start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
             if dateTime.get("startMinutes") is not None:
                 start_naive = start_naive.replace(
                     minute=int(dateTime.get("startMinutes"))
                 )
+        else:
+            event_date.start_time = False
 
         # event end time is specified
         if dateTime.get("endHours", None) is not None and end_naive is not None:
+            event_date.end_time = True
             end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
             if dateTime.get("endMinutes") is not None:
                 end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+        else:
+            event_date.end_time = False
+
         #
         try:
             # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
@@ -252,7 +263,7 @@ def update_event_date(id, **kwargs):
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
     # db.session.add(activity)
     db.session.commit()
-
+    print("starttime", event_date.start_time)
     return event_date
 
 
@@ -280,6 +291,8 @@ def generate_future_event_dates(
             tzinfo=None, minute=0, second=0, microsecond=0
         )
         end_naive = None
+        start_time = False
+        end_time = False
 
         if date.get("end", None):
             end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -289,6 +302,7 @@ def generate_future_event_dates(
 
         # event start time is specified
         if dateTime.get("startHours", None):
+            start_time = True
             start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
             if dateTime.get("startMinutes") is not None:
                 start_naive = start_naive.replace(
@@ -297,6 +311,7 @@ def generate_future_event_dates(
 
         # event end time is specified
         if dateTime.get("endHours", None) and date.get("end", None):
+            end_time = False
             end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
             if dateTime.get("endMinutes") is not None:
                 end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
@@ -311,7 +326,7 @@ def generate_future_event_dates(
 
         # delete any event dates in the future
         # because the new recurring profile overrides all old dates
-        for ed in event.future_event_dates():
+        for ed in event.future_event_dates:
             db.session.delete(ed)
 
     else:
@@ -319,9 +334,12 @@ def generate_future_event_dates(
         # work something out to generate new event dates from
         start_naive = event.last_event_date().start_naive
         end_naive = event.last_event_date().end_naive
+        start_time = event.last_event_date().start_time
+        end_time = event.last_event_date().end_time
 
         tz = event.last_event_date().tz
 
+    print(rrule)
     if rrule.separation_count == 0 or rrule is None:
         # event is a one-off
         event.recurring = False
@@ -330,6 +348,8 @@ def generate_future_event_dates(
             start_naive=start_naive,
             end_naive=end_naive,
             event_location=event_location,
+            start_time=start_time,
+            end_time=end_time,
             tz=tz,
             url=url,
         )
@@ -339,7 +359,7 @@ def generate_future_event_dates(
         event.recurring = True
         startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
         # work out how many dates to generate
-        limit = 10 - len(event.future_event_dates())
+        limit = 10 - len(event.future_event_dates)
 
         if dateTime is None:
             limit += 1
@@ -368,6 +388,8 @@ def generate_future_event_dates(
                     event=event,
                     start_naive=start_naive,
                     end_naive=end_naive,
+                    start_time=start_time,
+                    end_time=end_time,
                     event_location=event_location,
                     tz=tz,
                     url=url,
@@ -572,6 +594,7 @@ def query_event_dates(**kwargs):
     lng = None
     distance_expression = None
 
+    print("loxationinkwa", "location" not in kwargs)
     if "location" in kwargs and kwargs.get("location"):
         location = kwargs.pop("location")
         print(location, "test loc")
@@ -642,7 +665,7 @@ def query_event_dates(**kwargs):
         for tag in tags:
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
-    if "bounds" in kwargs and "location" not in kwargs:
+    if "bounds" in kwargs and "location" in kwargs is False:
         print("bounds")
         # bounds search is to return event dates that are in current view
         # on the map

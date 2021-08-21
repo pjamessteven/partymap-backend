@@ -2,9 +2,14 @@ from datetime import datetime
 from geoalchemy2.types import Geometry
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import query_expression
 
 from pmapi.extensions import db
+from sqlalchemy import select
+from pmapi.event_date.model import EventDate
 
+from pmapi.event.model import Event
 
 event_location_type_association = db.Table(
     "event_location_type_association",
@@ -41,6 +46,9 @@ class EventLocation(db.Model):
         back_populates="event_locations",
     )
     address_components = db.Column(JSONB)
+
+    events = query_expression()
+
     event = db.relationship("Event", back_populates="default_location")
     # event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
 
@@ -101,6 +109,26 @@ class EventLocation(db.Model):
         now = datetime.utcnow()
         eventdate = min(self.event_dates, key=lambda x: abs(x.start - now))
         return eventdate.to_dict()
+
+    @hybrid_property
+    def all_events(self):
+        event_ids = []
+        events = []
+        for ed in self.event_dates:
+            if ed.event_id not in event_ids:
+                events.append(ed.event)
+        return events
+
+    # doesn't take into account times
+    # get_all_locations query does
+    @all_events.expression
+    def all_events(cls):
+        return (
+            select(Event)
+            .join(EventDate)
+            .where(EventDate.location_id == cls.place_id)
+            .label("events")
+        )
 
 
 class ClusterZoom2(db.Model):

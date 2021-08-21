@@ -1,5 +1,10 @@
 import reverse_geocode
 import pygeohash as pgh
+from sqlalchemy.orm import with_expression
+from sqlalchemy.orm import subqueryload, selectinload, joinedload, Bundle
+from sqlalchemy import select, func, String, Text, join
+from sqlalchemy.dialects.postgresql import ARRAY
+
 from pmapi.event_location.model import EventLocation, EventLocationType
 from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
@@ -85,23 +90,49 @@ def get_all_locations(**kwargs):
     query = db.session.query(EventLocation)
 
     if "date_min" in kwargs or "date_max" in kwargs or "tags" in kwargs:
+        # this expression allows us to show the events for a given
+        # event_location in the query
+        expression = select(
+            [
+                func.array_agg(
+                    func.jsonb_build_object("name", Event.name, "id", Event.id)
+                )
+            ]
+        ).select_from(join(Event, EventDate))
+
         query = (
-            db.session.query(EventLocation).join(EventDate).distinct()
+            db.session.query(EventLocation)
+            .join(EventLocation.event_dates)
+            .join(EventDate.event)
+            .populate_existing()
+            .distinct()
         )  # fixes issues related to pagination
         if "date_min" in kwargs:
-            print("datemin", kwargs["date_min"])
-            query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
+            datemin = kwargs.pop("date_min")
+            query = query.filter(EventDate.start_naive >= datemin)
+            expression = expression.where(EventDate.start_naive >= datemin)
         if "date_max" in kwargs:
             date_max = kwargs.pop("date_max")
             query = query.filter(
                 EventDate.start_naive <= date_max,
             )
+            expression = expression.where(EventDate.start_naive <= date_max)
+
         if "tags" in kwargs:
             tags = kwargs.pop("tags")
             query = query.join(Event)
             for tag in tags:
                 query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
-    return query
+                expression = expression.where(
+                    Event.event_tags.any(EventTag.tag_id == tag)
+                )
+
+    return query.options(
+        with_expression(
+            EventLocation.events,
+            expression.where(EventDate.location_id == EventLocation.place_id),
+        )
+    )
 
 
 def get_all_locations_paginated(**kwargs):

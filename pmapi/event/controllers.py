@@ -101,6 +101,7 @@ def update_event(event_id, **kwargs):
     print(kwargs)
 
     rrule = kwargs.get("rrule")
+    remove_rrule = kwargs.get("remove_rrule")
     url = kwargs.get("url")
     location = kwargs.get("location")
     dateTime = kwargs.get("dateTime")
@@ -120,14 +121,20 @@ def update_event(event_id, **kwargs):
         # create_notification('UPDATE EVENT', activity, event.followers)
         # db.session.add(activity)
 
-    if rrule is not None and rrule is False:
-        db.session.delete(event.rrule)
+    if remove_rrule is True:
+        print("remove rrule")
+        if event.rrule:
+            db.session.delete(event.rrule)
+            # delete future event dates (not including the next one)
+            for ed in event.future_event_dates_except_next:
+                db.session.delete(ed)
 
     # require these three fields to update
     if dateTime and location and rrule:
         # delete existing rrule if exists
-        if event.rrule:
-            db.session.delete(event.rrule)
+        existing_rrule = Rrule.query.get(event_id)
+        if existing_rrule:
+            db.session.delete(existing_rrule)
             db.session.flush()
 
         rrule = Rrule(
@@ -140,11 +147,16 @@ def update_event(event_id, **kwargs):
             month_of_year=rrule["monthOfYear"],
         )
         db.session.add(rrule)
+        db.session.flush()
 
         # location
+        print("place_i", location["place_id"])
         event_location = event_locations.get_location(location["place_id"])
+        print(event_location)
         if event_location is None:
+            print("el is none")
             event_location = event_locations.add_new_event_location(**location)
+            print(event_location)
         event.default_location = event_location
 
         return event_dates.generate_future_event_dates(

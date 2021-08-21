@@ -13,6 +13,8 @@ class EventDateSchema(Schema):
     end = fields.Str(attribute="end")
     start_naive = fields.Str(attribute="start_naive")
     end_naive = fields.Str(attribute="end_naive")
+    start_time = fields.Boolean()
+    end_time = fields.Boolean()
     tz = fields.Str()
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     event = fields.Nested("EventSchema", only=["event_tags", "cover_items"])

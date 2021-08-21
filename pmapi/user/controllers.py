@@ -108,13 +108,16 @@ def create_user(**kwargs):
     # create user
     user = User(email, username, password, role)
 
+    db.session.add(user)
+    db.session.commit()
+
     if activate:
         user.activate()
     else:
         # send activation email to user
         email_action = EmailAction(user=user, action="email_verify")
         db.session.add(email_action)
-        db.session.flush()
+        db.session.commit()
         send_signup_verify_email(user, email_action.id)
 
     logging.info(
@@ -125,8 +128,8 @@ def create_user(**kwargs):
         status=user.status,
     )
 
-    db.session.add(user)
     db.session.commit()
+
     return user
 
 

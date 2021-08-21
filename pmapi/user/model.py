@@ -39,7 +39,6 @@ class User(db.Model):
     )
 
     created_events = db.relationship("Event", back_populates="creator")
-    created_event_dates = db.relationship("EventDate", back_populates="creator")
     created_contributions = db.relationship(
         "EventContribution", back_populates="creator"
     )

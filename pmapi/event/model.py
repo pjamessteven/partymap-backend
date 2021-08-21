@@ -4,13 +4,17 @@ from sqlalchemy import func
 from sqlalchemy import and_
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.orderinglist import ordering_list
+from sqlalchemy.ext.hybrid import hybrid_property
 
+from sqlalchemy import select
 import uuid
 
 from pmapi.extensions import db
 
 # from pmapi.favorite_events.model import favorites_association_table
 from pmapi.event_date.model import EventDate
+
+# from pmapi.event_location.model import EventLocation
 
 
 def create_tsvector(*args):
@@ -76,64 +80,34 @@ class Event(db.Model):
         # return first three items for cover images
         return self.media_items[0:3]
 
+    """
+    @hybrid_property
+    def all_locations(self):
+        place_ids = []
+        locations = []
+        for ed in self.event_dates:
+            if ed.location_id not in place_ids:
+                locations.append(ed.location)
+        return locations
+
+    # doesn't take into account times
+    # get_all_locations query does
+    @all_locations.expression
+    def all_locations(cls):
+        return (
+            select(EventLocation)
+            .join(EventDate)
+            .where(EventDate.event_id == cls.id)
+            .label("events")
+            .as_scalar()
+        )
+        """
+
     def minified(self):
         return dict(
             name=self.name,
             id=self.id,
         )
-
-    def to_dict(self, current_user=None, activity=True):
-        # images_sorted =
-        # self.event_contributions.sort(key=lambda x: x.votes,
-        # reverse=True)
-        # if user is logged in, include upvote status etc.
-        if current_user:
-            if self.rrule:
-                recurring = self.rrule.to_dict()
-            else:
-                recurring = None
-            return dict(
-                id=self.id,
-                name=self.name,
-                created_at=self.created_at,
-                creator_id=self.creator_id,
-                event_images=[i.to_dict() for i in self.event_images],
-                description=self.description,
-                url=self.default_url,
-                # favorited=self.is_favorited(current_user.id),
-                event_dates=[ed.to_dict() for ed in self.future_event_dates()],
-                # revisions=self.versions.count(),
-                # most_recent_activity=activities.get_most_recent_activity_for_item(self)
-                # if activity
-                # else None,
-                event_tags=[tag.tag_id for tag in self.event_tags],
-                rrule=recurring,
-                # settings=self.settings,
-            )
-
-        else:
-            if self.rrule:
-                recurring = self.rrule.to_dict()
-            else:
-                recurring = None
-            return dict(
-                id=self.id,
-                name=self.name,
-                created_at=self.created_at,
-                creator_id=self.creator_id,
-                # owners=[o.username for o in self.owners],
-                event_images=[i.to_dict() for i in self.event_images],
-                description=self.description,
-                url=self.default_url,
-                event_tags=[tag.tag_id for tag in self.event_tags],
-                event_dates=[ed.to_dict() for ed in self.future_event_dates()],
-                # revisions=self.versions.count(),
-                # most_recent_activity=activities.get_most_recent_activity_for_item(self)
-                # if activity
-                # else None,
-                rrule=recurring,
-                # settings=self.settings,
-            )
 
     def next_event(self):
         now = datetime.utcnow()
@@ -159,6 +133,7 @@ class Event(db.Model):
         else:
             return None
 
+    @property
     def future_event_dates(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
@@ -166,7 +141,14 @@ class Event(db.Model):
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()
 
-    """
+    @property
+    def future_event_dates_except_next(self):
+        now = datetime.utcnow()
+        eds = db.session.query(EventDate)
+        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.order_by(EventDate.start.asc())
+        return eds.all()[1:]
+        """
     def favorite(self, user_id):
         _faved = self.is_favorited(user_id)
         if _faved is False:
@@ -201,9 +183,6 @@ class Event(db.Model):
         else:
             return False
     """
-
-    def eventDates(self):
-        return [ed.minified() for ed in self.event_dates]
 
     def revisions(self):
         # get revisions then invert list

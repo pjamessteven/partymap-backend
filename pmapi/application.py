@@ -23,13 +23,15 @@ from .exceptions import SystemError
 
 from .extensions import db
 
+from .tasks import configure_celery
+from . import tasks
+
 from sqlalchemy.exc import DatabaseError
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
-from .tasks import configure_celery
 
 import os
 import logging
@@ -42,7 +44,7 @@ def create_app(config, app_name="PARTYMAP"):
     app = Flask(app_name)
     app.config.from_object(config)
 
-    configure_celery(app)
+    configure_celery(app, tasks.celery)
     register_extensions(app)
     register_blueprints(app)
     register_errorhandlers(app)

@@ -1,6 +1,5 @@
 Celery requires rabbitmq
 
-
 Video converter requires ffmpeg and ffprobe
 
 
@@ -15,3 +14,12 @@ CREATE EXTENSION postgis; // add postgis extension
 
 Might need this..
 ALTER TABLE spatial_ref_sys OWNER TO pete;
+
+For runtime:
+
+Run rabbitmq server: 
+
+sudo rabbitmq-server -detached
+
+Run celery worker (in venv):
+celery -A pmapi.tasks worker

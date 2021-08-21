@@ -81,6 +81,7 @@ class EventResource(MethodResource):
             "url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
             "rrule": fields.Dict(required=False, allow_none=True),
+            "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
         },
     )

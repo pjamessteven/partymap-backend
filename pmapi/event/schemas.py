@@ -14,7 +14,9 @@ class EventSchema(Schema):
     description = fields.Str()
     default_url = fields.Str()
     tz = fields.Str()
-    event_dates = fields.Nested("EventDateSchema", many=True)
+    event_dates = fields.Nested(
+        "EventDateSchema", many=True, attribute="future_event_dates"
+    )
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
     media_items = fields.Nested("MediaItemSchema", many=True)

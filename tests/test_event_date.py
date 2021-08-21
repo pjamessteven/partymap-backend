@@ -368,7 +368,7 @@ def test_generate_future_event_dates_for_event(
 ):
     event = complete_event_factory()
     # event should have one event date by default
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every month on the 1st day
         "recurring_type": 2,
         "separation_count": 1,
@@ -387,7 +387,7 @@ def test_generate_future_event_dates_for_event(
             next_date = event.event_dates[index - 1].start + relativedelta(months=1)
             assert ed.start.month == next_date.month
 
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_generate_future_event_dates_for_event_partial_monthly(
@@ -396,7 +396,7 @@ def test_generate_future_event_dates_for_event_partial_monthly(
     event = complete_event_factory()
     # event should have one event date by default
 
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every month on the 1st day
         "recurring_type": 2,
         "separation_count": 1,
@@ -422,7 +422,7 @@ def test_generate_future_event_dates_for_event_partial_monthly(
             )
             assert ed.start.month == next_expected_date.month
 
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_generate_future_event_dates_for_event_partial_weekly(
@@ -430,7 +430,7 @@ def test_generate_future_event_dates_for_event_partial_weekly(
 ):
     event = complete_event_factory()
     # event should have one event date by default
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every week
         "recurring_type": 1,  # weekly recurring type
         "separation_count": 1,
@@ -447,7 +447,7 @@ def test_generate_future_event_dates_for_event_partial_weekly(
     db.session.commit()
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
-    future_event_dates = event.future_event_dates()
+    future_event_dates = event.future_event_dates
     for index, ed in enumerate(future_event_dates):
         if index == 0:
             pass
@@ -458,7 +458,7 @@ def test_generate_future_event_dates_for_event_partial_weekly(
             )
             assert ed.start.day == next_expected_date.day
 
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_generate_future_event_dates_for_event_partial_yearly(
@@ -466,7 +466,7 @@ def test_generate_future_event_dates_for_event_partial_yearly(
 ):
     event = complete_event_factory()
     # event should have one event date by default
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every year on the 1st day
         "recurring_type": 3,  # yearly recurring type
         "separation_count": 1,
@@ -483,7 +483,7 @@ def test_generate_future_event_dates_for_event_partial_yearly(
     db.session.commit()
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
-    future_event_dates = event.future_event_dates()
+    future_event_dates = event.future_event_dates
     for index, ed in enumerate(future_event_dates):
         if index == 0:
             pass
@@ -501,7 +501,7 @@ def test_generate_future_event_dates_for_event_partial_yearly(
             # as in first_saturday_of_next_month_at_1330pm fixture
             assert ed.start.weekday() == 5
             # assert ed.start.month == // too annoying to test
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_generate_future_event_dates_for_event_partial_yearly_absolute(
@@ -510,7 +510,7 @@ def test_generate_future_event_dates_for_event_partial_yearly_absolute(
     event = complete_event_factory()
     start_date = event.event_dates[0].start
     # event should have one event date by default
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every month on the 1st day
         "recurring_type": 3,
         "separation_count": 1,
@@ -527,7 +527,7 @@ def test_generate_future_event_dates_for_event_partial_yearly_absolute(
     db.session.commit()
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
-    future_event_dates = event.future_event_dates()
+    future_event_dates = event.future_event_dates
     for index, ed in enumerate(future_event_dates):
         if index == 0:
             pass
@@ -539,7 +539,7 @@ def test_generate_future_event_dates_for_event_partial_yearly_absolute(
             assert ed.start.year == next_expected_date.year
             assert ed.start.day == start_date.day
             assert ed.start.month == start_date.month
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_generate_future_event_dates_for_event_partial_monthly_absolute(
@@ -548,7 +548,7 @@ def test_generate_future_event_dates_for_event_partial_monthly_absolute(
     event = complete_event_factory()
     start_date = event.event_dates[0].start
     # event should have one event date by default
-    assert len(event.future_event_dates()) == 1
+    assert len(event.future_event_dates) == 1
     rrule = {  # every month on the 1st day
         "recurring_type": 2,
         "separation_count": 1,
@@ -565,7 +565,7 @@ def test_generate_future_event_dates_for_event_partial_monthly_absolute(
     db.session.commit()
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
-    future_event_dates = event.future_event_dates()
+    future_event_dates = event.future_event_dates
     for index, ed in enumerate(future_event_dates):
         if index == 0:
             pass
@@ -579,7 +579,7 @@ def test_generate_future_event_dates_for_event_partial_monthly_absolute(
                 ed.start.day == start_date.day
             )  # should be same day as original start date
 
-    assert len(event.future_event_dates()) == 10
+    assert len(event.future_event_dates) == 10
 
 
 def test_query_event_dates_bounds(

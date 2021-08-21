@@ -12,9 +12,6 @@ class EventDate(db.Model):
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
-    creator = db.relationship("User", back_populates="created_event_dates")
-
     event_id = db.Column(UUID, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_dates")
     tz = db.Column(db.String, nullable=False)
@@ -23,6 +20,8 @@ class EventDate(db.Model):
     end = db.Column(db.DateTime, nullable=True)
     start_naive = db.Column(db.DateTime, nullable=False)
     end_naive = db.Column(db.DateTime, nullable=True)
+    start_time = db.Column(db.Boolean)
+    end_time = db.Column(db.Boolean)
     # info can change for each event
     location_id = db.Column(db.String, db.ForeignKey("event_locations.place_id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
