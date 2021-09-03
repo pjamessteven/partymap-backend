@@ -24,7 +24,14 @@ Activity = activity_plugin.activity_cls
 
 
 def add_event_date_with_datetime(
-    event_id, dateTime, location, description=None, url=None, creator=None
+    event_id,
+    dateTime,
+    location,
+    description=None,
+    url=None,
+    ticketUrl=None,
+    size=None,
+    creator=None,
 ):
     # this function is used by the post eventdate endpoint
     event = events.get_event_or_404(event_id)
@@ -32,31 +39,31 @@ def add_event_date_with_datetime(
     if dateTime:
         date = dateTime.get("date")
 
+        if date.get("start", None) is None:
+            raise exc.InvalidAPIRequest("Start date required")
         start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
         start_naive = start.replace(tzinfo=None, minute=0, second=0, microsecond=0)
-        end = None
-        start_time = False
-        end_time = False
 
-        if date.get("end", None):
-            end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            end_naive = end.replace(tzinfo=None, minute=0, second=0, microsecond=0)
+        if date.get("end", None) is None:
+            raise exc.InvalidAPIRequest("End date required")
+        end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        end_naive = end.replace(tzinfo=None, minute=0, second=0, microsecond=0)
 
-        # event start time is specified
-        if dateTime.get("startHours", None):
-            start_time = True
-            start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
-            if dateTime.get("startMinutes") is not None:
-                start_naive = start_naive.replace(
-                    minute=int(dateTime.get("startMinutes"))
-                )
+        if dateTime.get("startHours", None) is None:
+            raise exc.InvalidAPIRequest("Start hours required")
+        start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
 
-        # event end time is specified
-        if dateTime.get("endHours", None) and date.get("end", None):
-            end_time = True
-            end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
-            if dateTime.get("endMinutes") is not None:
-                end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+        if dateTime.get("startMinutes", None) is None:
+            raise exc.InvalidAPIRequest("Start minutes required")
+        start_naive = start_naive.replace(minute=int(dateTime.get("startMinutes")))
+
+        if dateTime.get("endHours", None) is None:
+            raise exc.InvalidAPIRequest("Start hours required")
+        end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
+
+        if dateTime.get("endMinutes", None) is None:
+            raise exc.InvalidAPIRequest("End minutes required")
+        end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
 
         return add_event_date(
             event=event,
@@ -64,27 +71,30 @@ def add_event_date_with_datetime(
             end_naive=end_naive,
             location=location,
             description=description,
-            start_time=start_time,
-            end_time=end_time,
+            size=size,
             url=url,
+            ticket_url=ticketUrl,
         )
 
     else:
-        raise exc.InvalidAPIRequest()
+
+        raise exc.InvalidAPIRequest(
+            "DateTime required for making healthy computer program"
+        )
 
 
 def add_event_date(
     start_naive,
+    end_naive,
     event,
     location=None,  # this parameter is used by direct api calls to this function
     event_location=None,  # this parameter is only used by generate_event_dates
     creator=None,
-    end_naive=None,
     tz=None,
     url=None,
-    start_time=False,
-    end_time=False,
+    ticket_url=None,
     description=None,
+    size=None,
 ):
     """accepts naive start and end dates and derives timezone from location
     if it not provided"""
@@ -105,20 +115,22 @@ def add_event_date(
         tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
         tz_obj = pytz.timezone(tz)
 
+    if not end_naive:
+        raise exc.InvalidAPIRequest("End date required")
+
+    if end_naive < start_naive:
+        raise exc.InvalidAPIRequest("End time can't be before the start time")
+
     start_localized = tz_obj.localize(start_naive)
     start_localized = start_localized.astimezone(pytz.utc)
-    # strip tz info before adding to db. very important!
-    start_localized = start_localized.replace(tzinfo=None)
-    # check if there is an enddate
-    end_localized = None
-
-    if end_naive:
-        end_localized = tz_obj.localize(end_naive)
-        end_localized = end_localized.astimezone(pytz.utc)
-        end_localized = end_localized.replace(tzinfo=None)
-
-        if end_naive < start_naive:
-            raise exc.InvalidAPIRequest("End date must be before start date")
+    start_localized = start_localized.replace(
+        tzinfo=None
+    )  # strip tz info before adding to db. very important!
+    end_localized = tz_obj.localize(end_naive)
+    end_localized = end_localized.astimezone(pytz.utc)
+    end_localized = end_localized.replace(
+        tzinfo=None
+    )  # strip tz info before adding to db. very important!
 
     event_date = EventDate(
         event=event,
@@ -126,12 +138,12 @@ def add_event_date(
         end_naive=end_naive,
         end=end_localized,
         start=start_localized,
-        start_time=start_time,
-        end_time=end_time,
         tz=tz,
         location=event_location,
         description=description,
+        size=size,
         url=url,
+        ticket_url=ticket_url,
     )
     db.session.add(event_date)
     db.session.commit()
@@ -154,40 +166,38 @@ def update_event_date(id, **kwargs):
             lng = event_date.location.lng
 
         date = dateTime.get("date")
+
+        if date.get("start", None) is None:
+            raise exc.InvalidAPIRequest("Start date required")
         start_naive = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
         start_naive = start_naive.replace(
             tzinfo=None, minute=0, second=0, microsecond=0
         )
-        end_naive = None
-        end = None
 
-        if date.get("end", None):
-            end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            end_naive = end_naive.replace(
-                tzinfo=None, minute=0, second=0, microsecond=0
-            )
+        if date.get("end", None) is None:
+            raise exc.InvalidAPIRequest("End date required")
+        end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        end_naive = end_naive.replace(tzinfo=None, minute=0, second=0, microsecond=0)
 
-        # event start time is specified
-        if dateTime.get("startHours", None):
-            event_date.start_time = True
-            start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
-            if dateTime.get("startMinutes") is not None:
-                start_naive = start_naive.replace(
-                    minute=int(dateTime.get("startMinutes"))
-                )
-        else:
-            event_date.start_time = False
+        if end_naive < start_naive:
+            raise exc.InvalidAPIRequest("End time can't be before the start time")
 
-        # event end time is specified
-        if dateTime.get("endHours", None) is not None and end_naive is not None:
-            event_date.end_time = True
-            end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
-            if dateTime.get("endMinutes") is not None:
-                end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
-        else:
-            event_date.end_time = False
+        if dateTime.get("startHours", None) is None:
+            raise exc.InvalidAPIRequest("Start hours required")
+        start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
 
-        #
+        if dateTime.get("startMinutes", None) is None:
+            raise exc.InvalidAPIRequest("Start minutes required")
+        start_naive = start_naive.replace(minute=int(dateTime.get("startMinutes")))
+
+        if dateTime.get("endHours", None) is None:
+            raise exc.InvalidAPIRequest("End hours required")
+        end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
+
+        if dateTime.get("endMinutes", None) is None:
+            raise exc.InvalidAPIRequest("End minutes required")
+        end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+
         try:
             # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
             tf = TimezoneFinder()
@@ -206,13 +216,10 @@ def update_event_date(id, **kwargs):
         start = tz_obj.localize(start)
         start = start.astimezone(pytz.utc)
         start = start.replace(tzinfo=None)
-        if end_naive is not None:
-            end = tz_obj.localize(end_naive)
-            end = end.astimezone(pytz.utc)
-            end = end.replace(tzinfo=None)
-
-            if end < start:
-                raise exc.InvalidAPIRequest("End date must be before start date")
+        end = end_naive.replace(tzinfo=None)
+        end = tz_obj.localize(end_naive)
+        end = end.astimezone(pytz.utc)
+        end = end.replace(tzinfo=None)
 
         event_date.start = start
         event_date.end = end
@@ -256,6 +263,12 @@ def update_event_date(id, **kwargs):
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
 
+    if "ticketUrl" in kwargs:
+        event_date.ticket_url = kwargs.pop("ticketUrl")
+
+    if "size" in kwargs:
+        event_date.size = kwargs.pop("size")
+
     event_date.event.updated_at = datetime.utcnow()
     db.session.flush()
     # had to abandon sqlalchemy-continuum because it requires big integer ID types
@@ -263,12 +276,18 @@ def update_event_date(id, **kwargs):
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
     # db.session.add(activity)
     db.session.commit()
-    print("starttime", event_date.start_time)
     return event_date
 
 
 def generate_future_event_dates(
-    event, dateTime=None, event_location=None, rrule=None, url=None
+    event,
+    dateTime=None,
+    event_location=None,
+    rrule=None,
+    url=None,
+    ticket_url=None,
+    next_event_date_description=None,
+    next_event_date_size=None,
 ):
 
     if url:
@@ -276,6 +295,12 @@ def generate_future_event_dates(
 
     else:
         url = event.default_url
+
+    if ticket_url:
+        event.default_ticket_url = ticket_url
+
+    else:
+        ticket_url = event.default_ticket_url
 
     if rrule is None:
         rrule = event.rrule
@@ -286,35 +311,34 @@ def generate_future_event_dates(
     if dateTime:
         date = dateTime.get("date")
 
+        if date.get("start", None) is None:
+            raise exc.InvalidAPIRequest("Start date required")
         start_naive = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
         start_naive = start_naive.replace(
             tzinfo=None, minute=0, second=0, microsecond=0
         )
-        end_naive = None
-        start_time = False
-        end_time = False
 
-        if date.get("end", None):
-            end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-            end_naive = end_naive.replace(
-                tzinfo=None, minute=0, second=0, microsecond=0
-            )
+        if date.get("end", None) is None:
+            raise exc.InvalidAPIRequest("End date required")
+        end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        end_naive = end_naive.replace(tzinfo=None, minute=0, second=0, microsecond=0)
 
-        # event start time is specified
-        if dateTime.get("startHours", None):
-            start_time = True
-            start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
-            if dateTime.get("startMinutes") is not None:
-                start_naive = start_naive.replace(
-                    minute=int(dateTime.get("startMinutes"))
-                )
+        if dateTime.get("startHours", None) is None:
+            raise exc.InvalidAPIRequest("Start hours required")
+        start_naive = start_naive.replace(hour=int(dateTime.get("startHours")))
+
+        if dateTime.get("startMinutes", None) is None:
+            raise exc.InvalidAPIRequest("Start minutes required")
+        start_naive = start_naive.replace(minute=int(dateTime.get("startMinutes")))
 
         # event end time is specified
-        if dateTime.get("endHours", None) and date.get("end", None):
-            end_time = False
-            end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
-            if dateTime.get("endMinutes") is not None:
-                end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
+        if dateTime.get("endHours", None) is None:
+            raise exc.InvalidAPIRequest("End hours required")
+        end_naive = end_naive.replace(hour=int(dateTime.get("endHours")))
+
+        if dateTime.get("endMinutes", None) is None:
+            raise exc.InvalidAPIRequest("End minutes required")
+        end_naive = end_naive.replace(minute=int(dateTime.get("endMinutes")))
 
         # Find timezone info
         try:
@@ -334,12 +358,9 @@ def generate_future_event_dates(
         # work something out to generate new event dates from
         start_naive = event.last_event_date().start_naive
         end_naive = event.last_event_date().end_naive
-        start_time = event.last_event_date().start_time
-        end_time = event.last_event_date().end_time
 
         tz = event.last_event_date().tz
 
-    print(rrule)
     if rrule.separation_count == 0 or rrule is None:
         # event is a one-off
         event.recurring = False
@@ -348,10 +369,11 @@ def generate_future_event_dates(
             start_naive=start_naive,
             end_naive=end_naive,
             event_location=event_location,
-            start_time=start_time,
-            end_time=end_time,
             tz=tz,
             url=url,
+            ticket_url=ticket_url,
+            description=next_event_date_description,
+            size=next_event_date_size,
         )
 
     else:
@@ -388,12 +410,15 @@ def generate_future_event_dates(
                     event=event,
                     start_naive=start_naive,
                     end_naive=end_naive,
-                    start_time=start_time,
-                    end_time=end_time,
                     event_location=event_location,
                     tz=tz,
                     url=url,
+                    ticket_url=ticket_url,
+                    description=next_event_date_description,
+                    size=next_event_date_size,
                 )
+                # next_event_date_description only used once
+                next_event_date_description = None
 
     db.session.commit()
     return event
@@ -430,15 +455,10 @@ def generateRecurringDates(rp, start, end=None):
     start_month = start.month
     start_week_of_month = getWeekInMonth(start)
 
-    end_weekday = None
-    end_day = None
-    end_month = None
-    end_week_of_month = None
-    if end:
-        end_weekday = end.weekday()
-        end_day = end.day
-        end_month = end.month
-        end_week_of_month = getWeekInMonth(end)
+    end_weekday = end.weekday()
+    end_day = end.day
+    end_month = end.month
+    end_week_of_month = getWeekInMonth(end)
 
     if rp.recurring_type == 1:
         # weekly
@@ -475,16 +495,15 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-            if end:
-                enddates = list(
-                    rrule(
-                        MONTHLY,
-                        interval=rp.separation_count,
-                        byweekday=days[end_weekday](end_week_of_month),
-                        dtstart=end,
-                        until=ten_years_away,
-                    )
+            enddates = list(
+                rrule(
+                    MONTHLY,
+                    interval=rp.separation_count,
+                    byweekday=days[end_weekday](end_week_of_month),
+                    dtstart=end,
+                    until=ten_years_away,
                 )
+            )
         else:
             # absolute monthlhy date
             startdates = list(
@@ -497,16 +516,15 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-            if end:
-                enddates = list(
-                    rrule(
-                        MONTHLY,
-                        interval=rp.separation_count,
-                        bymonthday=end_day,
-                        dtstart=end,
-                        until=ten_years_away,
-                    )
+            enddates = list(
+                rrule(
+                    MONTHLY,
+                    interval=rp.separation_count,
+                    bymonthday=end_day,
+                    dtstart=end,
+                    until=ten_years_away,
                 )
+            )
 
     elif rp.recurring_type == 3:
         # yearly
@@ -522,17 +540,16 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-            if end:
-                enddates = list(
-                    rrule(
-                        YEARLY,
-                        interval=rp.separation_count,
-                        bymonth=end_month,
-                        byweekday=days[end_weekday](end_week_of_month),
-                        dtstart=end,
-                        until=ten_years_away,
-                    )
+            enddates = list(
+                rrule(
+                    YEARLY,
+                    interval=rp.separation_count,
+                    bymonth=end_month,
+                    byweekday=days[end_weekday](end_week_of_month),
+                    dtstart=end,
+                    until=ten_years_away,
                 )
+            )
 
         else:
             # absolute day of month of year
@@ -546,17 +563,16 @@ def generateRecurringDates(rp, start, end=None):
                     until=ten_years_away,
                 )
             )
-            if end:
-                enddates = list(
-                    rrule(
-                        YEARLY,
-                        interval=rp.separation_count,
-                        bymonth=end_month,
-                        bymonthday=end_day,
-                        dtstart=end,
-                        until=ten_years_away,
-                    )
+            enddates = list(
+                rrule(
+                    YEARLY,
+                    interval=rp.separation_count,
+                    bymonth=end_month,
+                    bymonthday=end_day,
+                    dtstart=end,
+                    until=ten_years_away,
                 )
+            )
 
     else:
         raise exc.InvalidAPIRequest("Invalid recurring_type (1-3)")
@@ -594,9 +610,8 @@ def query_event_dates(**kwargs):
     lng = None
     distance_expression = None
 
-    print("loxationinkwa", "location" not in kwargs)
     if "location" in kwargs and kwargs.get("location"):
-        location = kwargs.pop("location")
+        location = kwargs.get("location")
         print(location, "test loc")
         lat = location["lat"]
         lng = location["lng"]
@@ -640,10 +655,13 @@ def query_event_dates(**kwargs):
 
     else:
         query = db.session.query(EventDate)
-        query = query.join(Event)
+        query = query.join(Event).filter(Event.hidden is False)
 
     # filter cancelled events out
-    query = query.filter(EventDate.cancelled is not True)
+    query = query.filter(EventDate.cancelled != True)
+
+    # filter hidden events out
+    query = query.filter(Event.hidden == False)  # ignore linter warning here
 
     if "date_min" in kwargs:
         print("min", kwargs["date_min"])
@@ -663,9 +681,28 @@ def query_event_dates(**kwargs):
     if "tags" in kwargs:
         tags = kwargs.pop("tags")
         for tag in tags:
+            print("tag", tag)
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
-    if "bounds" in kwargs and "location" in kwargs is False:
+    if "duration_options" in kwargs:
+        duration_options = kwargs.pop("duration_options")
+        search_args = [EventDate.duration == option for option in duration_options]
+        query = query.filter(or_(*search_args))
+
+    if "size_options" in kwargs:
+        size_options = kwargs.pop("size_options")
+        size_options_parsed = []
+        for size in size_options:
+            chunks = size.split(",")
+            size_options_parsed.append([chunks[0], chunks[1]])
+        search_args = [
+            and_(EventDate.size >= range[0], EventDate.size <= range[1])
+            for range in size_options_parsed
+        ]
+        query = query.filter(or_(*search_args))
+
+    # if bounds and not location
+    if ("bounds" in kwargs) and ("location" not in kwargs):
         print("bounds")
         # bounds search is to return event dates that are in current view
         # on the map
@@ -704,6 +741,7 @@ def query_event_dates(**kwargs):
                 ),
             )
         )
+        query = query.order_by(EventDate.start_naive)
 
     if lat and lng:
         # nearby search
@@ -734,4 +772,4 @@ def query_event_dates(**kwargs):
 
         query = query.order_by(distance_expression.asc())
 
-    return paginated_results(EventDate, query=query, **kwargs)
+    return paginated_results(EventDate, query, **kwargs)

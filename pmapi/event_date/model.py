@@ -1,6 +1,10 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import query_expression
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import query_expression
+from sqlalchemy import func, extract
+
 import uuid
 
 from pmapi.extensions import db
@@ -17,11 +21,9 @@ class EventDate(db.Model):
     tz = db.Column(db.String, nullable=False)
 
     start = db.Column(db.DateTime, nullable=False)
-    end = db.Column(db.DateTime, nullable=True)
+    end = db.Column(db.DateTime, nullable=False)
     start_naive = db.Column(db.DateTime, nullable=False)
-    end_naive = db.Column(db.DateTime, nullable=True)
-    start_time = db.Column(db.Boolean)
-    end_time = db.Column(db.Boolean)
+    end_naive = db.Column(db.DateTime, nullable=False)
     # info can change for each event
     location_id = db.Column(db.String, db.ForeignKey("event_locations.place_id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
@@ -29,7 +31,22 @@ class EventDate(db.Model):
     # artists = db.relationship('EventArtist', back_populates="event_date")
     description = db.Column(db.Text)
     url = db.Column(db.String)
+    ticket_url = db.Column(db.String)
     cancelled = db.Column(db.Boolean, default=False)
-
+    size = db.Column(db.Integer)
     contributions = db.relationship("EventContribution", back_populates="event_date")
     media_items = db.relationship("MediaItem", back_populates="event_date")
+
+    @hybrid_property
+    def duration(self):
+        return abs((self.end - self.start).days) + 1
+
+    @duration.expression
+    def duration(cls):
+        return func.trunc(
+            (extract("epoch", cls.end) - extract("epoch", cls.start))
+            / 60
+            / 60
+            / 24  # seconds to minutes to hours to days
+            + 1
+        )

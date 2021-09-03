@@ -2,8 +2,9 @@ import reverse_geocode
 import pygeohash as pgh
 from sqlalchemy.orm import with_expression
 from sqlalchemy.orm import subqueryload, selectinload, joinedload, Bundle
-from sqlalchemy import select, func, String, Text, join
+from sqlalchemy import select, func, distinct, String, Text, join
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import or_, and_
 
 from pmapi.event_location.model import EventLocation, EventLocationType
 from pmapi.extensions import db
@@ -95,7 +96,9 @@ def get_all_locations(**kwargs):
         expression = select(
             [
                 func.array_agg(
-                    func.jsonb_build_object("name", Event.name, "id", Event.id)
+                    distinct(  # remove duplicate eventdates at same location
+                        func.jsonb_build_object("name", Event.name, "id", Event.id)
+                    )
                 )
             ]
         ).select_from(join(Event, EventDate))
@@ -118,21 +121,43 @@ def get_all_locations(**kwargs):
             )
             expression = expression.where(EventDate.start_naive <= date_max)
 
+        if "duration_options" in kwargs:
+            duration_options = kwargs.pop("duration_options")
+            search_args = [EventDate.duration == option for option in duration_options]
+            query = query.filter(or_(*search_args))
+
+        if "size_options" in kwargs:
+            size_options = kwargs.pop("size_options")
+            size_options_parsed = []
+            for size in size_options:
+                chunks = size.split(",")
+                size_options_parsed.append([chunks[0], chunks[1]])
+            search_args = [
+                and_(EventDate.size >= range[0], EventDate.size <= range[1])
+                for range in size_options_parsed
+            ]
+            query = query.filter(or_(*search_args))
+
         if "tags" in kwargs:
             tags = kwargs.pop("tags")
-            query = query.join(Event)
             for tag in tags:
                 query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
                 expression = expression.where(
                     Event.event_tags.any(EventTag.tag_id == tag)
                 )
 
-    return query.options(
-        with_expression(
-            EventLocation.events,
-            expression.where(EventDate.location_id == EventLocation.place_id),
+        # filter cancelled events out
+        query = query.filter(EventDate.cancelled != True)
+
+        # filter hidden events out
+        query = query.filter(Event.hidden == False)  # ignore linter warning here
+
+        return query.options(
+            with_expression(
+                EventLocation.events,
+                expression.where(EventDate.location_id == EventLocation.place_id),
+            )
         )
-    )
 
 
 def get_all_locations_paginated(**kwargs):

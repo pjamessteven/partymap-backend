@@ -32,6 +32,7 @@ class EventsResource(MethodResource):
     @use_kwargs(
         {
             "query": fields.String(required=False),
+            "created_by": fields.String(required=False),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
@@ -48,6 +49,8 @@ class EventsResource(MethodResource):
             "dateTime": fields.Dict(required=True),
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
+            "next_event_date_description": fields.String(required=False),
+            "next_event_date_size": fields.String(required=False),
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),

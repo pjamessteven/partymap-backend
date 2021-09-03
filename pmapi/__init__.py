@@ -13,6 +13,7 @@ from pmapi.media_item.model import MediaItem
 from pmapi.event.model import Event, Rrule
 from pmapi.event_date.model import EventDate
 from pmapi.report.model import Report
+from pmapi.feedback.model import Feedback
 
 # from pmapi.event_artist.model import EventArtist
 from pmapi.event_contribution.model import EventContribution

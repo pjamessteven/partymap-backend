@@ -20,6 +20,8 @@ class TagsResource(MethodResource):
     @use_kwargs(
         {
             "tag_name": fields.Str(required=False),
+            "date_min": fields.DateTime(required=False),
+            "date_max": fields.DateTime(required=False),
             **paginated_view_args(sort_options=["count", "created_at"]),
         },
         location="query",

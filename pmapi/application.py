@@ -52,7 +52,6 @@ def create_app(config, app_name="PARTYMAP"):
 
     @app.before_request
     def update_last_active():
-        print("is authenticated?")
         print(current_user)
         print(current_user.is_anonymous)
         print(current_user.is_authenticated)
@@ -65,7 +64,6 @@ def create_app(config, app_name="PARTYMAP"):
     @app.route("/<path:path>")
     @cross_origin()
     def static_file(path):
-        print("test")
         return app.send_static_file(path)
 
     return app
@@ -92,6 +90,7 @@ def register_blueprints(app):
     from pmapi.media_item.resource import media_blueprint
     from pmapi.user.resource import users_blueprint
     from pmapi.report.resource import reports_blueprint
+    from pmapi.feedback.resource import feedback_blueprint
 
     from pmapi.event_contribution.resource import event_contribution_blueprint
 
@@ -110,6 +109,7 @@ def register_blueprints(app):
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
+    app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
 
 
 def register_docs(app):

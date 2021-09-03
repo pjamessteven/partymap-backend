@@ -37,7 +37,6 @@ class EventContribution(db.Model):
     status = db.Column(db.SmallInteger, default=1)
     score = db.Column(db.Integer, default=0)
     hotness = db.Column(db.Float(15, 6), default=0.00)
-    reports = db.relationship("Report", back_populates="event_contribution")
 
     def to_dict(self):
         return dict(

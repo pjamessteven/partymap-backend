@@ -4,6 +4,7 @@ from pmapi.extensions import db
 from datetime import datetime
 from flask_login import current_user
 
+import pmapi.user.controllers as user
 import pmapi.event_tag.controllers as event_tags
 import pmapi.media_item.controllers as media_items
 import pmapi.event_date.controllers as event_dates
@@ -39,18 +40,23 @@ def search_events(**kwargs):
                 query_text = query_text + (str(word) + str(":*"))
             else:
                 query_text = query_text + (str(word) + str(":* & "))
-
         query = query.filter(
             Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
         )
 
-    return paginated_results(Event, query, **kwargs)
+    if "created_by" in kwargs:
+        user = users.get_user_or_404(kwargs.pop("created_by"))
+        query.filter(Event.creator_id == user.id)
+
+    return paginated_results(Event, query=query, **kwargs)
 
 
 def add_event(**kwargs):
     creator = kwargs.pop("creator", None)
     name = kwargs.pop("name")
     description = kwargs.pop("description")
+    next_event_date_description = kwargs.pop("next_event_date_description")
+    next_event_date_size = kwargs.pop("next_event_date_size")
     location = kwargs.pop("location")
     dateTime = kwargs.pop("dateTime")
     rrule = kwargs.pop("rrule", None)
@@ -90,7 +96,13 @@ def add_event(**kwargs):
 
     # DATES
     event_dates.generate_future_event_dates(
-        event, dateTime, event.default_location, rrule, url
+        event,
+        dateTime,
+        event.default_location,
+        rrule,
+        url,
+        next_event_date_description,
+        next_event_date_size,
     )
 
     db.session.commit()
@@ -135,8 +147,8 @@ def update_event(event_id, **kwargs):
         existing_rrule = Rrule.query.get(event_id)
         if existing_rrule:
             db.session.delete(existing_rrule)
-            db.session.flush()
-
+            db.session.commit()
+        print(rrule)
         rrule = Rrule(
             event=event,
             recurring_type=rrule["recurringType"],
@@ -150,21 +162,19 @@ def update_event(event_id, **kwargs):
         db.session.flush()
 
         # location
-        print("place_i", location["place_id"])
         event_location = event_locations.get_location(location["place_id"])
-        print(event_location)
         if event_location is None:
-            print("el is none")
             event_location = event_locations.add_new_event_location(**location)
-            print(event_location)
         event.default_location = event_location
 
         return event_dates.generate_future_event_dates(
-            event, dateTime, event_location, rrule, url
+            event, dateTime, event_location, rrule, url, None
         )
 
     if tags:
-        event_tags.add_tags_to_event(tags, event)
+        event_tags.add_tags_to_event(
+            tags, event
+        )  # will remove tag if it already exists
 
     if media:
         media_items.add_media_to_event(media, event, creator=current_user)
@@ -176,5 +186,16 @@ def update_event(event_id, **kwargs):
 
 def delete_event(event_id):
     event = get_event_or_404(event_id)
+
+    # delete shit
+    for event_tag in event.event_tags:
+        db.session.delete(event_tag)
+    for event_date in event.event_dates:
+        db.session.delete(event_date)
+    for media_item in event.media_items:
+        db.session.delete(media_item)
+    db.session.delete(event.rrule)
+
+    db.session.commit()
     db.session.delete(event)
     db.session.commit()

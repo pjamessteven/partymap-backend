@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import current_app
 from sqlalchemy import func
 from sqlalchemy import and_
+from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -60,6 +61,7 @@ class Event(db.Model):
     )
 
     default_url = db.Column(db.String)
+    default_ticket_url = db.Column(db.String)
     default_location = db.relationship("EventLocation", back_populates="event")
     default_location_place_id = db.Column(
         db.String, db.ForeignKey("event_locations.place_id")
@@ -68,12 +70,12 @@ class Event(db.Model):
     settings = db.Column(JSONB)
 
     reports = db.relationship("Report", back_populates="event")
+    hidden = db.Column(db.Boolean, default=True)
 
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events
     # this was causing tests to fail, unsure if needed
-    # __table_args__ = (Index("idx_events_fts",
-    # __ts_vector__, postgresql_using="gin"),)
+    __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
 
     @property
     def cover_items(self):

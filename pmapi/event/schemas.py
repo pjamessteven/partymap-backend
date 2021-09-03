@@ -21,6 +21,7 @@ class EventSchema(Schema):
     rrule = fields.Nested("RruleSchema")
     media_items = fields.Nested("MediaItemSchema", many=True)
     cover_items = fields.Nested("MediaItemSchema", many=True)
+    hidden = fields.Boolean()
 
 
 class EventListSchema(PaginatedSchema):

@@ -33,15 +33,17 @@ def update_item(id, **kwargs):
         item.caption = kwargs.pop("caption")
 
     if "position" in kwargs:
+        # reorder list and fix any errors in numbering
+        item.event.media_items.reorder()
         event = events.get_event_or_404(item.event_id)
         position = kwargs.pop("position")
-
+        print("current position", item.position)
+        print("new position", position)
+        print("len", len(event.media_items))
         event.media_items.pop(item.position)
         # add item to list again
         event.media_items.insert(position, item)
         item.event_id = event.id
-        # reorder list and fix any errors in numbering
-        event.media_items.reorder()
 
     db.session.commit()
     return item

@@ -109,13 +109,46 @@ def send_password_reset_request(user, action_id):
 
 def send_report_notification_email(report_id, description, user):
     template = "email/content_takedown.html"
-    subject = "Content takedown request"
+    subject = "Report submitted by " + user.email
 
     context = {
         "report_id": report_id,
         "description": description,
         "creator_email": user.email,
         "creator_username": user.username,
+    }
+
+    content = render_template(template, **context)
+    return send_mail(
+        to=current_app.config["SUPPORT_EMAIL"],
+        subject=subject,
+        content=content,
+        content_type="text/html",
+        msg_type="report.notification",
+    )
+
+
+def send_feedback_notification_email(feedback_id, message, contact_email, user):
+    template = "email/new_feedback.html"
+    fromAddress = None
+    username = None
+    if user:
+        username = user.username
+    if contact_email:
+        fromAddress = contact_email
+    elif user:
+        contact_email = user.email
+
+    if fromAddress:
+        subject = "New Feedback from " + fromAddress
+    else:
+        subject = "New Feedback from anon"
+
+    context = {
+        "feedback_id": feedback_id,
+        "message": message,
+        "contact_email": fromAddress,
+        "creator_username": username,
     }
 
     content = render_template(template, **context)

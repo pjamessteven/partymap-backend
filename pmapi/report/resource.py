@@ -1,4 +1,5 @@
 from flask import Blueprint
+from flask_login import current_user
 
 from marshmallow import fields
 from flask_apispec import doc
@@ -20,17 +21,11 @@ class ReportsResource(MethodResource):
         summary="Create a report.",
         description="""Create a report. Must be signed in.""",
     )
-    @use_kwargs(
-        {
-            "contribution_id": fields.UUID(),
-            "event_id": fields.UUID(),
-            "media_item_id": fields.UUID(),
-        }
-    )
+    @use_kwargs({"event_id": fields.UUID(), "message": fields.String()})
     @marshal_with(ReportSchema(), code=200)
     @login_required
     def post(self, **kwargs):
-        return reports.create_report(**kwargs)
+        return reports.create_report(**kwargs, creator=current_user)
 
 
 reports_blueprint.add_url_rule(

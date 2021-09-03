@@ -41,7 +41,7 @@ class add(permissions.Permission):
     """Can create if at least HOST"""
 
     def can(self, **kwargs):
-        if not permissions.current_user_role_is_at_least("HOST"):
-            raise exc.InvalidPermissions("You don't have permission to create events.")
+        # if not permissions.current_user_role_is_at_least("HOST"):
+        #    raise exc.InvalidPermissions("You don't have permission to create events.")
 
         return True

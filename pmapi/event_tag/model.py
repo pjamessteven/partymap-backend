@@ -36,6 +36,7 @@ class Tag(db.Model):
         return (
             select([func.count(EventTag.tag_id)])
             .where(EventTag.tag_id == cls.tag)
+            .correlate(Tag)
             .label("count")
         )
 

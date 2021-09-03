@@ -48,8 +48,6 @@ class MediaItem(db.Model):
     event_date_id = db.Column(UUID, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", uselist=False)
 
-    reports = db.relationship("Report", back_populates="media_item")
-
     """
     status = db.Column(db.SmallInteger, default=1)
 

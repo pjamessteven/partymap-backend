@@ -4,6 +4,7 @@ from pmapi.mail.controllers import (
     send_report_notification_email,
 )
 from pmapi.extensions import db
+import pmapi.event.controllers as events
 
 from .model import Report
 
@@ -28,16 +29,14 @@ def get_report_or_404(report_id):
 
 def create_report(**kwargs):
     creator = kwargs.pop("creator", None)
-    description = kwargs.pop("description", None)
-
-    contribution_id = kwargs.pop("contribution_id", None)
+    message = kwargs.pop("message", None)
     event_id = kwargs.pop("event_id", None)
-    media_item_id = kwargs.pop("media_item_id", None)
+    event = events.get_event_or_404(event_id)
 
-    report = Report(creator, description, contribution_id, event_id, media_item_id)
+    report = Report(creator=creator, message=message, event=event, open=True)
     db.session.add(report)
     db.session.commit()
-    send_report_notification_email(report.id, description, creator)
+    send_report_notification_email(report.id, message, creator)
 
 
 def delete_report(id):

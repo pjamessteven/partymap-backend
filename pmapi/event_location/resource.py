@@ -77,6 +77,8 @@ class PointsResource(MethodResource):
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
             "tags": fields.List(fields.Str(), required=False),
+            "duration_options": fields.List(fields.Integer(), required=False),
+            "size_options": fields.List(fields.String(), required=False),
         },
         location="query",
     )
