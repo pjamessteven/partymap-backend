@@ -9,7 +9,6 @@ from flask_login import current_user
 from . import controllers as events
 from . import permissions as event_permissions
 from pmapi.exceptions import InvalidUsage
-
 from pmapi.common.controllers import paginated_view_args
 
 from .schemas import EventSchema, EventListSchema
@@ -103,13 +102,6 @@ class EventResource(MethodResource):
 events_blueprint.add_url_rule(
     "/<event_id>/", view_func=EventResource.as_view("EventResource")
 )
-
-
-@events_blueprint.errorhandler(InvalidUsage)
-def handle_invalid_usage(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
 
 
 """

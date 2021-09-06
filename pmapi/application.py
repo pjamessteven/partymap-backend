@@ -33,6 +33,11 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
 
+from flask_track_usage.storage.printer import PrintWriter
+from flask_track_usage.storage.output import OutputWriter
+from flask_track_usage.storage.sql import SQLStorage
+from flask_track_usage import TrackUsage
+
 import os
 import logging
 
@@ -47,14 +52,12 @@ def create_app(config, app_name="PARTYMAP"):
     configure_celery(app, tasks.celery)
     register_extensions(app)
     register_blueprints(app)
+    register_blueprints_with_tracker(app)
     register_errorhandlers(app)
     register_docs(app)
 
     @app.before_request
     def update_last_active():
-        print(current_user)
-        print(current_user.is_anonymous)
-        print(current_user.is_authenticated)
         if current_user.is_authenticated:
             current_user.last_active = datetime.utcnow()
             extensions.db.session.add(current_user)
@@ -78,6 +81,13 @@ def register_extensions(app):
     extensions.lm.login_view = "auth.LoginResource"
     extensions.mail.init_app(app)
     extensions.apidocs.init_app(app)
+    with app.app_context():
+        extensions.tracker.init_app(
+            app,
+            [
+                SQLStorage(db=db),
+            ],
+        )
 
 
 def register_blueprints(app):
@@ -110,6 +120,31 @@ def register_blueprints(app):
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
     app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
+
+
+def register_blueprints_with_tracker(app):
+    from pmapi.extensions import tracker
+
+    # from pmapi.auth.oauth_resource import oauth_blueprint this one causes issues
+    from pmapi.auth.resource import auth_blueprint
+    from pmapi.event_tag.resource import event_tags_blueprint
+    from pmapi.event_date.resource import event_dates_blueprint
+    from pmapi.event.resource import events_blueprint
+    from pmapi.event_location.resource import locations_blueprint
+    from pmapi.media_item.resource import media_blueprint
+    from pmapi.user.resource import users_blueprint
+    from pmapi.report.resource import reports_blueprint
+    from pmapi.feedback.resource import feedback_blueprint
+
+    tracker.include_blueprint(auth_blueprint)
+    tracker.include_blueprint(event_tags_blueprint)
+    tracker.include_blueprint(event_dates_blueprint)
+    tracker.include_blueprint(events_blueprint)
+    tracker.include_blueprint(locations_blueprint)
+    tracker.include_blueprint(media_blueprint)
+    tracker.include_blueprint(users_blueprint)
+    tracker.include_blueprint(reports_blueprint)
+    tracker.include_blueprint(feedback_blueprint)
 
 
 def register_docs(app):

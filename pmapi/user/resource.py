@@ -20,11 +20,13 @@ from . import permissions as user_permissions
 users_blueprint = Blueprint("users", __name__)
 
 
+"""
 @users_blueprint.errorhandler(InvalidUsage)
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
+"""
 
 
 @doc(tags=["users"])

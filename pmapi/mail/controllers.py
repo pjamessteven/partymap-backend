@@ -107,13 +107,13 @@ def send_password_reset_request(user, action_id):
     )
 
 
-def send_report_notification_email(report_id, description, user):
-    template = "email/content_takedown.html"
-    subject = "Report submitted by " + user.email
+def send_report_notification_email(report_id, message, user):
+    template = "email/new_report.html"
+    subject = "Content report submitted by " + user.email
 
     context = {
         "report_id": report_id,
-        "description": description,
+        "message": message,
         "creator_email": user.email,
         "creator_username": user.username,
     }

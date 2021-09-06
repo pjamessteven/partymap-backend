@@ -6,6 +6,7 @@ from flask_login import LoginManager
 from sqlalchemy_continuum.plugins import ActivityPlugin, FlaskPlugin
 from pmapi.mail import Mailer
 from flask_apispec import FlaskApiSpec
+from flask_track_usage import TrackUsage
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
 admin = Admin(name="PARTYMAP", template_mode="bootstrap3")
@@ -16,3 +17,4 @@ activity_plugin = ActivityPlugin()
 flask_plugin = FlaskPlugin()
 mail = Mailer()
 apidocs = FlaskApiSpec()
+tracker = TrackUsage()
