@@ -37,7 +37,7 @@ from flask_track_usage.storage.printer import PrintWriter
 from flask_track_usage.storage.output import OutputWriter
 from flask_track_usage.storage.sql import SQLStorage
 from flask_track_usage import TrackUsage
-
+from .config import BaseConfig
 import os
 import logging
 
@@ -45,7 +45,7 @@ import logging
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 
-def create_app(config, app_name="PARTYMAP"):
+def create_app(config=BaseConfig, app_name="PARTYMAP"):
     app = Flask(app_name)
     app.config.from_object(config)
 
