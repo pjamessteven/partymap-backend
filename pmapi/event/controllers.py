@@ -110,8 +110,6 @@ def add_event(**kwargs):
 
 
 def update_event(event_id, **kwargs):
-    print(kwargs)
-
     rrule = kwargs.get("rrule")
     remove_rrule = kwargs.get("remove_rrule")
     url = kwargs.get("url")
