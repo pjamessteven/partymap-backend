@@ -29,6 +29,7 @@ def send_signup_verify_email(user, action_id, resend=False):
         "support_email": "support@partymap.com",
         "user_username": user.username,
         "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
     }
     content = render_template(template, **context)
     return send_mail(
@@ -57,6 +58,7 @@ def send_change_email_address_email(user, action_id, resend=False):
         "support_email": "support@partymap.com",
         "user_username": user.username,
         "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
     }
     content = render_template(template, **context)
     return send_mail(
@@ -84,6 +86,7 @@ def send_password_reset_request(user, action_id):
         "support_email": user.domain.support_email,
         "user_username": user.username,
         "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
     }
     try:
         request_info = {
@@ -116,6 +119,8 @@ def send_report_notification_email(report_id, message, user):
         "message": message,
         "creator_email": user.email,
         "creator_username": user.username,
+        "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
     }
 
     content = render_template(template, **context)
@@ -130,25 +135,28 @@ def send_report_notification_email(report_id, message, user):
 
 def send_feedback_notification_email(feedback_id, message, contact_email, user):
     template = "email/new_feedback.html"
-    fromAddress = None
+
+    from_address = None
     username = None
     if user:
         username = user.username
     if contact_email:
-        fromAddress = contact_email
+        from_address = contact_email
     elif user:
-        contact_email = user.email
+        from_address = user.email
 
-    if fromAddress:
-        subject = "New Feedback from " + fromAddress
+    if from_address:
+        subject = "New Feedback from " + from_address
     else:
         subject = "New Feedback from anon"
 
     context = {
         "feedback_id": feedback_id,
         "message": message,
-        "contact_email": fromAddress,
+        "contact_email": from_address,
         "creator_username": username,
+        "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
     }
 
     content = render_template(template, **context)
@@ -157,5 +165,5 @@ def send_feedback_notification_email(feedback_id, message, contact_email, user):
         subject=subject,
         content=content,
         content_type="text/html",
-        msg_type="report.notification",
+        msg_type="feedback.notification",
     )

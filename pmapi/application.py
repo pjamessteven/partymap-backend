@@ -33,10 +33,7 @@ from werkzeug.exceptions import InternalServerError
 from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
 
-from flask_track_usage.storage.printer import PrintWriter
-from flask_track_usage.storage.output import OutputWriter
 from flask_track_usage.storage.sql import SQLStorage
-from flask_track_usage import TrackUsage
 from .config import BaseConfig
 import os
 import logging
@@ -63,11 +60,12 @@ def create_app(config=BaseConfig, app_name="PARTYMAP"):
             extensions.db.session.add(current_user)
             extensions.db.session.commit()
 
-    # potential security risk?
-    @app.route("/<path:path>")
-    @cross_origin()
-    def static_file(path):
-        return app.send_static_file(path)
+    if config.DEBUG is True:
+        # used for serving files with dev server
+        @app.route("/<path:path>")
+        @cross_origin()
+        def static_file(path):
+            return app.send_static_file(path)
 
     return app
 

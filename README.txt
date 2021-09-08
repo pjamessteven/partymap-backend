@@ -23,3 +23,6 @@ sudo rabbitmq-server -detached
 
 Run celery worker (in venv):
 celery -A pmapi.tasks worker
+
+UWSGI command:
+(Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
