@@ -13,6 +13,8 @@ from pmapi.mail.controllers import (
 )
 from pmapi.utils import ROLES
 from pmapi.extensions import db
+import pmapi.event.controllers as events
+
 import logging
 
 
@@ -183,7 +185,7 @@ def edit_user(user_id, **kwargs):
         # save new email address as extra data so it can be retrieved at vfcation
         email_action = EmailAction(user=user, action="email_verify", extra_data=email)
         db.session.add(email_action)
-        db.session.flush()
+        db.session.commit()
         send_change_email_address_email(user, email_action.id)
 
     db.session.commit()
@@ -197,21 +199,9 @@ def delete_user(user_id):
         token = OAuth.query.filter(OAuth.user_id == user_id).first()
         db.session.delete(token)
 
-    if user.created_media_items:
-        for item in user.created_media_items:
-            db.session.delete(item)
-
-    if user.created_event_dates:
-        for item in user.created_event_dates:
-            db.session.delete(item)
-
-    if user.created_event_tags:
-        for item in user.created_event_tags:
-            db.session.delete(item)
-
     if user.created_events:
-        for item in user.created_events:
-            db.session.delete(item)
+        for event in user.created_events:
+            events.delete_event(event.id)
 
     db.session.delete(user)
     db.session.commit()
