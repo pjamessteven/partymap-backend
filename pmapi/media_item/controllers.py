@@ -106,12 +106,15 @@ def save_media_item(file, eventId):
     path = os.path.join(
         current_app.config["MEDIA_UPLOAD_FOLDER"] + str("event/") + str(eventId)
     )
-
+    original_umask = os.umask(0)
+    print("mask", original_umask)
     # create the directory you want to save to
     if not (os.path.exists(path)):
+        print("path not exists")
         try:
-            original_umask = os.umask(0)
             os.makedirs(path, mode=0o777)
+        except Exception as e:
+            print("error", e)
         finally:
             os.umask(original_umask)
 
