@@ -38,9 +38,9 @@ def facebook_logged_in(blueprint, token):
     info = resp.json()
 
     if session["next_url"]:
-        next_url = str("http://localhost:8080") + str(session["next_url"])
+        next_url = str("https://partymap.com") + str(session["next_url"])
     else:
-        next_url = "http://localhost:8080"
+        next_url = "https://partymap.com"
 
     user_id = info["id"]
 
