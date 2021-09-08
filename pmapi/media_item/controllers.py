@@ -106,9 +106,14 @@ def save_media_item(file, eventId):
     path = os.path.join(
         current_app.config["MEDIA_UPLOAD_FOLDER"] + str("event/") + str(eventId)
     )
+
     # create the directory you want to save to
     if not (os.path.exists(path)):
-        os.makedirs(path)
+        try:
+            original_umask = os.umask(0)
+            os.makedirs(path, mode=0o777)
+        finally:
+            os.umask(original_umask)
 
     # mimetype = magic.from_buffer(open(file, "rb").read(2048), mime=True)
     mimetype = file[file.find("data:") + 5 : file.find(";base64,")]
