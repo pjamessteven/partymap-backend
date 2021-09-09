@@ -179,6 +179,7 @@ def save_media_item(file, eventId):
             fh.write(base64.b64decode(base64_string))
 
         video_info = FFprobe(
+            executable="/usr/bin/ffprobe",
             inputs={filepath: None},
             global_options=[
                 "-v",
