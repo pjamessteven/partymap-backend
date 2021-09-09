@@ -51,6 +51,7 @@ def run_video_conversion(
     height,
 ):
     ff = FFmpeg(
+        executable="/usr/bin/ffmpeg",
         inputs={input_filepath: None},
         outputs={
             output_filepath: "-c:a libvorbis -c:v vp9 -b:v {0}k -minrate {1}k -maxrate {2}k \
@@ -71,6 +72,7 @@ def get_video_thumbnail(
     thumb_height=None,
 ):
     ff = FFmpeg(
+        executable="/usr/bin/ffmpeg",
         inputs={input_filepath: None},
         outputs={
             thumb_out_filepath: "-ss 00:00:01.000 -vframes 1 -vf scale={0}x{1}".format(
