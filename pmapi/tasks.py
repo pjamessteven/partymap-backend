@@ -82,6 +82,7 @@ def get_video_thumbnail(
     )
     ff.run()
     ff = FFmpeg(
+        executable="/usr/bin/ffmpeg",
         inputs={input_filepath: None},
         outputs={poster_out_filepath: "-ss 00:00:01.000 -vframes 1"},
     )
