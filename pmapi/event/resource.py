@@ -52,6 +52,7 @@ class EventsResource(MethodResource):
             "next_event_date_size": fields.String(required=False),
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
+            "ticket_url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "rrule": fields.Dict(),

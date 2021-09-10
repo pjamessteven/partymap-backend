@@ -61,6 +61,7 @@ def add_event(**kwargs):
     dateTime = kwargs.pop("dateTime")
     rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
+    ticket_url = kwargs.pop("ticket_url", None)
     tags = kwargs.pop("tags", None)
     media = kwargs.pop("media_items", None)
 
@@ -101,6 +102,7 @@ def add_event(**kwargs):
         event.default_location,
         rrule,
         url,
+        ticket_url,
         next_event_date_description,
         next_event_date_size,
     )
