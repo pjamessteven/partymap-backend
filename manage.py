@@ -6,14 +6,18 @@ manage.py
 
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
+from flask.helpers import get_debug_flag
 
 from utils.populate_db import Populate
 from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
 from pmapi.extensions import db
-from pmapi.config import BaseConfig
+from pmapi.config import BaseConfig, DevConfig
 
-app = create_app(BaseConfig)
+# export FLASK_DEBUG=1 for dev
+CONFIG = DevConfig if get_debug_flag() else BaseConfig
+
+app = create_app(CONFIG)
 
 migrate = Migrate(app, db)
 manager = Manager(app)

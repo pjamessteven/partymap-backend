@@ -44,6 +44,7 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 def create_app(config=BaseConfig, app_name="PARTYMAP"):
     app = Flask(app_name)
+
     app.config.from_object(config)
 
     configure_celery(app, tasks.celery)

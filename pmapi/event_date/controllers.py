@@ -436,13 +436,17 @@ def generateRecurringDates(rp, start, end=None):
 
         cal = Calendar()  # week starts Monday
         # cal = Calendar(6) # week stars Sunday
-
+        print("date", date)
+        print("dateyear", date.year)
+        print("datemonth", date.month)
         weeks = cal.monthdayscalendar(date.year, date.month)
-        result = 1
+        print("weeks", weeks)
+        result = 0
         for x in range(len(weeks)):
+            result += 1
             if date.day in weeks[x]:
-                result += 1
-        return result
+                return result
+        return 1  # return 1 if all else fails
 
     startdates = []
     enddates = []
@@ -454,7 +458,8 @@ def generateRecurringDates(rp, start, end=None):
     start_day = start.day
     start_month = start.month
     start_week_of_month = getWeekInMonth(start)
-
+    print("start_weekday", start_weekday)
+    print("start_week_of_month", start_week_of_month)
     end_weekday = end.weekday()
     end_day = end.day
     end_month = end.month
@@ -770,6 +775,6 @@ def query_event_dates(**kwargs):
                 )
                 break
 
-        query = query.order_by(distance_expression.asc())
+        query = query.order_by(distance_expression.asc(), EventDate.start_naive.asc())
 
     return paginated_results(EventDate, query, **kwargs)
