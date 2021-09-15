@@ -436,11 +436,7 @@ def generateRecurringDates(rp, start, end=None):
 
         cal = Calendar()  # week starts Monday
         # cal = Calendar(6) # week stars Sunday
-        print("date", date)
-        print("dateyear", date.year)
-        print("datemonth", date.month)
         weeks = cal.monthdayscalendar(date.year, date.month)
-        print("weeks", weeks)
         result = 0
         for x in range(len(weeks)):
             result += 1
@@ -458,8 +454,6 @@ def generateRecurringDates(rp, start, end=None):
     start_day = start.day
     start_month = start.month
     start_week_of_month = getWeekInMonth(start)
-    print("start_weekday", start_weekday)
-    print("start_week_of_month", start_week_of_month)
     end_weekday = end.weekday()
     end_day = end.day
     end_month = end.month
@@ -617,7 +611,6 @@ def query_event_dates(**kwargs):
 
     if "location" in kwargs and kwargs.get("location"):
         location = kwargs.get("location")
-        print(location, "test loc")
         lat = location["lat"]
         lng = location["lng"]
 
@@ -660,7 +653,7 @@ def query_event_dates(**kwargs):
 
     else:
         query = db.session.query(EventDate)
-        query = query.join(Event).filter(Event.hidden is False)
+        query = query.join(Event)
 
     # filter cancelled events out
     query = query.filter(EventDate.cancelled != True)
@@ -669,7 +662,6 @@ def query_event_dates(**kwargs):
     query = query.filter(Event.hidden == False)  # ignore linter warning here
 
     if "date_min" in kwargs:
-        print("min", kwargs["date_min"])
         query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
     if "date_max" in kwargs:
         date_max = kwargs.pop("date_max")
@@ -686,7 +678,6 @@ def query_event_dates(**kwargs):
     if "tags" in kwargs:
         tags = kwargs.pop("tags")
         for tag in tags:
-            print("tag", tag)
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
     if "duration_options" in kwargs:
@@ -708,7 +699,6 @@ def query_event_dates(**kwargs):
 
     # if bounds and not location
     if ("bounds" in kwargs) and ("location" not in kwargs):
-        print("bounds")
         # bounds search is to return event dates that are in current view
         # on the map
         query = query.join(EventLocation)
@@ -752,7 +742,6 @@ def query_event_dates(**kwargs):
         # nearby search
         radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
         for radius in radii:
-            print(radius)
             count = query.filter(
                 func.ST_DWithin(
                     cast(EventLocation.geo, Geography(srid=4326)),
