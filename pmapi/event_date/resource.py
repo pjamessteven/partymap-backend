@@ -12,6 +12,7 @@ from .schemas import EventDateSchema, EventDateListSchema
 from . import permissions as event_date_permissions
 import pmapi.event_date.controllers as event_dates
 from pmapi.common.controllers import paginated_view_args
+from pmapi.extensions import db
 
 per_page = 20
 
@@ -95,6 +96,13 @@ class DateResource(MethodResource):
             "dateTime": fields.Dict(),
             "location": fields.Dict(),
             "cancelled": fields.Boolean(),
+            "add_artists": fields.List(fields.Dict(), required=False, allow_none=True),
+            "remove_artists": fields.List(
+                fields.Dict(), required=False, allow_none=True
+            ),
+            "update_artists": fields.List(
+                fields.Dict(), required=False, allow_none=True
+            ),
         }
     )
     @marshal_with(EventDateSchema(), code=200)
@@ -126,6 +134,7 @@ class EventDatesResource(MethodResource):
             "size": fields.Integer(required=False, allow_none=True),
             "dateTime": fields.Dict(required=True),
             "location": fields.Dict(required=True),
+            "artists": fields.List(fields.Dict()),
         }
     )
     @marshal_with(EventDateSchema(), code=200)
@@ -133,6 +142,7 @@ class EventDatesResource(MethodResource):
         return event_dates.add_event_date_with_datetime(
             event_id, **kwargs, creator=current_user
         )
+        db.session.commit()
 
     @doc(
         summary="Get dates of an event.",
@@ -147,4 +157,82 @@ class EventDatesResource(MethodResource):
 event_dates_blueprint.add_url_rule(
     "/event/<event_id>",
     view_func=EventDatesResource.as_view("EventDatesResource"),
+)
+
+"""
+SUGGESTIONS
+"""
+
+
+@doc(tags=["dates"])
+class EventDateSuggestAddResource(MethodResource):
+    @doc(
+        summary="Suggest adding an event date to an existing event.",
+        params={"event_id": {"description": "event ID"}},
+    )
+    @use_kwargs(
+        {
+            "description": fields.Str(required=False, allow_none=True),
+            "url": fields.Str(required=False, allow_none=True),
+            "ticketUrl": fields.Str(required=False, allow_none=True),
+            "size": fields.Integer(required=False, allow_none=True),
+            "dateTime": fields.Dict(required=True),
+            "location": fields.Dict(required=True),
+            "artists": fields.List(fields.Dict()),
+            "message": fields.Str(required=False, allow_none=True),
+            "hcaptcha_token": fields.Str(required=True),
+        }
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    def post(self, event_id, **kwargs):
+        event_dates.suggest_add(event_id, **kwargs)
+
+
+event_dates_blueprint.add_url_rule(
+    "/event/<event_id>/suggest",
+    view_func=EventDateSuggestAddResource.as_view("EventDateSuggestAddResource"),
+)
+
+
+@doc(tags=["dates", "suggest_edit"])
+class EventDateSuggestResource(MethodResource):
+    @doc(
+        summary="Suggest deleting an event date.",
+        params={"id": {"description": "event date ID"}},
+    )
+    @use_kwargs(
+        {
+            "message": fields.Str(required=False, allow_none=True),
+            "hcaptcha_token": fields.Str(required=True),
+        }
+    )
+    def delete(self, id, **kwargs):
+        print(kwargs)
+        event_dates.suggest_delete(id, **kwargs)
+        return "", 204
+
+    @doc(summary="Suggest an edit to an event date")
+    @use_kwargs(
+        {
+            "description": fields.Str(),
+            "url": fields.Str(),
+            "ticketUrl": fields.Str(),
+            "size": fields.Integer(),
+            "dateTime": fields.Dict(),
+            "location": fields.Dict(),
+            "cancelled": fields.Boolean(),
+            "add_artists": fields.List(fields.Dict()),
+            "remove_artists": fields.List(fields.Dict()),
+            "message": fields.Str(required=False, allow_none=True),
+            "hcaptcha_token": fields.Str(required=True),
+        }
+    )
+    def put(self, id, **kwargs):
+        event_dates.suggest_update(id, **kwargs)
+        return "", 200
+
+
+event_dates_blueprint.add_url_rule(
+    "/<id>/suggest",
+    view_func=EventDateSuggestResource.as_view("EventDateSuggestResource"),
 )

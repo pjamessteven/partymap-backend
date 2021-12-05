@@ -43,9 +43,11 @@ class Tag(db.Model):
 
 class EventTag(db.Model):
     __tablename__ = "event_tags"
+    __versioned__ = {}
 
-    tag_id = db.Column(db.String(20), db.ForeignKey("tags.tag"), primary_key=True)
-    event_id = db.Column(UUID, db.ForeignKey("events.id"), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    tag_id = db.Column(db.String(20), db.ForeignKey("tags.tag"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
 
     tag = db.relationship("Tag", back_populates="events_with_tag")
     event = db.relationship("Event", back_populates="event_tags")

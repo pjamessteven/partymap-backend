@@ -18,7 +18,7 @@ class AddEventContributionResource(MethodResource):
         {
             "text": fields.Str(required=False),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
-            "event_date_id": fields.UUID(required=False),
+            "event_date_id": fields.Integer(required=False),
         }
     )
     @marshal_with(EventContributionSchema(), code=200)

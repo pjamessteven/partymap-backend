@@ -1,11 +1,8 @@
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import query_expression
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import query_expression
-from sqlalchemy import func, extract
-
-import uuid
+from sqlalchemy import func, extract, select
+from sqlalchemy_continuum import version_class
 
 from pmapi.extensions import db
 
@@ -13,10 +10,10 @@ from pmapi.extensions import db
 class EventDate(db.Model):
     __versioned__ = {}
     __tablename__ = "event_dates"
-    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    event_id = db.Column(UUID, db.ForeignKey("events.id"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_dates")
     tz = db.Column(db.String, nullable=False)
 
@@ -25,10 +22,10 @@ class EventDate(db.Model):
     start_naive = db.Column(db.DateTime, nullable=False)
     end_naive = db.Column(db.DateTime, nullable=False)
     # info can change for each event
-    location_id = db.Column(db.String, db.ForeignKey("event_locations.place_id"))
+    location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
     distance = query_expression()
-    # artists = db.relationship('EventArtist', back_populates="event_date")
+    artists = db.relationship("EventDateArtist", back_populates="event_date")
     description = db.Column(db.Text)
     url = db.Column(db.String)
     ticket_url = db.Column(db.String)
@@ -36,6 +33,8 @@ class EventDate(db.Model):
     size = db.Column(db.Integer)
     contributions = db.relationship("EventContribution", back_populates="event_date")
     media_items = db.relationship("MediaItem", back_populates="event_date")
+
+    suggestions = db.relationship("SuggestedEdit", back_populates="event_date")
 
     @hybrid_property
     def duration(self):
@@ -50,3 +49,27 @@ class EventDate(db.Model):
             / 24  # seconds to minutes to hours to days
             + 1
         )
+
+
+"""
+    @hybrid_property
+    def previous_version(self):
+        if self.transaction_id:
+            for version in self.versions:
+                if version.end_transaction_id == self.transaction_id:
+                    return version
+            return None
+        return None
+
+    @previous_version.expression
+    def previous_version(cls):
+        if cls.transaction_id:
+            EventDateVersion = version_class(EventDate)
+            return (
+                select(EventDateVersion)
+                .where(EventDateVersion.end_transaction_id == cls.transaction_id)
+                .first()
+            )
+        else:
+            return None
+"""

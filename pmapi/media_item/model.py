@@ -19,9 +19,10 @@ media_item_downvotes = db.Table(
 
 
 class MediaItem(db.Model):
+    __versioned__ = {}
     __tablename__ = "media_items"
 
-    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship("User", back_populates="created_media_items")
@@ -42,10 +43,10 @@ class MediaItem(db.Model):
     contribution_id = db.Column(UUID, db.ForeignKey("event_contributions.id"))
     contribution = db.relationship("EventContribution", back_populates="media_items")
 
-    event_id = db.Column(UUID, db.ForeignKey("events.id"), nullable=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
     event = db.relationship("Event", back_populates="media_items")
 
-    event_date_id = db.Column(UUID, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", uselist=False)
 
     """

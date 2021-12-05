@@ -21,7 +21,7 @@ class ReportsResource(MethodResource):
         summary="Create a report.",
         description="""Create a report. Must be signed in.""",
     )
-    @use_kwargs({"event_id": fields.UUID(), "message": fields.String()})
+    @use_kwargs({"event_id": fields.Integer(), "message": fields.String()})
     @marshal_with(ReportSchema(), code=200)
     @login_required
     def post(self, **kwargs):

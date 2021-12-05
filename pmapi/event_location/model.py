@@ -13,14 +13,28 @@ from pmapi.event.model import Event
 
 event_location_type_association = db.Table(
     "event_location_type_association",
-    db.Column("type", db.String, db.ForeignKey("event_location_types.type")),
-    db.Column("place_id", db.String, db.ForeignKey("event_locations.place_id")),
+    db.Column(
+        "event_location_type_id",
+        db.Integer,
+        db.ForeignKey("event_location_types.id"),
+        index=True,
+        primary_key=True,
+    ),
+    db.Column(
+        "event_location_id",
+        db.Integer,
+        db.ForeignKey("event_locations.id"),
+        index=True,
+        primary_key=True,
+    ),
 )
 
 
 class EventLocationType(db.Model):
     __tablename__ = "event_location_types"
-    type = db.Column(db.String, primary_key=True)
+    __versioned__ = {}
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String)
     event_locations = db.relationship(
         "EventLocation",
         secondary="event_location_type_association",
@@ -29,8 +43,10 @@ class EventLocationType(db.Model):
 
 
 class EventLocation(db.Model):
+    __versioned__ = {}
     __tablename__ = "event_locations"
-    place_id = db.Column(db.String, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    place_id = db.Column(db.String)
     geohash = db.Column(db.String)
     geo = db.Column(Geometry(geometry_type="POINT"))
     name = db.Column(db.String)

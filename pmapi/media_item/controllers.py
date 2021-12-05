@@ -10,20 +10,33 @@ from PIL import Image
 from mimetypes import guess_extension
 from flask_login import current_user
 from ffmpy import FFprobe
+from datetime import datetime
 
 # import magic
 
 from .model import MediaItem
-from pmapi.extensions import db
+from pmapi.extensions import db, activity_plugin
 from pmapi import exceptions as exc
+
 import pmapi.event.controllers as events
 import pmapi.tasks as tasks
+
+Activity = activity_plugin.activity_cls
 
 
 def delete_item(id):
     item = get_media_item_or_404(id)
+    event = events.get_event_or_404(item.event_id)
     db.session.delete(item)
+
+    # trigger event revision
+    event.updated_at = datetime.utcnow()
+    db.session.flush()
+
+    activity = Activity(verb=u"delete", object=item, target=event)
+    db.session.add(activity)
     db.session.commit()
+
     return "", 204
 
 
@@ -37,14 +50,18 @@ def update_item(id, **kwargs):
         item.event.media_items.reorder()
         event = events.get_event_or_404(item.event_id)
         position = kwargs.pop("position")
-        print("current position", item.position)
-        print("new position", position)
-        print("len", len(event.media_items))
         event.media_items.pop(item.position)
         # add item to list again
         event.media_items.insert(position, item)
         item.event_id = event.id
 
+        # trigger event revision
+        event.updated_at = datetime.utcnow()
+        db.session.flush()
+        activity = Activity(verb=u"update", object=item, target=event)
+        db.session.add(activity)
+
+        # update
     db.session.commit()
     return item
 
@@ -59,6 +76,15 @@ def get_media_item_or_404(item_id):
 
 def get_media_item_by_id(item_id):
     return MediaItem.query.get(item_id)
+
+
+def remove_all_media_from_event(event):
+    for item in event.media_items:
+        db.session.delete(item)
+        db.session.flush()
+        activity = Activity(verb=u"delete", object=item, target=event)
+        db.session.add(activity)
+    return
 
 
 def add_media_to_event(items, event, event_date=None, creator=current_user):
@@ -94,6 +120,10 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
             db.session.add(media_item)
             db.session.flush()
             event.media_items.append(media_item)
+            # activity
+            db.session.flush()
+            activity = Activity(verb=u"create", object=media_item, target=event)
+            db.session.add(activity)
 
     db.session.commit()
     return event.media_items

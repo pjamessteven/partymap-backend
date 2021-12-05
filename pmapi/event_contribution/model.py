@@ -26,9 +26,9 @@ class EventContribution(db.Model):
     creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)
     creator = db.relationship("User", back_populates="created_contributions")
 
-    event_id = db.Column(UUID, db.ForeignKey("events.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     event = db.relationship("Event", back_populates="event_contributions")
-    event_date_id = db.Column(UUID, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", back_populates="contributions")
 
     text = db.Column(db.Text)

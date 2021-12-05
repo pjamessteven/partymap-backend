@@ -5,14 +5,19 @@ from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
 from flask_login import (
     login_user,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, join
+from sqlalchemy.orm import query_expression
+from sqlalchemy.dialects.postgresql import ENUM, UUID
+from sqlalchemy_continuum import transaction_class, version_class
+
 from pmapi.extensions import db
 
 # from pmapi.favorite_events.model import favorites_association_table
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
+from pmapi.event.model import Event
 
-from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 app = Flask(__name__)
@@ -38,6 +43,7 @@ class User(db.Model):
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
 
+    following_events = db.relationship("Event", back_populates="followers")
     created_events = db.relationship("Event", back_populates="creator")
     created_contributions = db.relationship(
         "EventContribution", back_populates="creator"
@@ -47,6 +53,7 @@ class User(db.Model):
     created_media_items = db.relationship("MediaItem", back_populates="creator")
     created_event_locations = db.relationship("EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")
+    created_event_artists = db.relationship("EventDateArtist", back_populates="creator")
     created_reports = db.relationship("Report", back_populates="creator")
     created_feedback = db.relationship("Feedback", back_populates="creator")
 
@@ -107,6 +114,41 @@ class User(db.Model):
     @property
     def is_anonymous(self):
         return False
+
+    @hybrid_property
+    def oauth_obj(self):
+        return OAuth.query.filter(OAuth.user_id == self.id).first()
+
+    @oauth_obj.expression
+    def oauth_obj(self):
+        return select(OAuth).where(OAuth.user_id == self.id)
+
+    @hybrid_property
+    def version_count(self):
+        EventTransaction = transaction_class(Event)
+        EventVersion = version_class(Event)
+        query = (
+            db.session.query(EventTransaction)
+            .join(EventVersion, EventTransaction.id == EventVersion.transaction_id)
+            .filter(EventTransaction.user_id == self.id)
+        )
+        return query.count()
+
+    @version_count.expression
+    def version_count(self):
+        EventTransaction = transaction_class(Event)
+        EventVersion = version_class(Event)
+        return (
+            select(
+                join(
+                    EventTransaction,
+                    EventVersion,
+                    EventTransaction.id == EventVersion.transaction_id,
+                )
+            )
+            .where(EventTransaction.user_id == self.id)
+            .count()
+        )
 
     def deactivate(self):
         self.status = "disabled"

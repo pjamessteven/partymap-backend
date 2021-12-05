@@ -12,7 +12,7 @@ from marshmallow import fields
 import pmapi.exceptions as exc
 from pmapi.user.model import User
 from pmapi.extensions import lm
-from pmapi.user.schemas import UserSchema
+from pmapi.user.schemas import CurrentUserSchema
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -39,17 +39,15 @@ class LoginResource(MethodResource):
             "remember": fields.Boolean(required=False),
         },
     )
-    @marshal_with(UserSchema(), code=200)
+    @marshal_with(CurrentUserSchema(), code=200)
     def post(self, **kwargs):
-        print("login", kwargs)
         auth = User.authenticate(**kwargs)
-        print("auth", auth)
         return auth
 
     @doc(
         summary="Get current user info.",
     )
-    @marshal_with(UserSchema(), code=200)
+    @marshal_with(CurrentUserSchema(), code=200)
     def get(self):
         if current_user.is_authenticated:
             return current_user

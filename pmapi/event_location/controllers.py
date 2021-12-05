@@ -28,13 +28,15 @@ def add_new_event_location(creator=None, **kwargs):
     lng = float(geometry["location"]["lng"])
 
     # return location if it already exists
-    if get_location(place_id) is not None:
+    if (get_location(place_id)) is not None:
         return get_location(place_id)
 
     geocode = reverse_geocode.search([(lat, lng)])[0]
 
     location_type_objects = []
+    db.session.flush()
     for t in types:
+        print(t)
         type = None
         if (
             db.session.query(EventLocationType)
@@ -48,10 +50,10 @@ def add_new_event_location(creator=None, **kwargs):
             )
         else:
             type = EventLocationType(type=t)
-            db.session.add(type)
-            location_type_objects.append(type)
-
-    db.session.commit()
+        db.session.add(type)
+        location_type_objects.append(type)
+    print(location_type_objects)
+    db.session.flush()
     location = EventLocation(
         geohash=pgh.encode(lat, lng),
         # For geodetic coordinates,
@@ -83,7 +85,10 @@ def get_location_or_404(place_id):
 
 
 def get_location(place_id):
-    return EventLocation.query.get(place_id)
+    print()
+    result = EventLocation.query.filter(EventLocation.place_id == place_id).first()
+    print(result)
+    return result
 
 
 def get_all_locations(**kwargs):
@@ -155,7 +160,7 @@ def get_all_locations(**kwargs):
         return query.options(
             with_expression(
                 EventLocation.events,
-                expression.where(EventDate.location_id == EventLocation.place_id),
+                expression.where(EventDate.location_id == EventLocation.id),
             )
         )
 

@@ -1,14 +1,11 @@
 from datetime import datetime
 from flask import current_app
-from sqlalchemy import func
-from sqlalchemy import and_
-from sqlalchemy import Index
+from sqlalchemy import func, and_, Index, ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.ext.hybrid import hybrid_property
-
+from sqlalchemy_continuum import transaction_class, version_class
 from sqlalchemy import select
-import uuid
 
 from pmapi.extensions import db
 
@@ -26,18 +23,19 @@ def create_tsvector(*args):
     #    to_tsvector('english', title || ' ' || body))
     return func.to_tsvector("english", exp)
 
-
-# this table needs to be manually populated
-# two way relationship - so when I get an event it also has all event dates
+    # this table needs to be manually populated
+    # two way relationship - so when I get an event it also has all event dates
 
 
 class Event(db.Model):
+
     __versioned__ = {}
     __tablename__ = "events"
-
-    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    followers = db.relationship("User", back_populates="following_events")
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
@@ -63,12 +61,11 @@ class Event(db.Model):
     default_url = db.Column(db.String)
     default_ticket_url = db.Column(db.String)
     default_location = db.relationship("EventLocation", back_populates="event")
-    default_location_place_id = db.Column(
-        db.String, db.ForeignKey("event_locations.place_id")
-    )
+    default_location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
 
     settings = db.Column(JSONB)
 
+    suggestions = db.relationship("SuggestedEdit", back_populates="event")
     reports = db.relationship("Report", back_populates="event")
     hidden = db.Column(db.Boolean, default=True)
 
@@ -134,6 +131,20 @@ class Event(db.Model):
             return max(future_eventdates, key=lambda x: abs(x.start - now))
         else:
             return None
+
+    @hybrid_property
+    def last_transaction(self):
+        EventTransaction = transaction_class(Event)
+        return (
+            db.session.query(EventTransaction)
+            .order_by(EventTransaction.id.desc())
+            .first()
+        )
+
+    @last_transaction.expression
+    def last_transaction(cls):
+        EventTransaction = transaction_class(Event)
+        return select(EventTransaction).order_by(EventTransaction.id.desc()).first()
 
     @property
     def future_event_dates(self):
@@ -207,9 +218,10 @@ class Event(db.Model):
 
 class Rrule(db.Model):
     __tablename__ = "rrules"
+    __versioned__ = {}
     # max_num_of_occurances = db.Column(db.Integer, nullable=True)
-    event_id = db.Column(
-        UUID, db.ForeignKey("events.id"), primary_key=True, nullable=False
+    id = db.Column(
+        db.Integer, db.ForeignKey("events.id"), primary_key=True, nullable=False
     )
     event = db.relationship("Event", back_populates="rrule")
     # recurring_type  1=weekly, 2=monthly, 3=annually

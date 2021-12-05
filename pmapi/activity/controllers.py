@@ -2,6 +2,8 @@ from pmapi.extensions import db, activity_plugin
 from sqlalchemy_continuum import versioning_manager
 from sqlalchemy import or_
 from sqlalchemy import inspect
+from pmapi.common.controllers import paginated_results
+import pprint
 
 
 def get_activities_for_actor(user):
@@ -24,8 +26,6 @@ def get_activities_for_actor(user):
         .order_by(Activity.id.desc())
     )
 
-    print(activities.all())
-
     """
     j = join(Activity, Transaction, Activity.transaction_id == Transaction.id)
 
@@ -37,19 +37,30 @@ def get_activities_for_actor(user):
     for row in result:
         print(row)
      """
-    return [create_activity_dict(a) for a in activities]
+    return activities
 
 
-def get_activities_for_item(item):
+def get_activities_associated_with_target_transaction(transaction_id, **kwargs):
     Activity = activity_plugin.activity_cls
 
-    activities = (
+    query = (
+        db.session.query(Activity)
+        .filter(Activity.target_tx_id == transaction_id)
+        .order_by(Activity.id.desc())
+    )
+    return paginated_results(Activity, query=query, **kwargs)
+
+
+def get_activities_for_item(**kwargs):
+    Activity = activity_plugin.activity_cls
+    item = kwargs.pop("item")
+    query = (
         db.session.query(Activity)
         .filter(or_(Activity.object == item, Activity.target == item))
         .order_by(Activity.id.desc())
     )
 
-    return [create_activity_dict(a) for a in activities]
+    return paginated_results(Activity, query=query, **kwargs)
 
 
 def get_most_recent_activity_for_item(item):
@@ -59,27 +70,7 @@ def get_most_recent_activity_for_item(item):
         db.session.query(Activity)
         .filter(or_(Activity.object == item, Activity.target == item))
         .order_by(Activity.id.desc())
-        .first()
+        .one()
     )
 
-    if activity:
-        return create_activity_dict(activity)
-    else:
-        return None
-
-
-def create_activity_dict(a):
-    object = None
-    if hasattr(a.object, "to_dict"):
-        object = a.object.to_dict(activity=False)
-        # acivity flag is so that we don't create an infinite loop
-    return {
-        "actor": a.actor.username,
-        "time": a.transaction.issued_at,
-        "changeset": a.object_version.changeset,
-        "object": object,
-        "verb": a.verb,
-        "type": a.object_type,
-        "transaction_id": a.transaction.id,
-        "id": a.id,
-    }
+    return activity

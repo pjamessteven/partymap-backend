@@ -26,3 +26,8 @@ celery -A pmapi.tasks worker
 
 UWSGI command:
 (Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
+
+FLASK USAGE TABLE NEEDS FIXING ON DEPLOY
+	- URL field length and various other fields
+
+Ray Chung  for dev

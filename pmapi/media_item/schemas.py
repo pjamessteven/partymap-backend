@@ -13,6 +13,7 @@ class MediaItemSchema(Schema):
     position = fields.Int()
     duration = fields.Int()
     caption = fields.Str()
+    type = fields.Str()
     image_url = fields.Function(
         lambda obj: generate_filepath(obj, obj.image_filename)
         if obj.image_filename
@@ -43,6 +44,15 @@ class MediaItemSchema(Schema):
         if obj.video_poster_filename
         else None
     )
+
+
+class MediaItemVersionSchema(MediaItemSchema):
+    changeset = fields.Dict()
+    previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()
+    end_transaction_id = fields.Integer()
 
 
 class MediaItemSchemaListSchema(PaginatedSchema):

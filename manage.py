@@ -8,8 +8,8 @@ from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag
 
-from utils.populate_db import Populate
-from utils.clustering import ClusterEventLocations
+# from utils.populate_db import Populate
+# from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
 from pmapi.extensions import db
 from pmapi.config import BaseConfig, DevConfig
@@ -24,8 +24,8 @@ manager = Manager(app)
 
 # provide a migration utility command
 manager.add_command("db", MigrateCommand)
-manager.add_command("populate", Populate)
-manager.add_command("cluster", ClusterEventLocations)
+# manager.add_command("populate", Populate)
+# manager.add_command("cluster", ClusterEventLocations)
 
 
 # enable python shell with application context
@@ -38,6 +38,7 @@ def shell_ctx():
     from pmapi.report.model import Report
     from pmapi.event_location.model import EventLocation
     from pmapi.event_date.model import EventDate
+    from pmapi.suggestions.model import SuggestedEdit
     from pmapi.notification.model import Notification, UserNotification, EmailAction
     from pmapi.extensions import db, activity_plugin
 
@@ -59,6 +60,7 @@ def shell_ctx():
         Notification=Notification,
         UserNotification=UserNotification,
         EmailAction=EmailAction,
+        SuggestedEdit=SuggestedEdit,
     )
 
 

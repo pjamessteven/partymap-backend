@@ -1,12 +1,12 @@
-from flask_login import current_user
-from pmapi.extensions import db
+from pmapi.extensions import db, activity_plugin
 from pmapi.common.controllers import paginated_results
-import pmapi.exceptions as exc
 from sqlalchemy import or_, and_
 
 from .model import Tag, EventTag
 from pmapi.event_date.model import EventDate
 from pmapi.event.model import Event
+
+Activity = activity_plugin.activity_cls
 
 
 def add_tags_to_event(tags, event):
@@ -23,17 +23,26 @@ def add_tags_to_event(tags, event):
             .filter(EventTag.tag == tag, EventTag.event == event)
             .count()
         ):
-            tag = (
+            et = (
                 db.session.query(EventTag)
                 .filter(EventTag.tag == tag, EventTag.event == event)
                 .one()
             )
-            db.session.delete(tag)
+            db.session.delete(et)
             # raise exc.RecordAlreadyExists("Tag already exists for event")
+            # delete activity
+            db.session.flush()
+            activity = Activity(verb=u"delete", object=et, target=event)
+            db.session.add(activity)
 
         else:
             et = EventTag(tag=tag, event=event)
             db.session.add(et)
+            # add activity
+            db.session.flush()
+            activity = Activity(verb=u"create", object=et, target=event)
+            db.session.add(activity)
+
     db.session.commit()
     return tags
 

@@ -14,7 +14,7 @@ from pmapi.exceptions import InvalidUsage
 import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
 
-from .schemas import UserSchema
+from .schemas import UserSchema, CurrentUserSchema
 from . import permissions as user_permissions
 
 users_blueprint = Blueprint("users", __name__)
@@ -55,7 +55,7 @@ class UsersResource(MethodResource):
             "token": fields.Str(default=None),
         }
     )
-    @marshal_with(UserSchema(), code=200)
+    @marshal_with(CurrentUserSchema(), code=200)
     def post(self, **kwargs):
         return users.create_user(**kwargs)
 
@@ -74,7 +74,7 @@ class UserResource(MethodResource):
             "password_confirm": fields.Str(required=False),
         }
     )
-    @marshal_with(UserSchema(), code=200)
+    @marshal_with(CurrentUserSchema(), code=200)
     @login_required
     @user_permissions.update_user
     def put(self, user_id, **kwargs):

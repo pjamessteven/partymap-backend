@@ -19,5 +19,5 @@ class Report(db.Model):
 
     message = db.Column(db.Text)
 
-    event_id = db.Column(UUID, db.ForeignKey("events.id"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="reports")

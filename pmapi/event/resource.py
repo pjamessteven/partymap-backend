@@ -7,11 +7,20 @@ from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
 from . import controllers as events
+import pmapi.activity.controllers as activities
 from . import permissions as event_permissions
+
 from pmapi.exceptions import InvalidUsage
 from pmapi.common.controllers import paginated_view_args
 
-from .schemas import EventSchema, EventListSchema
+from .schemas import (
+    EventSchema,
+    EventListSchema,
+    EventVersionListSchema,
+    ContributorListSchema,
+)
+from pmapi.user.schemas import UserListSchema
+from pmapi.activity.schemas import ActivityListSchema
 
 events_blueprint = Blueprint("events", __name__)
 
@@ -81,8 +90,12 @@ class EventResource(MethodResource):
             "dateTime": fields.Dict(required=False, allow_none=True),
             "location": fields.Dict(required=False, allow_none=True),
             "description": fields.String(required=False, allow_none=True),
+            "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
-            "tags": fields.List(fields.String(), required=False, allow_none=True),
+            "add_tags": fields.List(fields.String(), required=False, allow_none=True),
+            "remove_tags": fields.List(
+                fields.String(), required=False, allow_none=True
+            ),
             "rrule": fields.Dict(required=False, allow_none=True),
             "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
@@ -104,6 +117,115 @@ events_blueprint.add_url_rule(
     "/<event_id>/", view_func=EventResource.as_view("EventResource")
 )
 
+
+@doc(tags=["events", "suggest_edit"])
+class EventSuggestEditResource(MethodResource):
+    @doc(
+        summary="Suggest deleting an event.",
+        params={"event_id": {"description": "event ID"}},
+    )
+    @use_kwargs(
+        {
+            "message": fields.Str(required=False, allow_none=True),
+            "hcaptcha_token": fields.Str(required=True),
+        }
+    )
+    def delete(self, event_id, **kwargs):
+        events.suggest_delete(event_id, **kwargs)
+        return "", 204
+
+    @doc(summary="Suggest an edit to an event")
+    @use_kwargs(
+        {
+            "dateTime": fields.Dict(required=False, allow_none=True),
+            "location": fields.Dict(required=False, allow_none=True),
+            "description": fields.String(required=False, allow_none=True),
+            "name": fields.String(required=False, allow_none=True),
+            "url": fields.String(required=False, allow_none=True),
+            "add_tags": fields.List(fields.String(), required=False, allow_none=True),
+            "remove_tags": fields.List(
+                fields.String(), required=False, allow_none=True
+            ),
+            "rrule": fields.Dict(required=False, allow_none=True),
+            "remove_rrule": fields.Boolean(required=False, allow_none=True),
+            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
+            "message": fields.Str(required=False, allow_none=True),
+            "hcaptcha_token": fields.Str(required=True),
+        },
+    )
+    def put(self, event_id, **kwargs):
+        events.suggest_update(event_id, **kwargs)
+        return "", 200
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/suggest",
+    view_func=EventSuggestEditResource.as_view("EventSuggestEditResource"),
+)
+
+
+@doc(tags=["events", "activity"])
+class EventActivityResource(MethodResource):
+    @doc(summary="Get activity for an event", description="Get activity for event")
+    @use_kwargs(
+        {
+            **paginated_view_args(sort_options=[]),
+        },
+        location="query",
+    )
+    @marshal_with(ActivityListSchema(), code=200)
+    def get(self, event_id, **kwargs):
+        event = events.get_event_or_404(event_id)
+        return activities.get_activities_for_item(**kwargs, item=event)
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/activity",
+    view_func=EventActivityResource.as_view("EventActivityResource"),
+)
+
+
+@doc(tags=["events", "activity"])
+class EventVersionsResource(MethodResource):
+    @doc(summary="Get versions for an event", description="Get versions for event")
+    @use_kwargs(
+        {
+            **paginated_view_args(sort_options=[]),
+        },
+        location="query",
+    )
+    @marshal_with(EventVersionListSchema(), code=200)
+    def get(self, event_id, **kwargs):
+        return events.get_event_versions(event_id, **kwargs)
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/versions",
+    view_func=EventVersionsResource.as_view("EventVersionsResource"),
+)
+
+
+@doc(tags=["events", "activity"])
+class EventContributorsResource(MethodResource):
+    @doc(
+        summary="Get contributors for an event",
+        description="Get a list of users who have contributed to an event",
+    )
+    @use_kwargs(
+        {
+            **paginated_view_args(sort_options=[]),
+        },
+        location="query",
+    )
+    @marshal_with(ContributorListSchema(), code=200)
+    def get(self, event_id, **kwargs):
+        return events.get_event_contributors(event_id, **kwargs)
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/contributors",
+    view_func=EventContributorsResource.as_view("EventContributorsResource"),
+)
 
 """
 

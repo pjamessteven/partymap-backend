@@ -6,7 +6,7 @@ from marshmallow import Schema
 
 class EventContributionSchema(Schema):
     id = fields.UUID()
-    event_id = fields.UUID()
+    event_id = fields.Integer()
     text = fields.Str()
     images = fields.Nested("AlbumItemSchema", many=True)
     creator = fields.Nested("UserSchema", only=["username"])

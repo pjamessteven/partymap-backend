@@ -100,6 +100,7 @@ def register_blueprints(app):
     from pmapi.user.resource import users_blueprint
     from pmapi.report.resource import reports_blueprint
     from pmapi.feedback.resource import feedback_blueprint
+    from pmapi.suggestions.resource import suggestions_blueprint
 
     from pmapi.event_contribution.resource import event_contribution_blueprint
 
@@ -119,6 +120,7 @@ def register_blueprints(app):
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
     app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
+    app.register_blueprint(suggestions_blueprint, url_prefix="/api/suggestions")
 
 
 def register_blueprints_with_tracker(app):
@@ -134,6 +136,7 @@ def register_blueprints_with_tracker(app):
     from pmapi.user.resource import users_blueprint
     from pmapi.report.resource import reports_blueprint
     from pmapi.feedback.resource import feedback_blueprint
+    from pmapi.suggestions.resource import suggestions_blueprint
 
     tracker.include_blueprint(auth_blueprint)
     tracker.include_blueprint(event_tags_blueprint)
@@ -144,6 +147,7 @@ def register_blueprints_with_tracker(app):
     tracker.include_blueprint(users_blueprint)
     tracker.include_blueprint(reports_blueprint)
     tracker.include_blueprint(feedback_blueprint)
+    tracker.include_blueprint(suggestions_blueprint)
 
 
 def register_docs(app):
@@ -167,6 +171,10 @@ def register_docs(app):
         EventResource,
         EventsResource,
     )
+    from pmapi.suggestions.resource import (
+        SuggestedEditResource,
+        SuggestedEditsResource,
+    )
 
     extensions.apidocs.register(LoginResource, "auth.LoginResource")
     extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
@@ -179,7 +187,12 @@ def register_docs(app):
     extensions.apidocs.register(DatesResource, "dates.DatesResource")
     extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
     extensions.apidocs.register(EventResource, "events.EventResource")
-    extensions.apidocs.register(EventsResource, "events.EventsResource")
+    extensions.apidocs.register(
+        SuggestedEditsResource, "suggestions.SuggestedEditsResource"
+    )
+    extensions.apidocs.register(
+        SuggestedEditResource, "suggestions.SuggestedEditResource"
+    )
 
 
 def register_errorhandlers(app):
