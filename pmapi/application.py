@@ -81,6 +81,7 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
 
     with app.app_context():
         # create and set anonymous user
+        """
         anon = (
             extensions.db.session.query(User)
             .filter(User.username == "anonymous")
@@ -112,7 +113,7 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
             )
             extensions.db.session.add(system)
             extensions.db.session.commit()
-
+        """
         extensions.lm.anonymous_user = AnonUser
 
     if config.DEBUG is True:
