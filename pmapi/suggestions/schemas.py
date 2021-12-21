@@ -8,13 +8,14 @@ from pmapi.common.schemas import PaginatedSchema
 class SuggestedEditSchema(Schema):
     id = fields.Integer()
     created_at = fields.DateTime()
+    creator = fields.Nested("UserSchema", only=["username"])
     event_date_id = fields.Integer()
     event_id = fields.Integer()
     action = fields.Str()
     kwargs = fields.Dict()
     message = fields.Str()
     object_type = fields.Str()
-    approved = fields.Boolean()
+    status = fields.Str()
     approved_by = fields.Nested("UserSchema", only=["username"])
 
 

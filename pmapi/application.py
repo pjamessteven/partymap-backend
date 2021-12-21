@@ -3,17 +3,20 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask
+from flask import Flask, session
 from flask_cors import cross_origin
+from flask.helpers import get_debug_flag
 
 # from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 # from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
 # from sqlalchemy_continuum import make_versioned
-from flask_login import current_user
+from flask_login import current_user, AnonymousUserMixin
 from datetime import datetime
 from flask import jsonify
 
 from pmapi import extensions
+from pmapi.user.model import User
+
 from .exceptions import DatabaseConnectionError
 from .exceptions import InvalidAPIRequest
 from .exceptions import InvalidRoute
@@ -34,15 +37,27 @@ from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
 
 from flask_track_usage.storage.sql import SQLStorage
-from .config import BaseConfig
+from .config import DevConfig
+from .config import ProdConfig
 import os
 import logging
 
 # ONLY FOR TESTING !!
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
+DEV_ENVIRON = get_debug_flag()
 
-def create_app(config=BaseConfig, app_name="PARTYMAP"):
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+
+
+class AnonUser(AnonymousUserMixin):
+    id = CONFIG.ANON_USER_ID
+
+    def get_id(self):
+        return CONFIG.ANON_USER_ID
+
+
+def create_app(config=CONFIG, app_name="PARTYMAP"):
     app = Flask(app_name)
 
     app.config.from_object(config)
@@ -60,6 +75,45 @@ def create_app(config=BaseConfig, app_name="PARTYMAP"):
             current_user.last_active = datetime.utcnow()
             extensions.db.session.add(current_user)
             extensions.db.session.commit()
+        if "attempt" not in session:
+            # set login attempts to 5
+            session["attempt"] = 5
+
+    with app.app_context():
+        # create and set anonymous user
+        anon = (
+            extensions.db.session.query(User)
+            .filter(User.username == "anonymous")
+            .first()
+        )
+        if anon is None:
+            # create anon user if not already created
+            anon = User(
+                username="anonymous",
+                email="anon@partymap.com",
+                status="active",
+                id=config.ANON_USER_ID,
+            )
+            extensions.db.session.add(anon)
+            extensions.db.session.commit()
+
+        system = (
+            extensions.db.session.query(User)
+            .filter(User.username == "partymap-bot")
+            .first()
+        )
+        if system is None:
+            # create anon user if not already created
+            system = User(
+                username="partymap-bot",
+                email="info@partymap.com",
+                status="active",
+                id=config.SYSTEM_USER_ID,
+            )
+            extensions.db.session.add(system)
+            extensions.db.session.commit()
+
+        extensions.lm.anonymous_user = AnonUser
 
     if config.DEBUG is True:
         # used for serving files with dev server
@@ -101,8 +155,10 @@ def register_blueprints(app):
     from pmapi.report.resource import reports_blueprint
     from pmapi.feedback.resource import feedback_blueprint
     from pmapi.suggestions.resource import suggestions_blueprint
+    from pmapi.event_artist.resource import artists_blueprint
 
     from pmapi.event_contribution.resource import event_contribution_blueprint
+    from pmapi.search.resource import search_blueprint
 
     # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
@@ -121,6 +177,8 @@ def register_blueprints(app):
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
     app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
     app.register_blueprint(suggestions_blueprint, url_prefix="/api/suggestions")
+    app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
+    app.register_blueprint(search_blueprint, url_prefix="/api/search")
 
 
 def register_blueprints_with_tracker(app):
@@ -137,6 +195,8 @@ def register_blueprints_with_tracker(app):
     from pmapi.report.resource import reports_blueprint
     from pmapi.feedback.resource import feedback_blueprint
     from pmapi.suggestions.resource import suggestions_blueprint
+    from pmapi.event_artist.resource import artists_blueprint
+    from pmapi.search.resource import search_blueprint
 
     tracker.include_blueprint(auth_blueprint)
     tracker.include_blueprint(event_tags_blueprint)
@@ -148,6 +208,8 @@ def register_blueprints_with_tracker(app):
     tracker.include_blueprint(reports_blueprint)
     tracker.include_blueprint(feedback_blueprint)
     tracker.include_blueprint(suggestions_blueprint)
+    tracker.include_blueprint(artists_blueprint)
+    tracker.include_blueprint(search_blueprint)
 
 
 def register_docs(app):
@@ -175,6 +237,9 @@ def register_docs(app):
         SuggestedEditResource,
         SuggestedEditsResource,
     )
+    from pmapi.event_artist.resource import (
+        ArtistResource,
+    )
 
     extensions.apidocs.register(LoginResource, "auth.LoginResource")
     extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
@@ -187,12 +252,14 @@ def register_docs(app):
     extensions.apidocs.register(DatesResource, "dates.DatesResource")
     extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
     extensions.apidocs.register(EventResource, "events.EventResource")
+    extensions.apidocs.register(EventsResource, "events.EventsResource")
     extensions.apidocs.register(
         SuggestedEditsResource, "suggestions.SuggestedEditsResource"
     )
     extensions.apidocs.register(
         SuggestedEditResource, "suggestions.SuggestedEditResource"
     )
+    extensions.apidocs.register(ArtistResource, "artists.ArtistResource")
 
 
 def register_errorhandlers(app):

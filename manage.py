@@ -35,6 +35,7 @@ def shell_ctx():
     from pmapi.event.model import Event, Rrule
     from pmapi.user.model import User
     from pmapi.media.model import MediaItem
+    from pmapi.event_artist.model import EventDateArtist, Artist, ArtistUrl
     from pmapi.report.model import Report
     from pmapi.event_location.model import EventLocation
     from pmapi.event_date.model import EventDate
@@ -61,6 +62,9 @@ def shell_ctx():
         UserNotification=UserNotification,
         EmailAction=EmailAction,
         SuggestedEdit=SuggestedEdit,
+        EventDateArtist=EventDateArtist,
+        Artist=Artist,
+        ArtistUrl=ArtistUrl,
     )
 
 

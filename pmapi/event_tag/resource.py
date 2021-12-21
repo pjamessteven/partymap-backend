@@ -19,7 +19,7 @@ class TagsResource(MethodResource):
     @doc(summary="Query tags", description="Query all tags")
     @use_kwargs(
         {
-            "tag_name": fields.Str(required=False),
+            "tag_name": fields.Str(required=False, allow_none=True),
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
             **paginated_view_args(sort_options=["count", "created_at"]),
@@ -28,7 +28,6 @@ class TagsResource(MethodResource):
     )
     @marshal_with(TagListSchema(), code=200)
     def get(self, **kwargs):
-        print(kwargs)
         return event_tags.get_tags(**kwargs)
 
 

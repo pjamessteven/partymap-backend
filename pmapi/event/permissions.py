@@ -11,7 +11,7 @@ class delete(permissions.Permission):
         event = events.get_event_or_404(kwargs.pop("event_id"))
 
         if (
-            event.creator_id != current_user.id
+            event.host_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -22,23 +22,22 @@ class delete(permissions.Permission):
 
 
 class update(permissions.Permission):
-    """Can update if staff or event owner"""
+    """Can update if staff or event host"""
 
     def can(self, **kwargs):
-        """
         event = events.get_event_or_404(kwargs.pop("event_id"))
         if (
-            event.creator_id != current_user.id
+            event.host_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
                 "You don't have permission to update this event date."
-            )"""
+            )
         return True
 
 
 class add(permissions.Permission):
-    """Can create if at least HOST"""
+    """Anyone can create"""
 
     def can(self, **kwargs):
         # if not permissions.current_user_role_is_at_least("HOST"):

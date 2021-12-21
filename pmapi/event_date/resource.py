@@ -9,6 +9,8 @@ from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
 from .schemas import EventDateSchema, EventDateListSchema
+from pmapi.event.schemas import EventSchema
+
 from . import permissions as event_date_permissions
 import pmapi.event_date.controllers as event_dates
 from pmapi.common.controllers import paginated_view_args
@@ -31,14 +33,20 @@ class DatesResource(MethodResource):
     )
     @use_kwargs(
         {
+            "query": fields.Str(),
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
             "tags": fields.List(fields.Str(), required=False),
+            "artists": fields.List(fields.Str(), required=False),
             "location": fields.Str(),
             "bounds": fields.Str(),
-            "distinct_event": fields.Boolean(),
             "duration_options": fields.List(fields.Integer(), required=False),
             "size_options": fields.List(fields.String(), required=False),
+            "country_id": fields.Str(),
+            "region_id": fields.Str(),
+            "locality_id": fields.Str(),
+            "favorites": fields.Boolean(),
+            "sort_option": fields.Str(),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
@@ -47,7 +55,6 @@ class DatesResource(MethodResource):
     def get(self, **kwargs):
         # get json from query string
         if kwargs.get("location"):
-            print(kwargs.get("location"))
             kwargs["location"] = json.loads(kwargs["location"])
         if kwargs.get("bounds"):
             kwargs["bounds"] = json.loads(kwargs["bounds"])
@@ -76,11 +83,11 @@ class DateResource(MethodResource):
         description="""Delete an event date. Must be event creator or admin.""",
         params={"id": {"description": "event date ID"}},
     )
+    @marshal_with(EventSchema(), code=200)
     @login_required
     @event_date_permissions.delete
     def delete(self, id):
-        event_dates.delete_event_date(id)
-        return "", 204
+        return event_dates.delete_event_date(id)
 
     @doc(
         summary="Update an event date.",
@@ -91,9 +98,9 @@ class DateResource(MethodResource):
         {
             "description": fields.Str(),
             "url": fields.Str(),
-            "ticketUrl": fields.Str(),
+            "ticket_url": fields.Str(),
             "size": fields.Integer(),
-            "dateTime": fields.Dict(),
+            "date_time": fields.Dict(),
             "location": fields.Dict(),
             "cancelled": fields.Boolean(),
             "add_artists": fields.List(fields.Dict(), required=False, allow_none=True),
@@ -130,19 +137,20 @@ class EventDatesResource(MethodResource):
         {
             "description": fields.Str(required=False, allow_none=True),
             "url": fields.Str(required=False, allow_none=True),
-            "ticketUrl": fields.Str(required=False, allow_none=True),
+            "ticket_url": fields.Str(required=False, allow_none=True),
             "size": fields.Integer(required=False, allow_none=True),
-            "dateTime": fields.Dict(required=True),
+            "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
-            "artists": fields.List(fields.Dict()),
+            "artists": fields.List(fields.Dict(), required=False, allow_none=True),
         }
     )
     @marshal_with(EventDateSchema(), code=200)
     def post(self, event_id, **kwargs):
-        return event_dates.add_event_date_with_datetime(
+        event_date = event_dates.add_event_date_with_datetime(
             event_id, **kwargs, creator=current_user
         )
         db.session.commit()
+        return event_date
 
     @doc(
         summary="Get dates of an event.",
@@ -174,13 +182,12 @@ class EventDateSuggestAddResource(MethodResource):
         {
             "description": fields.Str(required=False, allow_none=True),
             "url": fields.Str(required=False, allow_none=True),
-            "ticketUrl": fields.Str(required=False, allow_none=True),
             "size": fields.Integer(required=False, allow_none=True),
-            "dateTime": fields.Dict(required=True),
+            "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
-            "artists": fields.List(fields.Dict()),
+            "artists": fields.List(fields.Dict(), required=False, allow_none=True),
             "message": fields.Str(required=False, allow_none=True),
-            "hcaptcha_token": fields.Str(required=True),
+            "hcaptcha_token": fields.Str(required=False, allow_none=True),
         }
     )
     @marshal_with(EventDateSchema(), code=200)
@@ -203,7 +210,7 @@ class EventDateSuggestResource(MethodResource):
     @use_kwargs(
         {
             "message": fields.Str(required=False, allow_none=True),
-            "hcaptcha_token": fields.Str(required=True),
+            "hcaptcha_token": fields.Str(required=False, allow_none=True),
         }
     )
     def delete(self, id, **kwargs):
@@ -216,15 +223,19 @@ class EventDateSuggestResource(MethodResource):
         {
             "description": fields.Str(),
             "url": fields.Str(),
-            "ticketUrl": fields.Str(),
             "size": fields.Integer(),
-            "dateTime": fields.Dict(),
+            "date_time": fields.Dict(),
             "location": fields.Dict(),
             "cancelled": fields.Boolean(),
-            "add_artists": fields.List(fields.Dict()),
-            "remove_artists": fields.List(fields.Dict()),
+            "add_artists": fields.List(fields.Dict(), required=False, allow_none=True),
+            "remove_artists": fields.List(
+                fields.Dict(), required=False, allow_none=True
+            ),
+            "update_artists": fields.List(
+                fields.Dict(), required=False, allow_none=True
+            ),
             "message": fields.Str(required=False, allow_none=True),
-            "hcaptcha_token": fields.Str(required=True),
+            "hcaptcha_token": fields.Str(required=False, allow_none=True),
         }
     )
     def put(self, id, **kwargs):

@@ -65,18 +65,19 @@ def get_tags(**kwargs):
             )
         )
 
-    if "tag_name" in kwargs:
+    if kwargs.get("tag_name", None) is not None:
         tag_name = kwargs.pop("tag_name")
-        query_string = ""
-        for word in tag_name.split():
-            # formulate a query string like 'twisted:* frequncey:*'
-            if word == tag_name.split()[-1]:
-                query_string = query_string + (word + str(":*"))
-            else:
-                query_string = query_string + (word + str(" & "))
+        if len(tag_name) > 0:
+            query_string = ""
+            for word in tag_name.split():
+                # formulate a query string like 'twisted:* frequncey:*'
+                if word == tag_name.split()[-1]:
+                    query_string = query_string + (word + str(":*"))
+                else:
+                    query_string = query_string + (word + str(" & "))
 
-        query = query.filter(
-            Tag.__ts_vector__.match(query_string, postgresql_regconfig="english")
-        )
-    print(query.all())
+            query = query.filter(
+                Tag.__ts_vector__.match(query_string, postgresql_regconfig="english")
+            )
+
     return paginated_results(Tag, query.distinct(), **kwargs)

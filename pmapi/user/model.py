@@ -16,7 +16,13 @@ from pmapi.extensions import db
 # from pmapi.favorite_events.model import favorites_association_table
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
-from pmapi.event.model import Event
+import pmapi.validate as validate
+from pmapi.event.model import (
+    Event,
+    user_event_following_table,
+    user_event_favorites_table,
+)
+import pmapi.activity.controllers as activities
 
 import uuid
 
@@ -43,10 +49,34 @@ class User(db.Model):
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
 
-    following_events = db.relationship("Event", back_populates="followers")
-    created_events = db.relationship("Event", back_populates="creator")
+    following_events = db.relationship(
+        "Event", back_populates="followers", secondary=user_event_following_table
+    )
+
+    favorite_events = db.relationship(
+        "Event", back_populates="favorites", secondary=user_event_favorites_table
+    )
+
+    created_events = db.relationship(
+        "Event",
+        back_populates="creator",
+        primaryjoin="Event.creator_id == User.id",
+    )
+    hosted_events = db.relationship(
+        "Event",
+        back_populates="host",
+        primaryjoin="Event.host_id == User.id",
+    )
+    created_suggestions = db.relationship(
+        "SuggestedEdit",
+        back_populates="creator",
+        primaryjoin="SuggestedEdit.creator_id == User.id",
+    )
+
     created_contributions = db.relationship(
-        "EventContribution", back_populates="creator"
+        "EventContribution",
+        back_populates="creator",
+        primaryjoin="EventContribution.creator_id == User.id",
     )
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
@@ -57,51 +87,17 @@ class User(db.Model):
     created_reports = db.relationship("Report", back_populates="creator")
     created_feedback = db.relationship("Feedback", back_populates="creator")
 
-    # override init method to hash password when new user created
-
-    def __init__(self, email, username=None, password=None, role=None, status=None):
-        self.email = email
-        if username is not None:
-            self.username = username
-        if password is not None:
-            self.password = generate_password_hash(password, method="sha256")
-        if role is not None:
-            self.role = role
-        if status is not None:
-            self.status = status
-
-    @classmethod
-    def authenticate(cls, **kwargs):
-        email = kwargs.get("email")
-        password = kwargs.get("password")
-        remember = kwargs.get("remember", False)
-
-        if not email or not password:
-            raise exc.LoginRequired()
-
-        user = cls.query.filter_by(email=email).first()
-        # don't allow pending or disabled accounts to login
-        if user.status == "disabled":
-            raise exc.UserDisabled()
-        elif user.status == "pending":
-            raise exc.UserPending()
-
-        if not user or not check_password_hash(user.password, password):
-            raise exc.LoginRequired()
-
-        # flask-login
-        login_user(user, remember=remember)
-
-        return user
-
-    def to_dict(self):
-        return dict(
-            id=self.id, username=self.username, email=self.email, status=self.status
-        )
+    def set_password(self, password):
+        validate.password(password)
+        self.password = generate_password_hash(password, method="sha256")
 
     @property
     def active(self):
         return self.status == "active"
+
+    @property
+    def activities(self):
+        return activities.get_activities_for_actor(self)
 
     @property
     def is_authenticated(self):

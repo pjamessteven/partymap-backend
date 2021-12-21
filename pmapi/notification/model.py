@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 import uuid
@@ -92,10 +92,10 @@ class EmailAction(db.Model):
         self.extra_data = extra_data
         if not expires:
             if self.action == "password_reset":
-                self.expires = datetime.utcnow() + datetime.timedelta(hours=24)
+                self.expires = datetime.utcnow() + timedelta(hours=24)
 
             if self.action == "account_delete":
                 # account deleting token expires after 5 minutes
-                self.expires = datetime.utcnow() + datetime.timedelta(minutes=5)
+                self.expires = datetime.utcnow() + timedelta(minutes=5)
         else:
             self.expires = expires

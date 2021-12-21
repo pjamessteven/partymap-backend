@@ -63,6 +63,10 @@ class ActivitySchema(Schema):
     target_version = PolyField(
         serialization_schema_selector=schema_serialization_disambiguation,
     )
+    previous_version = PolyField(
+        serialization_schema_selector=schema_serialization_disambiguation,
+        attribute="object_version.previous",
+    )
     previous_target_version = PolyField(
         serialization_schema_selector=schema_serialization_disambiguation,
         attribute="target_version.previous",

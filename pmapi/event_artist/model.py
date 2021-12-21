@@ -1,23 +1,59 @@
 from datetime import datetime
-
+from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import and_
+from sqlalchemy import select, func
 
 from pmapi.extensions import db
+from pmapi.event_date.model import EventDate
 
 
 class Artist(db.Model):
     __tablename__ = "artists"
+    __versioned__ = {}
     id = db.Column(db.Integer, primary_key=True)
     mbid = db.Column(db.String(100))
     name = db.Column(db.String(50), nullable=False)
     events_with_artist = db.relationship("EventDateArtist", back_populates="artist")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    suggestions = db.relationship("SuggestedEdit", back_populates="artist")
 
     # artist specific stuff
     description = db.Column(db.Text)
     disambiguation = db.Column(db.Text)
     area = db.Column(db.Text)
     urls = db.relationship("ArtistUrl")
+    media_items = db.relationship(
+        "MediaItem",
+        back_populates="artist",
+        order_by="MediaItem.position",
+        collection_class=ordering_list("position"),
+    )
+
+    @property
+    def event_dates(self):
+        now = datetime.utcnow()
+        eds = db.session.query(EventDate).join(EventDateArtist)
+        eds = eds.filter(
+            and_(EventDate.start >= now, EventDateArtist.artist_id == self.id)
+        )
+        eds = eds.order_by(EventDate.start_naive.asc())
+        return eds.all()
+
+    @hybrid_property
+    def event_count(self):
+
+        query = db.session.query(EventDateArtist).filter(
+            EventDateArtist.artist_id == self.id
+        )
+        return query.count()
+
+    @event_count.expression
+    def event_count(cls):
+        return select([func.count(EventDateArtist.id)]).where(
+            EventDateArtist.artist_id == cls.id
+        )
 
 
 class ArtistUrl(db.Model):

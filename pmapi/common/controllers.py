@@ -1,7 +1,6 @@
 from marshmallow import fields
 from marshmallow.validate import OneOf
 
-
 # kwargs params common to paginated views
 common_pagination_args = {
     "per_page": fields.Int(missing=10, description="Items per page"),
@@ -43,7 +42,9 @@ def paginated_results(
     if sort:
         sort_field = getattr(model, sort)
         if sort_field and desc:
-            sort_field = sort_field.desc()
+            from sqlalchemy import desc
+
+            sort_field = desc(sort_field)
         query = query.order_by(sort_field)
     if page == 0:
         return {"items": query.all()}

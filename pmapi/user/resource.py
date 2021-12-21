@@ -14,7 +14,7 @@ from pmapi.exceptions import InvalidUsage
 import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
 
-from .schemas import UserSchema, CurrentUserSchema
+from .schemas import UserSchema, PrivateUserSchema
 from . import permissions as user_permissions
 
 users_blueprint = Blueprint("users", __name__)
@@ -55,7 +55,7 @@ class UsersResource(MethodResource):
             "token": fields.Str(default=None),
         }
     )
-    @marshal_with(CurrentUserSchema(), code=200)
+    @marshal_with(PrivateUserSchema(), code=200)
     def post(self, **kwargs):
         return users.create_user(**kwargs)
 
@@ -74,7 +74,7 @@ class UserResource(MethodResource):
             "password_confirm": fields.Str(required=False),
         }
     )
-    @marshal_with(CurrentUserSchema(), code=200)
+    @marshal_with(PrivateUserSchema(), code=200)
     @login_required
     @user_permissions.update_user
     def put(self, user_id, **kwargs):
@@ -86,9 +86,66 @@ class UserResource(MethodResource):
     def delete(self, user_id):
         return users.delete_user(user_id)
 
+    @marshal_with(UserSchema(), code=200)
+    @doc(summary="Get a User", description="Gets a User")
+    def get(self, user_id):
+        return users.get_user_or_404(user_id)
+
 
 users_blueprint.add_url_rule(
     "/<user_id>/", view_func=UserResource.as_view("UserResource")
+)
+
+
+@doc(tags=["users"])
+class PrivateUserResource(MethodResource):
+    @user_permissions.get_user_full_profile
+    @marshal_with(PrivateUserSchema(), code=200)
+    @doc(summary="Get users full profile", description="Gets a User")
+    def get(self, user_id):
+        return users.get_user_or_404(user_id)
+
+
+users_blueprint.add_url_rule(
+    "/<user_id>/profile", view_func=PrivateUserResource.as_view("PrivateUserResource")
+)
+
+
+@doc(tags=["auth"])
+class RequestPasswordResetResource(MethodResource):
+    @doc(
+        summary="Request password reset.",
+    )
+    def get(self, user_id):
+        users.request_password_reset(user_id)
+        return "", 200
+
+
+users_blueprint.add_url_rule(
+    "/<string:user_id>/request_pw_reset",
+    view_func=RequestPasswordResetResource.as_view("RequestPasswordResetResource"),
+)
+
+
+@doc(tags=["auth"])
+class ResetPasswordResource(MethodResource):
+    @doc(
+        summary="Reset password",
+    )
+    @use_kwargs(
+        {
+            "password": fields.String(required=True),
+            "password_confirm": fields.String(required=True),
+        },
+    )
+    @marshal_with(PrivateUserSchema(), code=200)
+    def post(self, token, **kwargs):
+        return users.reset_password(token, **kwargs)
+
+
+users_blueprint.add_url_rule(
+    "/reset_pw/<string:token>",
+    view_func=ResetPasswordResource.as_view("ResetPasswordResource"),
 )
 
 

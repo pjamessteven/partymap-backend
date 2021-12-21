@@ -1,8 +1,5 @@
 from flask import Blueprint
-from flask_login import (
-    logout_user,
-    current_user,
-)
+from flask_login import logout_user, current_user, AnonymousUserMixin
 from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
@@ -11,8 +8,9 @@ from marshmallow import fields
 
 import pmapi.exceptions as exc
 from pmapi.user.model import User
-from pmapi.extensions import lm
-from pmapi.user.schemas import CurrentUserSchema
+from pmapi.extensions import lm, db
+from pmapi.user.schemas import PrivateUserSchema
+import pmapi.auth.controllers as auth
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -34,20 +32,19 @@ class LoginResource(MethodResource):
     )
     @use_kwargs(
         {
-            "email": fields.String(required=True),
+            "identifier": fields.String(required=True),
             "password": fields.String(required=True),
             "remember": fields.Boolean(required=False),
         },
     )
-    @marshal_with(CurrentUserSchema(), code=200)
+    @marshal_with(PrivateUserSchema(), code=200)
     def post(self, **kwargs):
-        auth = User.authenticate(**kwargs)
-        return auth
+        return auth.authenticate_user(**kwargs)
 
     @doc(
         summary="Get current user info.",
     )
-    @marshal_with(CurrentUserSchema(), code=200)
+    @marshal_with(PrivateUserSchema(), code=200)
     def get(self):
         if current_user.is_authenticated:
             return current_user

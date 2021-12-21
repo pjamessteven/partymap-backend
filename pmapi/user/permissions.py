@@ -32,3 +32,16 @@ class delete_user(permissions.Permission):
             return True
 
         return True
+
+
+class get_user_full_profile(permissions.Permission):
+    """Can get private info if STAFF"""
+
+    def can(self, **kwargs):
+
+        if not permissions.current_user_role_is_at_least("STAFF"):
+            raise exc.InvalidPermissions(
+                "You don't have permission to update this event date."
+            )
+
+        return True

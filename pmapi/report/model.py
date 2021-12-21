@@ -18,6 +18,7 @@ class Report(db.Model):
     open = db.Column(db.Boolean, default=True)
 
     message = db.Column(db.Text)
+    email = db.Column(db.Text)
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="reports")

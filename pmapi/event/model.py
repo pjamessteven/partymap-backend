@@ -6,6 +6,7 @@ from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_continuum import transaction_class, version_class
 from sqlalchemy import select
+from sqlalchemy.orm import query_expression
 
 from pmapi.extensions import db
 
@@ -27,6 +28,26 @@ def create_tsvector(*args):
     # two way relationship - so when I get an event it also has all event dates
 
 
+user_event_following_table = db.Table(
+    "user_event_following_table",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
+)
+
+user_event_favorites_table = db.Table(
+    "user_event_favorites_table",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
+)
+
+event_page_views_table = db.Table(
+    "event_page_views_table",
+    db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("time", db.DateTime, default=datetime.utcnow),
+)
+
+
 class Event(db.Model):
 
     __versioned__ = {}
@@ -35,16 +56,35 @@ class Event(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    followers = db.relationship("User", back_populates="following_events")
+    followers = db.relationship(
+        "User", back_populates="following_events", secondary=user_event_following_table
+    )
+
+    favorites = db.relationship(
+        "User", back_populates="favorite_events", secondary=user_event_favorites_table
+    )
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
-        "User", back_populates="created_events", foreign_keys=[creator_id]
+        "User",
+        back_populates="created_events",
+        foreign_keys=[creator_id],
     )
+
+    host_id = db.Column(UUID, db.ForeignKey("users.id"))
+    host = db.relationship(
+        "User",
+        back_populates="hosted_events",
+        foreign_keys=[host_id],
+    )
+
+    is_favorited = query_expression()
+
     # deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
+
     rrule = db.relationship("Rrule", uselist=False, back_populates="event")
 
     event_dates = db.relationship("EventDate", back_populates="event")
@@ -58,13 +98,7 @@ class Event(db.Model):
         collection_class=ordering_list("position"),
     )
 
-    default_url = db.Column(db.String)
-    default_ticket_url = db.Column(db.String)
-    default_location = db.relationship("EventLocation", back_populates="event")
-    default_location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
-
     settings = db.Column(JSONB)
-
     suggestions = db.relationship("SuggestedEdit", back_populates="event")
     reports = db.relationship("Report", back_populates="event")
     hidden = db.Column(db.Boolean, default=True)
@@ -78,29 +112,6 @@ class Event(db.Model):
     def cover_items(self):
         # return first three items for cover images
         return self.media_items[0:3]
-
-    """
-    @hybrid_property
-    def all_locations(self):
-        place_ids = []
-        locations = []
-        for ed in self.event_dates:
-            if ed.location_id not in place_ids:
-                locations.append(ed.location)
-        return locations
-
-    # doesn't take into account times
-    # get_all_locations query does
-    @all_locations.expression
-    def all_locations(cls):
-        return (
-            select(EventLocation)
-            .join(EventDate)
-            .where(EventDate.event_id == cls.id)
-            .label("events")
-            .as_scalar()
-        )
-        """
 
     def minified(self):
         return dict(
@@ -132,19 +143,39 @@ class Event(db.Model):
         else:
             return None
 
+    def increment_page_views(self, user_id):
+        db.engine.execute(
+            event_page_views_table.insert(),
+            user_id=user_id,
+            event_id=self.id,
+        )
+        db.session.commit()
+
+    @hybrid_property
+    def page_views(self):
+        return (
+            db.session.query(event_page_views_table)
+            .filter(event_page_views_table.c.event_id == self.id)
+            .count()
+        )
+
     @hybrid_property
     def last_transaction(self):
-        EventTransaction = transaction_class(Event)
+        Transaction = transaction_class(Event)
+        EventVersion = version_class(Event)
         return (
-            db.session.query(EventTransaction)
-            .order_by(EventTransaction.id.desc())
+            db.session.query(Transaction)
+            .join(EventVersion, Transaction.id == EventVersion.transaction_id)
+            .filter(EventVersion.id == self.id)
+            .order_by(Transaction.id.desc())
             .first()
         )
 
     @last_transaction.expression
     def last_transaction(cls):
-        EventTransaction = transaction_class(Event)
-        return select(EventTransaction).order_by(EventTransaction.id.desc()).first()
+        # EventTransaction = transaction_class(Event)
+        # return select(EventTransaction).order_by(EventTransaction.id.desc()).first()
+        return None
 
     @property
     def future_event_dates(self):
@@ -161,6 +192,7 @@ class Event(db.Model):
         eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()[1:]
+
         """
     def favorite(self, user_id):
         _faved = self.is_favorited(user_id)
@@ -220,9 +252,8 @@ class Rrule(db.Model):
     __tablename__ = "rrules"
     __versioned__ = {}
     # max_num_of_occurances = db.Column(db.Integer, nullable=True)
-    id = db.Column(
-        db.Integer, db.ForeignKey("events.id"), primary_key=True, nullable=False
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
     event = db.relationship("Event", back_populates="rrule")
     # recurring_type  1=weekly, 2=monthly, 3=annually
     recurring_type = db.Column(db.Integer, nullable=False)
@@ -236,6 +267,12 @@ class Rrule(db.Model):
     day_of_month = db.Column(db.Integer, nullable=True)
     # 1 - 12
     month_of_year = db.Column(db.Integer, nullable=True)
+    start_date_time = db.Column(db.String)  # naive datetime string
+    end_date_time = db.Column(db.String)  # naive datetime string
+    default_url = db.Column(db.String)
+    default_ticket_url = db.Column(db.String)
+    default_location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
+    default_location = db.relationship("EventLocation")
 
     def to_dict(self):
         return dict(

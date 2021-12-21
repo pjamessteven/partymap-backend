@@ -1,16 +1,25 @@
 import reverse_geocode
 import pygeohash as pgh
+from flask_login import current_user
+
 from sqlalchemy.orm import with_expression
 from sqlalchemy.orm import subqueryload, selectinload, joinedload, Bundle
 from sqlalchemy import select, func, distinct, String, Text, join
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy import or_, and_
 
-from pmapi.event_location.model import EventLocation, EventLocationType
+from pmapi.event_location.model import (
+    EventLocation,
+    EventLocationType,
+    Country,
+    Region,
+    Locality,
+)
 from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import EventTag
-from pmapi.event.model import Event
+from pmapi.event_artist.model import EventDateArtist
+from pmapi.event.model import Event, user_event_favorites_table
 from pmapi.common.controllers import paginated_results
 from pmapi import exceptions as exc
 
@@ -24,19 +33,77 @@ def add_new_event_location(creator=None, **kwargs):
     types = kwargs.get("types")
     address_components = kwargs.get("address_components")
 
-    lat = float(geometry["location"]["lat"])
-    lng = float(geometry["location"]["lng"])
-
     # return location if it already exists
     if (get_location(place_id)) is not None:
         return get_location(place_id)
 
-    geocode = reverse_geocode.search([(lat, lng)])[0]
+    country = None
+    region = None
+    locality = None
+
+    # get country
+    for component in address_components:
+        if "country" in component["types"]:
+            short_name = component["short_name"]
+            existing_country = get_country(short_name)
+            if existing_country is not None:
+                country = existing_country
+            else:
+                country = Country(
+                    short_name=component["short_name"], long_name=component["long_name"]
+                )
+                db.session.add(country)
+                db.session.flush()
+
+    # get region
+    for component in address_components:
+        if "administrative_area_level_1" in component["types"]:
+            short_name = component["short_name"]
+            existing_region_of_country = get_region_of_country(short_name, country)
+            if existing_region_of_country is not None:
+                region = existing_region_of_country
+            else:
+                region = Region(
+                    short_name=component["short_name"],
+                    long_name=component["long_name"],
+                    country=country,
+                )
+                db.session.add(region)
+                db.session.flush()
+
+    # get locality
+    for component in address_components:
+        if "locality" in component["types"]:
+            short_name = component["short_name"]
+            existing_locality_of_region_of_country = get_locality_of_region_of_country(
+                short_name, region, country
+            )
+            if existing_locality_of_region_of_country is not None:
+                locality = existing_locality_of_region_of_country
+            else:
+                locality = Locality(
+                    short_name=component["short_name"],
+                    long_name=component["long_name"],
+                    region=region,
+                    country=country,
+                )
+                db.session.add(locality)
+                db.session.flush()
+
+    if region is None or country is None:
+        raise exc.InvalidAPIRequest(
+            "A more specific location is required. Please try again."
+        )
+
+    lat = float(geometry["location"]["lat"])
+    lng = float(geometry["location"]["lng"])
+
+    # geocode = reverse_geocode.search([(lat, lng)])[0]
 
     location_type_objects = []
     db.session.flush()
+
     for t in types:
-        print(t)
         type = None
         if (
             db.session.query(EventLocationType)
@@ -52,7 +119,7 @@ def add_new_event_location(creator=None, **kwargs):
             type = EventLocationType(type=t)
         db.session.add(type)
         location_type_objects.append(type)
-    print(location_type_objects)
+
     db.session.flush()
     location = EventLocation(
         geohash=pgh.encode(lat, lng),
@@ -64,11 +131,14 @@ def add_new_event_location(creator=None, **kwargs):
         types=location_type_objects,
         lat=lat,
         lng=lng,
-        country=geocode["country"],
-        country_code=geocode["country_code"],
-        city=geocode["city"],
+        country=country,
+        region=region,
+        locality=locality,
+        # country=geocode["country"],
+        # country_code=geocode["country_code"],
+        # city=geocode["city"],
         place_id=place_id,
-        creator=creator,
+        creator_id=creator.id,
         address_components=address_components,
     )
     db.session.add(location)
@@ -84,10 +154,33 @@ def get_location_or_404(place_id):
     return location
 
 
+def get_all_countries():
+    return db.session.query(Country).order_by(Country.short_name.asc()).all()
+
+
+def get_country(short_name):
+    result = Country.query.filter(Country.short_name == short_name).first()
+    return result
+
+
+def get_region_of_country(short_name, country):
+    for region in country.regions:
+        if region.short_name == short_name:
+            return region
+    return None
+
+
+def get_locality_of_region_of_country(short_name, region, country):
+    for reg in country.regions:
+        if reg.short_name == region.short_name:
+            for loc in reg.localities:
+                if loc.short_name == short_name:
+                    return loc
+    return None
+
+
 def get_location(place_id):
-    print()
     result = EventLocation.query.filter(EventLocation.place_id == place_id).first()
-    print(result)
     return result
 
 
@@ -98,15 +191,52 @@ def get_all_locations(**kwargs):
     if "date_min" in kwargs or "date_max" in kwargs or "tags" in kwargs:
         # this expression allows us to show the events for a given
         # event_location in the query
+
+        """
+        j = join(Event, EventDate)
+        j = join(j, EventLocation)
+        expression = (
+            select(
+                [
+                    EventLocation.id,
+                    func.array_agg(
+                        distinct(  # remove duplicate eventdates at same location
+                            func.jsonb_build_object(
+                                "name",
+                                Event.name,
+                                "event_id",
+                                Event.id,
+                                "event_date_id",
+                                EventDate.id,
+                            )
+                        )
+                    ),
+                ]
+            )
+            .group_by(EventLocation.id)
+            .select_from(j)
+        )
+
+        """
+
+        j = join(Event, EventDate)
+        # j = join(j, user_event_favorites_table)
         expression = select(
             [
                 func.array_agg(
                     distinct(  # remove duplicate eventdates at same location
-                        func.jsonb_build_object("name", Event.name, "id", Event.id)
+                        func.jsonb_build_object(
+                            "name",
+                            Event.name,
+                            "event_id",
+                            Event.id,
+                            "event_date_id",
+                            EventDate.id,
+                        )
                     )
                 )
             ]
-        ).select_from(join(Event, EventDate))
+        ).select_from(j)
 
         query = (
             db.session.query(EventLocation)
@@ -151,8 +281,49 @@ def get_all_locations(**kwargs):
                     Event.event_tags.any(EventTag.tag_id == tag)
                 )
 
+        if "artists" in kwargs:
+            artists = kwargs.pop("artists")
+            for artist_id in artists:
+                query = query.filter(
+                    EventDate.artists.any(EventDateArtist.artist_id == artist_id)
+                )
+                expression = expression.where(
+                    EventDate.artists.any(EventDateArtist.artist_id == artist_id)
+                )
+
+        if kwargs.get("query", None) is not None:
+            query_string = kwargs.pop("query")
+            query_text = ""
+            for word in query_string.split():
+                # this is to formulate a query string like 'twisted:* frequncey:*'
+                if word == query_string.split()[-1]:
+                    query_text = query_text + (str(word) + str(":*"))
+                else:
+                    query_text = query_text + (str(word) + str(":* & "))
+            query = query.filter(
+                Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+            )
+            expression = expression.where(
+                Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+            )
+
+        if kwargs.get("favorites", None) is not None:
+            if kwargs.get("favorites") is True:
+                if not current_user.is_authenticated:
+                    raise exc.InvalidAPIRequest("Login required for favorites")
+                query = query.join(user_event_favorites_table).filter(
+                    user_event_favorites_table.c.user_id == current_user.id
+                )
+                expression = expression.select_from(
+                    join(expression.froms[0], user_event_favorites_table)
+                )
+
+                expression = expression.where(
+                    user_event_favorites_table.c.user_id == current_user.id
+                )
+
         # filter cancelled events out
-        query = query.filter(EventDate.cancelled != True)
+        # query = query.filter(EventDate.cancelled != True)
 
         # filter hidden events out
         query = query.filter(Event.hidden == False)  # ignore linter warning here

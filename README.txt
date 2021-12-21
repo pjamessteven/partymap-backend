@@ -30,4 +30,4 @@ UWSGI command:
 FLASK USAGE TABLE NEEDS FIXING ON DEPLOY
 	- URL field length and various other fields
 
-Ray Chung  for dev
+export FLASK_DEBUG=1 for dev

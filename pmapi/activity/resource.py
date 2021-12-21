@@ -66,7 +66,7 @@ activity_blueprint.add_url_rule(
     ),
 )
 
-
+"""
 @activity_blueprint.route("/<int:id>/revert/", methods=("GET",))
 def revert(id):
     # THIS IS ALL FUCKED (well, only kinda. i'll deal with it later)
@@ -119,49 +119,5 @@ def revert(id):
     return jsonify({"ok": True}), 201
 
 
-"""
-
-@activity_blueprint.route("/<int:id>/revert/", methods=("GET",))
-def revert(id):
-    # THIS IS ALL FUCKED (well, only kinda. i'll deal with it later)
-    # need to think about a good way to let users undo a recent change
-    # without destroying everything
-    activity = Activity.query.get(id)
-    previous_version = activity.object_version.previous
-    object_version_tx_id = activity.object_version.transaction_id
-    previous_version_tx_id = None
-    if hasattr(previous_version, 'transaction_id'):
-        previous_version_tx_id = previous_version.transaction_id
-    previous_version = previous_version.revert()
-    # release activity from db session so that the object_version (object_tx_id) is not updated
-    # in this transaction
-    db.session.expunge(activity)
-    db.session.flush()
-
-    target_event = None
-    # find target event
-    if hasattr(activity.object_version, "event_id"):
-        target_event = (
-            db.session.query(Event)
-            .filter(Event.id == activity.object_version.event_id)
-            .first()
-        )
-
-    new_activity = Activity(
-        verb=u"revert",
-        data={
-            "previous_version_tx_id": previous_version_tx_id,
-            "object_version_tx_id": object_version_tx_id,
-        },
-        object=previous_version,
-        target=target_event,
-    )  # might need to add event as target if eventdate etc.
-
-    db.session.add(new_activity)
-    db.session.flush()
-
-    db.session.commit()
-
-    return jsonify({"ok": True}), 201
 
 """

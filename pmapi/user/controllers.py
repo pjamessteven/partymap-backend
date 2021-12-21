@@ -10,10 +10,15 @@ from pmapi.notification.model import EmailAction
 from pmapi.mail.controllers import (
     send_signup_verify_email,
     send_change_email_address_email,
+    send_password_reset_email,
 )
 from pmapi.utils import ROLES
 from pmapi.extensions import db
 import pmapi.event.controllers as events
+from flask_login import (
+    login_user,
+)
+from flask import session
 
 import logging
 
@@ -74,7 +79,6 @@ def create_user(**kwargs):
     role = kwargs.pop("role", 0)
 
     # all user created with token will have role=10
-    # these are priviledged users who can create events
     token = kwargs.pop("token", None)
     if token:
         email_action = EmailAction.query.get(token)
@@ -108,10 +112,12 @@ def create_user(**kwargs):
         raise e
 
     # create user
-    user = User(email, username, password, role)
+    user = User(email=email, username=username, role=role)
 
     db.session.add(user)
-    db.session.commit()
+    db.session.flush()
+
+    user.set_password(password)
 
     if activate:
         user.activate()
@@ -119,7 +125,7 @@ def create_user(**kwargs):
         # send activation email to user
         email_action = EmailAction(user=user, action="email_verify")
         db.session.add(email_action)
-        db.session.commit()
+        db.session.flush()
         send_signup_verify_email(user, email_action.id)
 
     logging.info(
@@ -131,7 +137,7 @@ def create_user(**kwargs):
     )
 
     db.session.commit()
-
+    user = get_user(email)
     return user
 
 
@@ -176,7 +182,7 @@ def edit_user(user_id, **kwargs):
         validate.password(password)
         if password != password_confirm:
             raise exc.InvalidAPIRequest("Passwords don't match")
-        user.password = generate_password_hash(password, method="sha256")
+        user.set_password(password)
 
     if email:
         validate.email(email)
@@ -206,3 +212,36 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return
+
+
+def request_password_reset(identifier):
+    user = get_user_or_404(identifier)
+    # send activation email to user
+    email_action = EmailAction(user=user, action="password_reset")
+    db.session.add(email_action)
+    db.session.commit()
+    send_password_reset_email(user, email_action.id)
+    return
+
+
+def reset_password(token, password, password_confirm):
+    """ Reset user password using the EmailAction id that was emailed to the user"""
+    email_action = EmailAction.query.get(token)
+    if not email_action:
+        raise exc.RecordNotFound("No such token ({})".format(token))
+    user = email_action.user
+
+    validate.password(password)
+    if password != password_confirm:
+        raise exc.InvalidAPIRequest("Passwords don't match")
+    user.set_password(password)
+    # reset password attempts
+    session["attempt"] = 5
+
+    db.session.delete(email_action)
+    db.session.commit()
+
+    # flask-login
+    login_user(user, remember=True)
+
+    return user

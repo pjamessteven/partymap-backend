@@ -41,6 +41,7 @@ class EventsResource(MethodResource):
         {
             "query": fields.String(required=False),
             "created_by": fields.String(required=False),
+            "hidden": fields.Boolean(required=False),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
@@ -50,26 +51,32 @@ class EventsResource(MethodResource):
         return events.search_events(**kwargs)
 
     @doc(summary="Add an event", description="Add an event")
-    @login_required
     @event_permissions.add
     @use_kwargs(
         {
-            "dateTime": fields.Dict(required=True),
+            "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
             "next_event_date_description": fields.String(required=False),
             "next_event_date_size": fields.String(required=False),
+            "next_event_date_artists": fields.List(
+                fields.Dict(), required=False, allow_none=True
+            ),
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
             "ticket_url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "rrule": fields.Dict(),
+            "host": fields.Boolean(),
         },
     )
     @marshal_with(EventSchema(), code=200)
     def post(self, **kwargs):
-        return events.add_event(**kwargs, creator=current_user)
+        creator = None
+        if current_user:
+            creator = current_user
+        return events.add_event(**kwargs, creator=creator)
 
 
 events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
@@ -87,15 +94,15 @@ class EventResource(MethodResource):
     @login_required
     @use_kwargs(
         {
-            "dateTime": fields.Dict(required=False, allow_none=True),
+            "date_time": fields.Dict(required=False, allow_none=True),
             "location": fields.Dict(required=False, allow_none=True),
             "description": fields.String(required=False, allow_none=True),
-            "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
             "remove_tags": fields.List(
                 fields.String(), required=False, allow_none=True
             ),
+            "hidden": fields.Boolean(required=False),
             "rrule": fields.Dict(required=False, allow_none=True),
             "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
@@ -127,7 +134,7 @@ class EventSuggestEditResource(MethodResource):
     @use_kwargs(
         {
             "message": fields.Str(required=False, allow_none=True),
-            "hcaptcha_token": fields.Str(required=True),
+            "hcaptcha_token": fields.Str(required=False, allow_none=True),
         }
     )
     def delete(self, event_id, **kwargs):
@@ -137,7 +144,7 @@ class EventSuggestEditResource(MethodResource):
     @doc(summary="Suggest an edit to an event")
     @use_kwargs(
         {
-            "dateTime": fields.Dict(required=False, allow_none=True),
+            "date_time": fields.Dict(required=False, allow_none=True),
             "location": fields.Dict(required=False, allow_none=True),
             "description": fields.String(required=False, allow_none=True),
             "name": fields.String(required=False, allow_none=True),
@@ -150,10 +157,11 @@ class EventSuggestEditResource(MethodResource):
             "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "message": fields.Str(required=False, allow_none=True),
-            "hcaptcha_token": fields.Str(required=True),
+            "hcaptcha_token": fields.Str(required=False, allow_none=True),
         },
     )
     def put(self, event_id, **kwargs):
+
         events.suggest_update(event_id, **kwargs)
         return "", 200
 
@@ -225,6 +233,29 @@ class EventContributorsResource(MethodResource):
 events_blueprint.add_url_rule(
     "/<event_id>/contributors",
     view_func=EventContributorsResource.as_view("EventContributorsResource"),
+)
+
+
+@doc(tags=["events", "favorite"])
+class EventFavoriteResource(MethodResource):
+    @doc(
+        summary="Favorite this event",
+        description="Favorite this event",
+    )
+    @login_required
+    @use_kwargs(
+        {
+            "favorited": fields.Boolean(required=True),
+        },
+    )
+    @marshal_with(EventSchema(), code=200)
+    def put(self, event_id, **kwargs):
+        return events.favorite_event(event_id, **kwargs)
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/favorite",
+    view_func=EventFavoriteResource.as_view("EventFavoriteResource"),
 )
 
 """

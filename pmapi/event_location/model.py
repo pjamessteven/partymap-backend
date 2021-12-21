@@ -1,4 +1,6 @@
 from datetime import datetime
+import uuid
+
 from geoalchemy2.types import Geometry
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB
@@ -30,6 +32,82 @@ event_location_type_association = db.Table(
 )
 
 
+class Locality(db.Model):
+    __tablename__ = "localities"
+    # city
+    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    short_name = db.Column(db.String)
+    long_name = db.Column(db.String)
+
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+    country = db.relationship("Country", back_populates="localities")
+    region_id = db.Column(UUID, db.ForeignKey("regions.id"))
+    region = db.relationship("Region", back_populates="localities")
+
+    locations = db.relationship("EventLocation")
+
+    @hybrid_property
+    def full_name(self):
+        return (
+            self.long_name
+            + ", "
+            + self.region.long_name
+            + ", "
+            + self.country.long_name
+        )
+
+    @full_name.expression
+    def full_name(cls):
+        return (
+            cls.long_name
+            + ", "
+            + select([Region.long_name]).where(cls.region_id == Region.id).as_scalar()
+            + ", "
+            + select([Country.long_name])
+            .where(cls.country_id == Country.short_name)
+            .as_scalar()
+        )
+
+
+class Region(db.Model):
+    __tablename__ = "regions"
+    # state, region or province (administrative_area_level_1)
+    id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
+    short_name = db.Column(db.String)
+    long_name = db.Column(db.String)
+
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+    country = db.relationship("Country", back_populates="regions")
+
+    localities = db.relationship("Locality")
+    locations = db.relationship("EventLocation")
+
+    @hybrid_property
+    def full_name(self):
+        return self.long_name + ", " + self.country.long_name
+
+    @full_name.expression
+    def full_name(cls):
+        return (
+            cls.long_name
+            + ", "
+            + select([Country.long_name])
+            .where(cls.country_id == Country.short_name)
+            .as_scalar()
+        )
+
+
+class Country(db.Model):
+    __tablename__ = "countries"
+    # state, region or province
+    short_name = db.Column(db.String, primary_key=True)
+    long_name = db.Column(db.String)
+
+    regions = db.relationship("Region")
+    localities = db.relationship("Locality")
+    locations = db.relationship("EventLocation")
+
+
 class EventLocationType(db.Model):
     __tablename__ = "event_location_types"
     __versioned__ = {}
@@ -53,19 +131,25 @@ class EventLocation(db.Model):
     description = db.Column(db.String)
     lat = db.Column(db.Float)
     lng = db.Column(db.Float)
-    country_code = db.Column(db.String)
-    country = db.Column(db.String)
-    city = db.Column(db.String)
     types = db.relationship(
         "EventLocationType",
         secondary="event_location_type_association",
         back_populates="event_locations",
     )
+    country = db.relationship("Country", back_populates="locations")
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+
+    region = db.relationship("Region", back_populates="locations")
+    region_id = db.Column(UUID, db.ForeignKey("regions.id"))
+
+    locality = db.relationship("Locality", back_populates="locations")
+    locality_id = db.Column(UUID, db.ForeignKey("localities.id"))
+
     address_components = db.Column(JSONB)
 
     events = query_expression()
 
-    event = db.relationship("Event", back_populates="default_location")
+    # event = db.relationship("Event", back_populates="default_location")
     # event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
 
     event_dates = db.relationship("EventDate", back_populates="location")
@@ -105,21 +189,6 @@ class EventLocation(db.Model):
     cluster_zoom_15 = db.relationship("ClusterZoom15", back_populates="locations")
     cluster_zoom_16_id = db.Column(db.Integer, db.ForeignKey("clusters_16.cluster_id"))
     cluster_zoom_16 = db.relationship("ClusterZoom16", back_populates="locations")
-
-    def to_dict(self):
-        return dict(
-            geohash=self.geohash,
-            lat=self.lat,
-            lon=self.lng,
-            name=self.name,
-            description=self.description,
-            country_code=self.country_code,
-            city=self.city,
-            place_id=self.place_id,
-        )
-
-    def to_point_dict(self):
-        return dict(lat=self.lat, lon=self.lng, id=self.geohash)
 
     def next_event_at_location(self):
         now = datetime.utcnow()

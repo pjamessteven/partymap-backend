@@ -8,7 +8,7 @@ from flask_apispec import use_kwargs
 
 from pmapi.common.controllers import paginated_view_args
 import pmapi.event_location.controllers as event_locations
-from .schemas import PointSchema, LocationSchema, LocationListSchema
+from .schemas import PointSchema, LocationSchema, LocationListSchema, CountrySchema
 
 
 locations_blueprint = Blueprint("locations", __name__)
@@ -77,8 +77,11 @@ class PointsResource(MethodResource):
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
             "tags": fields.List(fields.Str(), required=False),
+            "artists": fields.List(fields.Int(), required=False),
+            "favorites": fields.Boolean(),
             "duration_options": fields.List(fields.Integer(), required=False),
             "size_options": fields.List(fields.String(), required=False),
+            "query": fields.Str(),
         },
         location="query",
     )
@@ -89,4 +92,23 @@ class PointsResource(MethodResource):
 
 locations_blueprint.add_url_rule(
     "/points/", view_func=PointsResource.as_view("PointsResource")
+)
+
+
+@doc(tags=["locations"])
+class LocalitiesResource(MethodResource):
+    @doc(
+        summary="Get all localities",
+        description="""Returns an object containing all localities in the db. \n
+        ### Usage:  \n
+
+        """,
+    )
+    @marshal_with(CountrySchema(many=True), code=200)
+    def get(self, **kwargs):
+        return event_locations.get_all_countries()
+
+
+locations_blueprint.add_url_rule(
+    "/localities", view_func=LocalitiesResource.as_view("LocalitiesResource")
 )

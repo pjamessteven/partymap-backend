@@ -37,6 +37,7 @@ class SuggestedEditsResource(MethodResource):
     @use_kwargs(
         {
             "event_id": fields.String(required=False),
+            "status": fields.String(required=False, allow_none=True),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
@@ -55,15 +56,16 @@ suggestions_blueprint.add_url_rule(
 @doc(tags=["events"])
 class SuggestedEditResource(MethodResource):
     @doc(summary="Update a suggested edit")
-    @suggestions_permissions.update
     @login_required
+    @suggestions_permissions.update
     @use_kwargs(
         {
-            "approve": fields.Boolean(required=True, allow_none=False),
+            "status": fields.String(required=True, allow_none=False),
         },
     )
     @marshal_with(SuggestedEditSchema(), code=200)
     def put(self, suggested_edit_id, **kwargs):
+        print("test!", kwargs)
         return suggestions.update_suggested_edit(suggested_edit_id, **kwargs)
 
     @doc(summary="Delete an suggested edit")

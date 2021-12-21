@@ -8,13 +8,17 @@ class UserSchema(Schema):
     role = fields.Int()
     id = fields.UUID()
     version_count = fields.Int()
+    hosted_events = fields.Nested("EventSchema", many=True)
+    created_events = fields.Nested("EventSchema", many=True)
+    version_count = fields.Int()
+    created_at = fields.DateTime()
 
 
 class UserListSchema(PaginatedSchema):
     items = fields.Nested("UserSchema", many=True)
 
 
-class CurrentUserSchema(UserSchema):
+class PrivateUserSchema(UserSchema):
     # this information should only be visible to current user
     email = fields.Email()
     status = fields.Str()

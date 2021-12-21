@@ -49,6 +49,9 @@ class MediaItem(db.Model):
     event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", uselist=False)
 
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    artist = db.relationship("Artist")
+
     """
     status = db.Column(db.SmallInteger, default=1)
 

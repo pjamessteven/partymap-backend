@@ -87,10 +87,55 @@ def remove_all_media_from_event(event):
     return
 
 
+def add_media_to_artist(items, artist, creator=current_user):
+    for i in items:
+        file = i["base64File"]
+        path = os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"] + str("artist/") + str(artist.id)
+        )
+        (
+            thumb_filename,
+            image_filename,
+            video_low_filename,
+            video_med_filename,
+            video_high_filename,
+            video_poster_filename,
+            duration,
+            type,
+        ) = save_media_item(file, path)
+        if thumb_filename:
+            media_item = MediaItem(
+                artist=artist,
+                caption=i.get("caption", None),
+                image_filename=image_filename,
+                video_low_filename=video_low_filename,
+                video_med_filename=video_med_filename,
+                video_high_filename=video_high_filename,
+                video_poster_filename=video_poster_filename,
+                duration=duration,
+                thumb_filename=thumb_filename,
+                type=type,
+                creator_id=creator.id,
+            )
+            db.session.add(media_item)
+            db.session.flush()
+            artist.media_items.append(media_item)
+            # activity
+            db.session.flush()
+            activity = Activity(verb=u"create", object=media_item, target=artist)
+            db.session.add(activity)
+
+    db.session.commit()
+    return artist.media_items
+
+
 def add_media_to_event(items, event, event_date=None, creator=current_user):
 
     for i in items:
         file = i["base64File"]
+        path = os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"] + str("event/") + str(event.id)
+        )
 
         (
             thumb_filename,
@@ -101,12 +146,12 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
             video_poster_filename,
             duration,
             type,
-        ) = save_media_item(file, event.id)
+        ) = save_media_item(file, path)
         if thumb_filename:
             media_item = MediaItem(
                 event=event,
                 event_date=event_date,
-                caption=i["caption"],
+                caption=i.get("caption", None),
                 image_filename=image_filename,
                 video_low_filename=video_low_filename,
                 video_med_filename=video_med_filename,
@@ -115,7 +160,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
                 duration=duration,
                 thumb_filename=thumb_filename,
                 type=type,
-                creator=creator,
+                creator_id=creator.id,
             )
             db.session.add(media_item)
             db.session.flush()
@@ -129,13 +174,10 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
     return event.media_items
 
 
-def save_media_item(file, eventId):
+def save_media_item(file, path):
     if not file:
         raise exc.InvalidAPIRequest("file required")
 
-    path = os.path.join(
-        current_app.config["MEDIA_UPLOAD_FOLDER"] + str("event/") + str(eventId)
-    )
     # create the directory you want to save to
     if not (os.path.exists(path)):
         try:
@@ -194,6 +236,10 @@ def save_media_item(file, eventId):
             fh.write(base64.b64decode(base64_string))
 
         img = Image.open(os.path.join(path, filename))
+
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+
         img.thumbnail((512, 512), Image.ANTIALIAS)
         img.save(os.path.join(path, thumb_filename))
 

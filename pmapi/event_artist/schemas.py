@@ -12,6 +12,8 @@ class ArtistSchema(Schema):
     disambiguation = fields.Str()
     urls = fields.Nested("ArtistUrlSchema", many=True)
     # events_with_tag?
+    event_dates = fields.Nested("EventDateSchema", many=True, exclude=["artists"])
+    event_count = fields.Int()
 
 
 class ArtistListSchema(PaginatedSchema):

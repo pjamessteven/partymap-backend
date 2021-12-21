@@ -70,12 +70,12 @@ def send_change_email_address_email(user, action_id, resend=False):
     )
 
 
-def send_password_reset_request(user, action_id):
+def send_password_reset_email(user, action_id):
     template = "email/reset_password.html"
     subject = "Reset your PartyMap password"
     # XXX make dynamic
-    reset_pw_url = "https://partymap.com/password_reset/{username}/{action_id}".format(
-        username=user.username, action_id=action_id
+    reset_pw_url = "https://partymap.com/reset_password/{email}/{action_id}".format(
+        email=user.email, action_id=action_id
     )
     context = {
         "static_reset_password_url": reset_pw_url,
@@ -84,6 +84,7 @@ def send_password_reset_request(user, action_id):
         #     user_identifier=user.username,
         #     action_id=action_id),
         "support_email": "info@partymap.com",
+        "static_support_url": "mailto:info@partymap.com",
         "user_username": user.username,
         "year": datetime.now().year,
         "domain_business_name": "PartyMap",
@@ -110,15 +111,15 @@ def send_password_reset_request(user, action_id):
     )
 
 
-def send_report_notification_email(report_id, message, user):
+def send_report_notification_email(report_id, message, email, username="anonymous"):
     template = "email/new_report.html"
-    subject = "Content report submitted by " + user.email
+    subject = "Content report submitted by " + username
 
     context = {
         "report_id": report_id,
         "message": message,
-        "creator_email": user.email,
-        "creator_username": user.username,
+        "creator_email": email,
+        "creator_username": username,
         "year": datetime.now().year,
         "domain_business_name": "PartyMap",
     }

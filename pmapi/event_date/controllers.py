@@ -14,7 +14,9 @@ import pmapi.event.controllers as events
 from pmapi.extensions import db, activity_plugin
 from pmapi.event_location.model import EventLocation
 from pmapi.event_tag.model import EventTag
-from pmapi.event.model import Event
+from pmapi.event_artist.model import EventDateArtist
+
+from pmapi.event.model import Event, user_event_favorites_table
 from pmapi import exceptions as exc
 from .model import EventDate
 import pmapi.suggestions.controllers as suggestions
@@ -22,6 +24,8 @@ from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 # from dateutil.relativedelta import *
 from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, WEEKLY
+
+import time
 
 Activity = activity_plugin.activity_cls
 
@@ -40,11 +44,11 @@ def get_event_date(id):
 
 def add_event_date_with_datetime(
     event_id,
-    dateTime,
+    date_time,
     location,
     description=None,
     url=None,
-    ticketUrl=None,
+    ticket_url=None,
     size=None,
     artists=None,
     creator=None,
@@ -52,19 +56,17 @@ def add_event_date_with_datetime(
     # this function is used by the post eventdate endpoint
     event = events.get_event_or_404(event_id)
 
-    if dateTime:
-        date = dateTime.get("date")
-
-        if date.get("start", None) is None:
+    if date_time:
+        if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+        start = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S").replace(
             second=0, microsecond=0
         )
         start_naive = start.replace(tzinfo=None)
 
-        if date.get("end", None) is None:
+        if date_time.get("end", None) is None:
             raise exc.InvalidAPIRequest("End date required")
-        end = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+        end = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S").replace(
             second=0, microsecond=0
         )
         end_naive = end.replace(tzinfo=None)
@@ -80,7 +82,7 @@ def add_event_date_with_datetime(
             description=description,
             size=size,
             url=url,
-            ticket_url=ticketUrl,
+            ticket_url=ticket_url,
             artists=artists,
         )
 
@@ -89,7 +91,7 @@ def add_event_date_with_datetime(
     else:
 
         raise exc.InvalidAPIRequest(
-            "DateTime required for making healthy computer program"
+            "date_time required for making healthy computer program"
         )
 
 
@@ -106,6 +108,7 @@ def add_event_date(
     description=None,
     size=None,
     artists=None,
+    activity=True,
 ):
     """accepts naive start and end dates and derives timezone from location
     if it not provided"""
@@ -159,8 +162,10 @@ def add_event_date(
     db.session.add(event_date)
 
     db.session.flush()
-    activity = Activity(verb=u"create", object=event_date, target=event_date.event)
-    db.session.add(activity)
+
+    if activity:
+        activity = Activity(verb=u"create", object=event_date, target=event_date.event)
+        db.session.add(activity)
 
     if artists is not None:
         event_artists.add_artists_to_date(event_date, artists)
@@ -171,56 +176,62 @@ def add_event_date(
 
 def suggest_delete(id, **kwargs):
     # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token")
-    if validate_hcaptcha(token):
-        event_date = get_event_date_or_404(id)
-        return suggestions.add_suggested_edit(
-            event_id=event_date.event_id,
-            event_date_id=id,
-            action="delete",
-            object_type="EventDate",
-            **kwargs
-        )
-    else:
-        raise exc.InvalidAPIRequest("HCaptcha not valid")
+    token = kwargs.pop("hcaptcha_token", None)
+    event_date = get_event_date_or_404(id)
+    if not current_user.is_authenticated:
+        if not validate_hcaptcha(token):
+            raise exc.InvalidAPIRequest("HCaptcha not valid")
+    return suggestions.add_suggested_edit(
+        event_id=event_date.event_id,
+        event_date_id=id,
+        creator_id=current_user.get_id(),
+        action="delete",
+        object_type="EventDate",
+        **kwargs
+    )
 
 
 def suggest_update(id, **kwargs):
     # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token")
-    if validate_hcaptcha(token):
-        event_date = get_event_date_or_404(id)
-        return suggestions.add_suggested_edit(
-            event_id=event_date.event_id,
-            event_date_id=id,
-            action="update",
-            object_type="EventDate",
-            **kwargs
-        )
-    else:
-        raise exc.InvalidAPIRequest("HCaptcha not valid")
+    token = kwargs.pop("hcaptcha_token", None)
+    event_date = get_event_date_or_404(id)
+    if not current_user.is_authenticated:
+        if not validate_hcaptcha(token):
+            raise exc.InvalidAPIRequest("HCaptcha not valid")
+    return suggestions.add_suggested_edit(
+        event_id=event_date.event_id,
+        event_date_id=id,
+        creator_id=current_user.get_id(),
+        action="update",
+        object_type="EventDate",
+        **kwargs
+    )
 
 
 def suggest_add(event_id, **kwargs):
     # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token")
-    if validate_hcaptcha(token):
-        events.get_event_or_404(event_id)
-        # used by unpriviliged users to suggest updates to an event
-        return suggestions.add_suggested_edit(
-            event_id=event_id, action="create", object_type="EventDate", **kwargs
-        )
-    else:
-        raise exc.InvalidAPIRequest("HCaptcha not valid")
+    token = kwargs.pop("hcaptcha_token", None)
+    events.get_event_or_404(event_id)
+    if not current_user.is_authenticated:
+        if not validate_hcaptcha(token):
+            raise exc.InvalidAPIRequest("HCaptcha not valid")
+
+    return suggestions.add_suggested_edit(
+        event_id=event_id,
+        action="create",
+        object_type="EventDate",
+        creator_id=current_user.get_id(),
+        **kwargs
+    )
 
 
 def update_event_date(id, **kwargs):
     event_date = get_event_date_or_404(id)
 
-    dateTime = kwargs.get("dateTime", None)
+    date_time = kwargs.get("date_time", None)
     location = kwargs.get("location", None)
 
-    if dateTime:
+    if date_time:
         # location required for timezone info
         if location:
             lat = location["geometry"]["location"]["lat"]
@@ -229,17 +240,15 @@ def update_event_date(id, **kwargs):
             lat = event_date.location.lat
             lng = event_date.location.lng
 
-        if dateTime.get("start", None) is None:
+        if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(dateTime["start"], "%Y-%m-%d %H:%M:%S")
-        start_naive = start_naive.replace(
-            tzinfo=None, minute=0, second=0, microsecond=0
-        )
+        start_naive = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
-        if dateTime.get("end", None) is None:
+        if date_time.get("end", None) is None:
             raise exc.InvalidAPIRequest("End date required")
-        end_naive = datetime.strptime(dateTime["end"], "%Y-%m-%d %H:%M:%S")
-        end_naive = end_naive.replace(tzinfo=None, minute=0, second=0, microsecond=0)
+        end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
+        end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if end_naive < start_naive:
             raise exc.InvalidAPIRequest("End time can't be before the start time")
@@ -287,10 +296,7 @@ def update_event_date(id, **kwargs):
             print("TIMEZONE ERROR")
             pass  # {handle error}
 
-        if current_user.is_authenticated:
-            event_location_creator = current_user
-        else:
-            event_location_creator = None
+        event_location_creator = current_user
 
         event_location = event_locations.add_new_event_location(
             event_location_creator, **location
@@ -309,8 +315,8 @@ def update_event_date(id, **kwargs):
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
 
-    if "ticketUrl" in kwargs:
-        event_date.ticket_url = kwargs.pop("ticketUrl")
+    if "ticket_url" in kwargs:
+        event_date.ticket_url = kwargs.pop("ticket_url")
 
     if "size" in kwargs:
         event_date.size = kwargs.pop("size")
@@ -337,7 +343,7 @@ def update_event_date(id, **kwargs):
     return event_date
 
 
-def delete_future_event_dates(event, preserve_next=False):
+def delete_future_event_dates(event, preserve_next=False, activity=True):
     event_dates = event.future_event_dates
     if preserve_next:
         # don't delete the next event date
@@ -347,13 +353,14 @@ def delete_future_event_dates(event, preserve_next=False):
     for ed in event_dates:
         db.session.delete(ed)
         db.session.flush()
-        activity = Activity(verb=u"delete", object=ed, target=event)
-        db.session.add(activity)
+        if activity:
+            activity = Activity(verb=u"delete", object=ed, target=event)
+            db.session.add(activity)
 
 
 def generate_future_event_dates(
     event,
-    dateTime=None,
+    date_time=None,
     event_location=None,
     rrule=None,
     url=None,
@@ -361,34 +368,31 @@ def generate_future_event_dates(
     next_event_date_description=None,
     next_event_date_size=None,
     next_event_date_artists=None,
+    activity=True,
 ):
-
-    if url:
-        event.default_url = url
-
-    else:
-        url = event.default_url
 
     if rrule is None:
         rrule = event.rrule
 
+    if url:
+        rrule.default_url = url
+
+    else:
+        url = rrule.default_url
+
     if event_location is None:
-        event_location = event.default_location
+        event_location = rrule.default_location
 
-    if dateTime:
-        date = dateTime.get("date")
-
-        if date.get("start", None) is None:
+    if date_time:
+        if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(date["start"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        start_naive = start_naive.replace(
-            tzinfo=None, minute=0, second=0, microsecond=0
-        )
+        start_naive = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
-        if date.get("end", None) is None:
+        if date_time.get("end", None) is None:
             raise exc.InvalidAPIRequest("End date required")
-        end_naive = datetime.strptime(date["end"], "%Y-%m-%dT%H:%M:%S.%fZ")
-        end_naive = end_naive.replace(tzinfo=None, minute=0, second=0, microsecond=0)
+        end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
+        end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         # Find timezone info
         try:
@@ -420,6 +424,7 @@ def generate_future_event_dates(
             description=next_event_date_description,
             size=next_event_date_size,
             artists=next_event_date_artists,
+            activity=activity,
         )
 
     else:
@@ -429,14 +434,14 @@ def generate_future_event_dates(
         # work out how many dates to generate
         limit = 10 - len(event.future_event_dates)
 
-        if dateTime is None:
+        if date_time is None:
             limit += 1
 
         # generate new event dates
         # limit event dates to 10
         # for start, end in zip(startdates[:10], enddates[:10]):
         for index, start_naive in enumerate(startdates[:limit]):
-            if dateTime is None and index == 0:
+            if date_time is None and index == 0:
                 pass
                 # if dateTime was not provided, then we are
                 # generating future dates without deleting
@@ -463,6 +468,7 @@ def generate_future_event_dates(
                     description=next_event_date_description,
                     size=next_event_date_size,
                     artists=next_event_date_artists,
+                    activity=activity,
                 )
                 # next_event_date_description and artists only used once
                 next_event_date_description = None
@@ -628,6 +634,7 @@ def generateRecurringDates(rp, start, end=None):
 
 def delete_event_date(id):
     event_date = get_event_date_or_404(id)
+    event = events.get_event_or_404(event_date.event_id)
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event_date.event.updated_at = datetime.utcnow()
@@ -636,6 +643,7 @@ def delete_event_date(id):
     activity = Activity(verb=u"delete", object=event_date, target=event_date.event)
     db.session.add(activity)
     db.session.commit()
+    return event
 
 
 def get_event_dates_for_event(event_id):
@@ -649,8 +657,11 @@ def query_event_dates(**kwargs):
     lat = None
     lng = None
     distance_expression = None
+    sort_option = kwargs.get("sort_option", None)
 
-    if "location" in kwargs and kwargs.get("location"):
+    seconds_start = time.time()
+
+    if kwargs.get("location", None) is not None:
         location = kwargs.get("location")
         lat = location["lat"]
         lng = location["lng"]
@@ -696,15 +707,16 @@ def query_event_dates(**kwargs):
         query = db.session.query(EventDate)
         query = query.join(Event)
 
-    # filter cancelled events out
-    query = query.filter(EventDate.cancelled != True)
+    joined_tables = [mapper.class_ for mapper in query._join_entities]
+    if EventLocation not in joined_tables:
+        query = query.join(EventLocation)
 
     # filter hidden events out
     query = query.filter(Event.hidden == False)  # ignore linter warning here
 
-    if "date_min" in kwargs:
+    if kwargs.get("date_min", None) is not None:
         query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
-    if "date_max" in kwargs:
+    if kwargs.get("date_max", None) is not None:
         date_max = kwargs.pop("date_max")
         query = query.filter(
             and_(
@@ -716,17 +728,32 @@ def query_event_dates(**kwargs):
             )
         )
 
-    if "tags" in kwargs:
+    if kwargs.get("tags", None) is not None:
         tags = kwargs.pop("tags")
         for tag in tags:
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
-    if "duration_options" in kwargs:
+    if "artists" in kwargs:
+        artists = kwargs.pop("artists")
+        for artist_id in artists:
+            query = query.filter(
+                EventDate.artists.any(EventDateArtist.artist_id == artist_id)
+            )
+
+    if kwargs.get("favorites", None) is not None:
+        if kwargs.get("favorites") is True:
+            if not current_user.is_authenticated:
+                raise exc.InvalidAPIRequest("Login required for favorites")
+            query = query.join(user_event_favorites_table).filter(
+                user_event_favorites_table.c.user_id == current_user.id
+            )
+
+    if kwargs.get("duration_options", None) is not None:
         duration_options = kwargs.pop("duration_options")
         search_args = [EventDate.duration == option for option in duration_options]
         query = query.filter(or_(*search_args))
 
-    if "size_options" in kwargs:
+    if kwargs.get("size_options", None) is not None:
         size_options = kwargs.pop("size_options")
         size_options_parsed = []
         for size in size_options:
@@ -738,19 +765,34 @@ def query_event_dates(**kwargs):
         ]
         query = query.filter(or_(*search_args))
 
-    # if bounds and not location
-    if ("bounds" in kwargs) and ("location" not in kwargs):
-        # bounds search is to return event dates that are in current view
-        # on the map
-        query = query.join(EventLocation)
+    if kwargs.get("locality_id", None) is not None:
+        query = query.filter(EventLocation.locality_id == kwargs.pop("locality_id"))
+    if kwargs.get("region_id", None) is not None:
+        query = query.filter(EventLocation.region_id == kwargs.pop("region_id"))
+    if kwargs.get("country_id", None) is not None:
+        query = query.filter(EventLocation.country_id == kwargs.pop("country_id"))
+
+    if kwargs.get("query", None) is not None:
+        query_string = kwargs.pop("query")
+        query_text = ""
+        for word in query_string.split():
+            # this is to formulate a query string like 'twisted:* frequncey:*'
+            if word == query_string.split()[-1]:
+                query_text = query_text + (str(word) + str(":*"))
+            else:
+                query_text = query_text + (str(word) + str(":* & "))
+        query = query.filter(
+            Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+        )
+
+    # query = query.order_by(EventDate.start_naive)
+
+    # filter event dates within bounds
+    if kwargs.get("bounds", None) is not None:
+
         bounds = kwargs.pop("bounds")
         northEast = bounds["_northEast"]
         southWest = bounds["_southWest"]
-
-        # convert negative longitude coordinates
-        if southWest["lng"] < -180:
-            southWest["lng"] += 360
-            northEast["lng"] += 360
 
         query = query.filter(
             and_(
@@ -777,11 +819,11 @@ def query_event_dates(**kwargs):
                 ),
             )
         )
-        query = query.order_by(EventDate.start_naive)
 
     if lat and lng:
         # nearby search
-        radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
+        # 1km -> 00km
+        radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 400000, 800000]
         for radius in radii:
             count = query.filter(
                 func.ST_DWithin(
@@ -790,9 +832,9 @@ def query_event_dates(**kwargs):
                     radius,
                 )
             ).count()
-
             # threshold of events required before trying the next radius
-            if count >= 5:
+            if count >= 10:
+                print("radius", radius)
                 query = query.filter(
                     func.ST_DWithin(
                         cast(EventLocation.geo, Geography(srid=4326)),
@@ -805,6 +847,17 @@ def query_event_dates(**kwargs):
                 )
                 break
 
-        query = query.order_by(distance_expression.asc(), EventDate.start_naive.asc())
+        if sort_option == "distance":
+            print("distance")
+            query = query.order_by(
+                distance_expression.asc(), EventDate.start_naive.asc()
+            )
 
+        else:
+            # sort by soonest
+            query = query.order_by(
+                EventDate.start_naive.asc(), distance_expression.asc()
+            )
+    seconds_end = time.time()
+    print("get seconds", seconds_end - seconds_start)
     return paginated_results(EventDate, query, **kwargs)

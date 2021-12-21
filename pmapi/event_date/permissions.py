@@ -6,13 +6,13 @@ from flask_login import current_user
 
 
 class delete(permissions.Permission):
-    """Can delete if owner or STAFF"""
+    """Can delete if host or STAFF"""
 
     def can(self, **kwargs):
         ed = event_dates.get_event_date_or_404(kwargs.pop("id"))
 
         if (
-            ed.event.creator_id != current_user.id
+            ed.event.host_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -23,12 +23,12 @@ class delete(permissions.Permission):
 
 
 class update(permissions.Permission):
-    """Can update if owner or STAFF"""
+    """Can update if host or STAFF"""
 
     def can(self, **kwargs):
         ed = event_dates.get_event_date_or_404(kwargs.pop("id"))
         if (
-            ed.event.creator_id != current_user.id
+            ed.event.host_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(
@@ -39,14 +39,14 @@ class update(permissions.Permission):
 
 
 class add(permissions.Permission):
-    """Can update if owner or STAFF"""
+    """Can add event date to event if host or STAFF"""
 
     def can(self, **kwargs):
-        print(kwargs)
+
         event = events.get_event(kwargs.pop("event_id"))
 
         if (
-            event.creator_id != current_user.id
+            event.host_id != current_user.id
             and not permissions.current_user_role_is_at_least("STAFF")
         ):
             raise exc.InvalidPermissions(

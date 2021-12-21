@@ -1,15 +1,72 @@
 import pytz
 from datetime import datetime
 from timezonefinder import TimezoneFinder
-from sqlalchemy import and_
-
+from sqlalchemy import and_, desc
+from pmapi import exceptions as exc
+import hashlib
+from sqlalchemy import or_, and_
+import base64
 import time
 import requests
 from flask_login import current_user
 from pmapi.extensions import db, activity_plugin
 from .model import Artist, ArtistUrl, EventDateArtist
+from pmapi.event_date.model import EventDate
+import logging
+
+from pmapi.common.controllers import paginated_results
+import pmapi.media_item.controllers as media_items
 
 Activity = activity_plugin.activity_cls
+
+
+def get_artist_or_404(id):
+    artist = get_artist(id)
+    if not artist:
+        msg = "No such artist with id {}".format(id)
+        raise exc.RecordNotFound(msg)
+    return artist
+
+
+def get_artist(id):
+    return Artist.query.get(id)
+
+
+def get_artists(**kwargs):
+
+    query = db.session.query(Artist)
+
+    if "date_min" in kwargs:
+        query = query.join(EventDateArtist).join(EventDate)
+        query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
+    if "date_max" in kwargs:
+        date_max = kwargs.pop("date_max")
+        query = query.filter(
+            and_(
+                or_(
+                    EventDate.end_naive <= date_max,
+                    EventDate.end_naive.is_(None),
+                ),
+                EventDate.start_naive <= date_max,
+            )
+        )
+
+    if kwargs.get("query", None) is not None:
+        search = "%{}%".format(kwargs.pop("query"))
+        query = query.filter(Artist.name.ilike(search))
+
+    #    query = query.order_by(desc(Artist.event_count)) handled by query param in resource
+
+    return paginated_results(Artist, query=query, **kwargs)
+
+
+def get_artist_by_name(name):
+    search = "%{}%".format(name)
+    return db.session.query(Artist).filter(Artist.name.ilike(search)).first()
+
+
+def get_artist_by_mbid(mbid):
+    return db.session.query(Artist).filter(Artist.mbid == mbid).first()
 
 
 def remove_artists_from_date(event_date, ed_artists):
@@ -63,12 +120,13 @@ def update_artists(event_date, artists):
 
 def add_artists_to_date(event_date, artists):
     for artist in artists:
+        print(artist)
         existing_record = (
             db.session.query(EventDateArtist)
             .join(Artist)
             .filter(
                 and_(
-                    Artist.name == artist["name"],
+                    Artist.name == artist.get("name"),
                     EventDateArtist.event_date_id == event_date.id,
                 )
             )
@@ -86,11 +144,14 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
     print(name)
     print(kwargs)
     if id:  # mbid
-        # music brainz search
+        # check if artist already exists
         artist = get_artist_by_mbid(id)
 
+        # music brainz search
         response = getArtistDetailsFromMusicBrainz(id)
+
         if response.status_code != 200:
+            print("status code", response.status_code)
             # wait and try again (musicbrainz api limited to one req/sec)
             time.sleep(1)
             response = getArtistDetailsFromMusicBrainz(id)
@@ -130,20 +191,47 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
         # process artist URLs
         for relation in response["relations"]:
             # make sure urls are up to date
-            url = (
+            artist_url = (
                 db.session.query(ArtistUrl)
                 .filter(ArtistUrl.url == relation["url"]["resource"])
                 .first()
             )
-            if url is None:
-                url = ArtistUrl(
-                    artist=artist,
-                    url=relation["url"]["resource"],
-                    type=relation["type"],
-                )
-                db.session.add(url)
+            if artist_url is None:
+                # create new url entry
+                url = relation["url"]["resource"]
+                if relation["type"] == "image":
+                    # if it's a wikimedia image, do stuff
+
+                    if "https://commons.wikimedia.org/wiki/File:" in url:
+                        # get a proper image url out of this
+                        filename = url.split("File:")[1]
+                        md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
+                        weirdPathString = md5[0:1] + "/" + md5[0:2] + "/"
+                        url = (
+                            "https://upload.wikimedia.org/wikipedia/commons/"
+                            + weirdPathString
+                            + filename
+                        )
+                        # check that image url not already in DB
+                        artist_url = (
+                            db.session.query(ArtistUrl)
+                            .filter(ArtistUrl.url == url)
+                            .first()
+                        )
+                        if artist_url is None:
+                            # add image as media item if it's not already in db
+                            save_artist_image_from_wikimedia_url(url, artist)
+
+                if artist_url is None:
+                    # need to check twice because of artist image url
+                    artist_url = ArtistUrl(
+                        artist=artist,
+                        url=url,
+                        type=relation["type"],
+                    )
+                    db.session.add(artist_url)
             else:
-                url.artist = artist
+                artist_url.artist = artist
 
     else:
         artist = get_artist_by_name(name)
@@ -177,7 +265,7 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
     event_date_artist = EventDateArtist(
         artist=artist,
         event_date=event_date,
-        creator=current_user,
+        creator_id=current_user.id,
         start=start_utc,
         start_naive=start_naive,
     )
@@ -192,17 +280,50 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
     return event_date_artist
 
 
-def get_artist_by_name(name):
-    return db.session.query(Artist).filter(Artist.name.ilike(name)).first()
-
-
-def get_artist_by_mbid(mbid):
-    return db.session.query(Artist).filter(Artist.mbid == mbid).first()
+def save_artist_image_from_wikimedia_url(url, artist):
+    try:
+        headers = {"Accept": "image/*"}
+        r = requests.get(url, headers=headers)
+    except requests.exceptions.RequestException as e:
+        logging.error(
+            "event_artist.save_artist_image_from_wikimedia_url.request_error",
+            status_code=r.status_code,
+            error_body=r.body,
+            exception=e,
+        )
+        print("error getting artist image")
+    print(r)
+    print(r.headers)
+    try:
+        uri = (
+            "data:"
+            + r.headers["Content-Type"]
+            + ";"
+            + "base64,"
+            + base64.b64encode(r.content).decode("utf-8")
+        )
+    except Exception:
+        logging.error(
+            "event_artist.save_artist_image_from_wikimedia_url.base_64_encode",
+        )
+        print("error encoding artist image as uri")
+    items = [
+        {
+            "base64File": uri,
+            "caption": "Artist image from wikimedia under the Creative Commons Attribution 2.0 Generic license. ",
+        }
+    ]
+    try:
+        media_items.add_media_to_artist(items, artist)
+    except Exception:
+        logging.error(
+            "event_artist.get_image_from_url_base64_encode.add_media_to_artist",
+        )
 
 
 def getArtistDetailsFromMusicBrainz(mbid):
     response = requests.get(
-        url="https://musicbrainz.org/ws/2/artist/" + mbid + "?inc=url-rels",
+        url="https://musicbrainz.org/ws/2/artist/" + mbid + "?inc=url-rels&fmt=json",
         headers={"Accept": "application/json"},
     )
     return response
