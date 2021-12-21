@@ -12,10 +12,10 @@ from flask.helpers import get_debug_flag
 # from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
 from pmapi.extensions import db
-from pmapi.config import BaseConfig, DevConfig
+from pmapi.config import ProdConfig, DevConfig
 
 # export FLASK_DEBUG=1 for dev
-CONFIG = DevConfig if get_debug_flag() else BaseConfig
+CONFIG = DevConfig if get_debug_flag() else ProdConfig
 
 app = create_app(CONFIG)
 
