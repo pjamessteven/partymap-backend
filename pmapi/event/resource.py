@@ -57,8 +57,10 @@ class EventsResource(MethodResource):
             "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
-            "next_event_date_description": fields.String(required=False),
-            "next_event_date_size": fields.String(required=False),
+            "next_event_date_description": fields.String(
+                required=False, allow_none=True
+            ),
+            "next_event_date_size": fields.String(required=False, allow_none=True),
             "next_event_date_artists": fields.List(
                 fields.Dict(), required=False, allow_none=True
             ),
@@ -73,10 +75,8 @@ class EventsResource(MethodResource):
     )
     @marshal_with(EventSchema(), code=200)
     def post(self, **kwargs):
-        creator = None
-        if current_user:
-            creator = current_user
-        return events.add_event(**kwargs, creator=creator)
+
+        return events.add_event(**kwargs, creator=current_user)
 
 
 events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
