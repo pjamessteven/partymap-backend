@@ -69,15 +69,17 @@ def get_artist_by_mbid(mbid):
     return db.session.query(Artist).filter(Artist.mbid == mbid).first()
 
 
+def get_artist_by_id(mbid):
+    return db.session.query(Artist).filter(Artist.id == id).first()
+
+
 def remove_artists_from_date(event_date, ed_artists):
     for artist in ed_artists:
-        print(artist.get("id"))
         artist = (
             db.session.query(EventDateArtist)
             .filter(EventDateArtist.id == artist.get("id"))
             .first()
         )
-        print(artist)
         db.session.delete(artist)
         # db.session.flush()
         # activity = Activity(verb=u"delete", object=artist, target=event_date.event)
@@ -120,7 +122,6 @@ def update_artists(event_date, artists):
 
 def add_artists_to_date(event_date, artists):
     for artist in artists:
-        print(artist)
         existing_record = (
             db.session.query(EventDateArtist)
             .join(Artist)
@@ -133,28 +134,29 @@ def add_artists_to_date(event_date, artists):
             .first()
         )
         if existing_record is None:
-            print(artist)
             add_artist_to_date(event_date, **artist)
 
 
-def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
+def add_artist_to_date(
+    event_date, name, id=None, mbid=None, start_naive=None, **kwargs
+):
 
     artist = None
     start_utc = None
     print(name)
     print(kwargs)
-    if id:  # mbid
+    if mbid:  # mbid
         # check if artist already exists
-        artist = get_artist_by_mbid(id)
+        artist = get_artist_by_mbid(mbid)
 
         # music brainz search
-        response = getArtistDetailsFromMusicBrainz(id)
+        response = getArtistDetailsFromMusicBrainz(mbid)
 
         if response.status_code != 200:
             print("status code", response.status_code)
             # wait and try again (musicbrainz api limited to one req/sec)
             time.sleep(1)
-            response = getArtistDetailsFromMusicBrainz(id)
+            response = getArtistDetailsFromMusicBrainz(mbid)
 
         print(response)
         response = response.json()
@@ -172,7 +174,7 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
                     name=name,
                     disambiguation=response["disambiguation"],
                     area=area,
-                    mbid=id,
+                    mbid=mbid,
                 )
                 db.session.add(artist)
                 db.session.flush()
@@ -180,7 +182,7 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
                 # update existing manual entry to be music brainz entry
                 artist.disambiguation = response["disambiguation"]
                 artist.area = area
-                artist.mbid = id
+                artist.mbid = mbid
                 db.session.flush()
         else:
             # update existing music brainz record with new data
@@ -233,6 +235,8 @@ def add_artist_to_date(event_date, name, id=None, start_naive=None, **kwargs):
             else:
                 artist_url.artist = artist
 
+    elif id:
+        artist = get_artist_by_id(id)
     else:
         artist = get_artist_by_name(name)
         if artist is None:
