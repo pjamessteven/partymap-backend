@@ -69,7 +69,7 @@ def get_artist_by_mbid(mbid):
     return db.session.query(Artist).filter(Artist.mbid == mbid).first()
 
 
-def get_artist_by_id(mbid):
+def get_artist_by_id(id):
     return db.session.query(Artist).filter(Artist.id == id).first()
 
 
