@@ -1,4 +1,4 @@
-from .model import Event, Rrule, user_event_favorites_table
+from .model import Event, Rrule, user_event_favorites_table, event_page_views_table
 from pmapi import exceptions as exc
 from pmapi.extensions import db, Session, activity_plugin
 from datetime import datetime
@@ -388,6 +388,11 @@ def delete_event(event_id):
         db.session.delete(report)
     if event.rrule:
         db.session.delete(event.rrule)
+
+    # delete page views
+    db.engine.execute(
+        event_page_views_table.delete(event_page_views_table.c.event_id == event_id)
+    )
 
     db.session.commit()
     db.session.delete(event)
