@@ -13,6 +13,7 @@ class EventSchema(Schema):
     created_at = fields.DateTime()
     updated_at = fields.DateTime()
     description = fields.Str()
+    description_attribute = fields.Str()
     tz = fields.Str()
     event_dates = fields.Nested(
         "EventDateSchema", many=True, attribute="future_event_dates"

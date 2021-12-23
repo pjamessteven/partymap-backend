@@ -138,13 +138,12 @@ def add_artists_to_date(event_date, artists):
 
 
 def add_artist_to_date(
-    event_date, name, id=None, mbid=None, start_naive=None, **kwargs
+    event_date, name, id=None, mbid=None, stage=None, start_naive=None, **kwargs
 ):
 
     artist = None
     start_utc = None
-    print(name)
-    print(kwargs)
+
     if mbid:  # mbid
         # check if artist already exists
         artist = get_artist_by_mbid(mbid)
@@ -268,6 +267,7 @@ def add_artist_to_date(
 
     event_date_artist = EventDateArtist(
         artist=artist,
+        stage=stage,
         event_date=event_date,
         creator_id=current_user.id,
         start=start_utc,

@@ -84,6 +84,7 @@ class Event(db.Model):
 
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
+    description_attribute = db.Column(db.Text)
 
     rrule = db.relationship("Rrule", uselist=False, back_populates="event")
 

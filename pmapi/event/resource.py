@@ -57,7 +57,11 @@ class EventsResource(MethodResource):
             "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
             "description": fields.String(required=True),
+            "description_attribute": fields.String(required=False, allow_none=True),
             "next_event_date_description": fields.String(
+                required=False, allow_none=True
+            ),
+            "next_event_date_description_attribute": fields.String(
                 required=False, allow_none=True
             ),
             "next_event_date_size": fields.String(required=False, allow_none=True),
@@ -97,6 +101,7 @@ class EventResource(MethodResource):
             "date_time": fields.Dict(required=False, allow_none=True),
             "location": fields.Dict(required=False, allow_none=True),
             "description": fields.String(required=False, allow_none=True),
+            "description_attribute": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
             "remove_tags": fields.List(
@@ -147,6 +152,7 @@ class EventSuggestEditResource(MethodResource):
             "date_time": fields.Dict(required=False, allow_none=True),
             "location": fields.Dict(required=False, allow_none=True),
             "description": fields.String(required=False, allow_none=True),
+            "description_attribute": fields.String(required=False, allow_none=True),
             "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),

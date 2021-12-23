@@ -83,3 +83,4 @@ class EventDateArtist(db.Model):
 
     start = db.Column(db.DateTime)
     start_naive = db.Column(db.DateTime)
+    stage = db.Column(db.String)

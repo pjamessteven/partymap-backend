@@ -39,3 +39,4 @@ class EventDateArtistSchema(Schema):
     artist_id = fields.Pluck("ArtistSchema", "id", attribute="artist", dump_only=True)
     id = fields.Int()
     start_naive = fields.Str()
+    stage = fields.Str()

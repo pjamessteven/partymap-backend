@@ -123,7 +123,11 @@ def add_event(**kwargs):
     host = kwargs.pop("host", False)
     name = kwargs.pop("name")
     description = kwargs.pop("description")
+    description_attribute = kwargs.pop("description_attribute", None)
     next_event_date_description = kwargs.pop("next_event_date_description")
+    next_event_date_description_attribute = kwargs.pop(
+        "next_event_date_description_attribute"
+    )
     next_event_date_size = kwargs.pop("next_event_date_size")
     next_event_date_artists = kwargs.pop("next_event_date_artists", None)
     location = kwargs.pop("location")
@@ -145,6 +149,7 @@ def add_event(**kwargs):
         creator_id=creator.id,
         host_id=creator.id if host is True else None,
         description=description,
+        description_attribute=description_attribute,
     )
     db.session.add(event)
     db.session.flush()
@@ -186,6 +191,7 @@ def add_event(**kwargs):
         url,
         ticket_url,
         next_event_date_description,
+        next_event_date_description_attribute,
         next_event_date_size,
         next_event_date_artists,
     )
@@ -229,6 +235,7 @@ def update_event(event_id, **kwargs):
     location = kwargs.get("location")
     date_time = kwargs.get("date_time")
     description = kwargs.get("description")
+    description_attribute = kwargs.get("description_attribute", None)
     name = kwargs.get("name")
     add_tags = kwargs.get("add_tags", None)
     remove_tags = kwargs.get("remove_tags", None)
@@ -246,15 +253,16 @@ def update_event(event_id, **kwargs):
     if hidden is not None:
         event.hidden = hidden
 
-    if name:
-        event.name = name
-        # add activity
-        db.session.flush()
-        activity = Activity(verb=u"update", object=event, target=event)
-        db.session.add(activity)
+    if name or description or description_attribute is not None:
+        if name:
+            event.name = name
 
-    if description:
-        event.description = description
+        if description:
+            event.description = description
+
+        if description_attribute is not None:
+            event.description_attribute = description_attribute
+
         # add activity
         db.session.flush()
         activity = Activity(verb=u"update", object=event, target=event)

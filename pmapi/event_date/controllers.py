@@ -47,6 +47,7 @@ def add_event_date_with_datetime(
     date_time,
     location,
     description=None,
+    description_attribute=None,
     url=None,
     ticket_url=None,
     size=None,
@@ -80,6 +81,7 @@ def add_event_date_with_datetime(
             end_naive=end_naive,
             location=location,
             description=description,
+            description_attribute=description_attribute,
             size=size,
             url=url,
             ticket_url=ticket_url,
@@ -106,6 +108,7 @@ def add_event_date(
     url=None,
     ticket_url=None,
     description=None,
+    description_attribute=None,
     size=None,
     artists=None,
     activity=True,
@@ -155,6 +158,7 @@ def add_event_date(
         tz=tz,
         location=event_location,
         description=description,
+        description_attribute=description_attribute,
         size=size,
         url=url,
         ticket_url=ticket_url,
@@ -310,7 +314,10 @@ def update_event_date(id, **kwargs):
         event_date.cancelled = kwargs.pop("cancelled")
 
     if "description" in kwargs:
-        event_date.description = kwargs.pop("description")
+        event_date.description = kwargs.pop("description", None)
+
+    if "description_attribute" in kwargs:
+        event_date.description_attribute = kwargs.pop("description_attribute", None)
 
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
@@ -366,6 +373,7 @@ def generate_future_event_dates(
     url=None,
     ticket_url=None,
     next_event_date_description=None,
+    next_event_date_description_attribute=None,
     next_event_date_size=None,
     next_event_date_artists=None,
     activity=True,
@@ -410,6 +418,8 @@ def generate_future_event_dates(
 
         tz = event.last_event_date().tz
 
+    print("RRULE", rrule)
+
     if rrule.separation_count == 0 or rrule is None:
         # event is a one-off
         event.recurring = False
@@ -422,6 +432,7 @@ def generate_future_event_dates(
             url=url,
             ticket_url=ticket_url,
             description=next_event_date_description,
+            description_attribute=next_event_date_description_attribute,
             size=next_event_date_size,
             artists=next_event_date_artists,
             activity=activity,
@@ -466,6 +477,7 @@ def generate_future_event_dates(
                     url=url,
                     ticket_url=ticket_url,
                     description=next_event_date_description,
+                    description_attribute=next_event_date_description_attribute,
                     size=next_event_date_size,
                     artists=next_event_date_artists,
                     activity=activity,
@@ -473,6 +485,7 @@ def generate_future_event_dates(
                 # next_event_date_description and artists only used once
                 next_event_date_description = None
                 next_event_date_artists = None
+                next_event_date_description_attribute = None
 
     return event
 

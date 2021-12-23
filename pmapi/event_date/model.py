@@ -27,13 +27,14 @@ class EventDate(db.Model):
     distance = query_expression()
     artists = db.relationship("EventDateArtist", back_populates="event_date")
     description = db.Column(db.Text)
+    description_attribute = db.Column(db.Text)
     url = db.Column(db.String)
     ticket_url = db.Column(db.String)
     cancelled = db.Column(db.Boolean, default=False)
     size = db.Column(db.Integer)
+
     contributions = db.relationship("EventContribution", back_populates="event_date")
     media_items = db.relationship("MediaItem", back_populates="event_date")
-
     suggestions = db.relationship("SuggestedEdit", back_populates="event_date")
 
     @hybrid_property
