@@ -19,6 +19,11 @@ class MediaItemSchema(Schema):
         if obj.image_filename
         else None
     )
+    image_med_url = fields.Function(
+        lambda obj: generate_filepath(obj, obj.image_med_filename)
+        if obj.image_med_filename
+        else None
+    )
     v_low_url = fields.Function(
         lambda obj: generate_filepath(obj, obj.video_low_filename)
         if obj.video_low_filename

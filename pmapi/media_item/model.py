@@ -33,6 +33,7 @@ class MediaItem(db.Model):
     thumb_filename = db.Column(db.String, default=None, nullable=False)
 
     image_filename = db.Column(db.String, default=None, nullable=True)
+    image_med_filename = db.Column(db.String, default=None, nullable=True)
 
     video_low_filename = db.Column(db.String, default=None, nullable=True)
     video_med_filename = db.Column(db.String, default=None, nullable=True)

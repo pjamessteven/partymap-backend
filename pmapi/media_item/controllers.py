@@ -95,6 +95,7 @@ def add_media_to_artist(items, artist, creator=current_user):
         )
         (
             thumb_filename,
+            image_med_filename,
             image_filename,
             video_low_filename,
             video_med_filename,
@@ -108,6 +109,7 @@ def add_media_to_artist(items, artist, creator=current_user):
                 artist=artist,
                 caption=i.get("caption", None),
                 image_filename=image_filename,
+                image_med_filename=image_med_filename,
                 video_low_filename=video_low_filename,
                 video_med_filename=video_med_filename,
                 video_high_filename=video_high_filename,
@@ -139,6 +141,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
 
         (
             thumb_filename,
+            image_med_filename,
             image_filename,
             video_low_filename,
             video_med_filename,
@@ -153,6 +156,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
                 event_date=event_date,
                 caption=i.get("caption", None),
                 image_filename=image_filename,
+                image_med_filename=image_med_filename,
                 video_low_filename=video_low_filename,
                 video_med_filename=video_med_filename,
                 video_high_filename=video_high_filename,
@@ -204,6 +208,8 @@ def save_media_item(file, path):
     thumb_filename = unique_filename + "_thumb" + file_extension
     filename = unique_filename + file_extension
 
+    image_med_filename = None
+
     video_low_filename = None
     video_med_filename = None
     video_high_filename = None
@@ -240,10 +246,24 @@ def save_media_item(file, path):
         if img.mode != "RGB":
             img = img.convert("RGB")
 
+        image_med_filename = unique_filename + "_med" + file_extension
+        img.thumbnail((1024, 1024), Image.ANTIALIAS)
+        img.save(os.path.join(path, image_med_filename))
+
         img.thumbnail((512, 512), Image.ANTIALIAS)
         img.save(os.path.join(path, thumb_filename))
 
-        return thumb_filename, filename, None, None, None, None, None, "image"
+        return (
+            thumb_filename,
+            image_med_filename,
+            filename,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "image",
+        )
 
     elif type == "video":
         thumb_filename = unique_filename + "_thumb" + ".jpeg"
@@ -337,6 +357,7 @@ def save_media_item(file, path):
 
         return (
             thumb_filename,
+            None,
             None,
             video_low_filename,
             video_med_filename,
