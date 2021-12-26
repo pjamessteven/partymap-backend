@@ -18,6 +18,7 @@ class Artist(db.Model):
     events_with_artist = db.relationship("EventDateArtist", back_populates="artist")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     suggestions = db.relationship("SuggestedEdit", back_populates="artist")
+    artist_tags = db.relationship("ArtistTag", back_populates="artist")
 
     # artist specific stuff
     description = db.Column(db.Text)
@@ -63,6 +64,19 @@ class ArtistUrl(db.Model):
     artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
     url = db.Column(db.String)
     type = db.Column(db.String)
+
+
+class ArtistTag(db.Model):
+    __tablename__ = "artist_tags"
+    __versioned__ = {}
+    id = db.Column(db.Integer, primary_key=True)
+    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag"))
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    tag = db.relationship("Tag", back_populates="artists_with_tag")
+    artist = db.relationship("Artist", back_populates="artist_tags")
+    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator = db.relationship("User", back_populates="created_artist_tags")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class EventDateArtist(db.Model):

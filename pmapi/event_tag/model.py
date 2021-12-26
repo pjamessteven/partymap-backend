@@ -18,8 +18,9 @@ def create_tsvector(*args):
 class Tag(db.Model):
     __tablename__ = "tags"
 
-    tag = db.Column(db.String(20), primary_key=True, nullable=False)
+    tag = db.Column(db.String(50), primary_key=True, nullable=False)
     events_with_tag = db.relationship("EventTag", back_populates="tag")
+    artists_with_tag = db.relationship("ArtistTag", back_populates="tag")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __ts_vector__ = create_tsvector(cast(func.coalesce(tag, ""), postgresql.TEXT))
@@ -46,7 +47,7 @@ class EventTag(db.Model):
     __versioned__ = {}
 
     id = db.Column(db.Integer, primary_key=True)
-    tag_id = db.Column(db.String(20), db.ForeignKey("tags.tag"))
+    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag"))
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
 
     tag = db.relationship("Tag", back_populates="events_with_tag")

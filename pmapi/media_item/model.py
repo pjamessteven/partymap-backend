@@ -30,10 +30,11 @@ class MediaItem(db.Model):
     caption = db.Column(db.Text)
     type = db.Column(db.Enum("image", "video", name="media_type"))
     position = db.Column(db.Integer)
-    thumb_filename = db.Column(db.String, default=None, nullable=False)
 
+    thumb_xs_filename = db.Column(db.String, default=None, nullable=True)  # 256x256
+    thumb_filename = db.Column(db.String, default=None, nullable=False)  # 512x512
+    image_med_filename = db.Column(db.String, default=None, nullable=True)  # 1024x1024
     image_filename = db.Column(db.String, default=None, nullable=True)
-    image_med_filename = db.Column(db.String, default=None, nullable=True)
 
     video_low_filename = db.Column(db.String, default=None, nullable=True)
     video_med_filename = db.Column(db.String, default=None, nullable=True)

@@ -11,9 +11,11 @@ class ArtistSchema(Schema):
     description = fields.Str()
     disambiguation = fields.Str()
     urls = fields.Nested("ArtistUrlSchema", many=True)
+    tags = fields.Nested("ArtistTagSchema", many=True, attribute="artist_tags")
     # events_with_tag?
     event_dates = fields.Nested("EventDateSchema", many=True, exclude=["artists"])
     event_count = fields.Int()
+    media_items = fields.Nested("MediaItemSchema", many=True)
 
 
 class ArtistListSchema(PaginatedSchema):
@@ -23,6 +25,10 @@ class ArtistListSchema(PaginatedSchema):
 class ArtistUrlSchema(Schema):
     url = fields.Str()
     type = fields.Str()
+
+
+class ArtistTagSchema(Schema):
+    tag = fields.Str(attribute="tag_id")
 
 
 class EventDateArtistSchema(Schema):

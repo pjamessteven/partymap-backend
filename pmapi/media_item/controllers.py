@@ -94,6 +94,7 @@ def add_media_to_artist(items, artist, creator=current_user):
             current_app.config["MEDIA_UPLOAD_FOLDER"] + str("artist/") + str(artist.id)
         )
         (
+            thumb_xs_filename,
             thumb_filename,
             image_med_filename,
             image_filename,
@@ -116,6 +117,7 @@ def add_media_to_artist(items, artist, creator=current_user):
                 video_poster_filename=video_poster_filename,
                 duration=duration,
                 thumb_filename=thumb_filename,
+                thumb_xs_filename=thumb_xs_filename,
                 type=type,
                 creator_id=creator.id,
             )
@@ -140,6 +142,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
         )
 
         (
+            thumb_xs_filename,
             thumb_filename,
             image_med_filename,
             image_filename,
@@ -163,6 +166,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
                 video_poster_filename=video_poster_filename,
                 duration=duration,
                 thumb_filename=thumb_filename,
+                thumb_xs_filename=thumb_xs_filename,
                 type=type,
                 creator_id=creator.id,
             )
@@ -246,14 +250,20 @@ def save_media_item(file, path):
         if img.mode != "RGB":
             img = img.convert("RGB")
 
-        image_med_filename = unique_filename + "_med" + file_extension
+        image_med_filename = unique_filename + "_med" + file_extension  # 1024x1024
+        thumb_xs_filename = unique_filename + "_thumb_xs" + file_extension  # 256x256
+
         img.thumbnail((1024, 1024), Image.ANTIALIAS)
         img.save(os.path.join(path, image_med_filename))
 
         img.thumbnail((512, 512), Image.ANTIALIAS)
         img.save(os.path.join(path, thumb_filename))
 
+        img.thumbnail((256, 256), Image.ANTIALIAS)
+        img.save(os.path.join(path, thumb_xs_filename))
+
         return (
+            thumb_xs_filename,
             thumb_filename,
             image_med_filename,
             filename,
@@ -356,6 +366,7 @@ def save_media_item(file, path):
                 )
 
         return (
+            None,
             thumb_filename,
             None,
             None,

@@ -1,18 +1,19 @@
 import pytz
 from datetime import datetime
 from timezonefinder import TimezoneFinder
-from sqlalchemy import and_, desc
+from sqlalchemy import or_, and_
 from pmapi import exceptions as exc
 import hashlib
-from sqlalchemy import or_, and_
 import base64
 import time
 import requests
 from flask_login import current_user
 from pmapi.extensions import db, activity_plugin
-from .model import Artist, ArtistUrl, EventDateArtist
+from .model import Artist, ArtistUrl, EventDateArtist, ArtistTag
 from pmapi.event_date.model import EventDate
+from pmapi.event_tag.model import Tag
 import logging
+from pmapi.config import BaseConfig
 
 from pmapi.common.controllers import paginated_results
 import pmapi.media_item.controllers as media_items
@@ -148,30 +149,26 @@ def add_artist_to_date(
         # check if artist already exists
         artist = get_artist_by_mbid(mbid)
 
-        # music brainz search
-        response = getArtistDetailsFromMusicBrainz(mbid)
-
-        if response.status_code != 200:
-            print("status code", response.status_code)
-            # wait and try again (musicbrainz api limited to one req/sec)
-            time.sleep(1)
-            response = getArtistDetailsFromMusicBrainz(mbid)
-
-        print(response)
-        response = response.json()
-        print("json", response)
-        area = response.get("area", None)
-        if area:
-            area = area.get("name", None)
-
         if artist is None:
             # maybe artist is already in db
             artist = get_artist_by_name(name)
+
+            # music brainz search
+            musicbrainz_response = getArtistDetailsFromMusicBrainz(mbid)
+
+            # last.fm search
+            lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(mbid)
+
+            area = musicbrainz_response.get("area", None)
+            if area:
+                area = area.get("name", None)
+
             if artist is None:
                 # create new record
                 artist = Artist(
                     name=name,
-                    disambiguation=response["disambiguation"],
+                    disambiguation=musicbrainz_response["disambiguation"],
+                    description=lastfm_bio,
                     area=area,
                     mbid=mbid,
                 )
@@ -179,60 +176,17 @@ def add_artist_to_date(
                 db.session.flush()
             else:
                 # update existing manual entry to be music brainz entry
-                artist.disambiguation = response["disambiguation"]
+                artist.disambiguation = musicbrainz_response["disambiguation"]
+                artist.description = lastfm_bio
                 artist.area = area
                 artist.mbid = mbid
                 db.session.flush()
-        else:
-            # update existing music brainz record with new data
-            artist.disambiguation = response["disambiguation"]
-            artist.area = area
-            db.session.flush()
 
-        # process artist URLs
-        for relation in response["relations"]:
-            # make sure urls are up to date
-            artist_url = (
-                db.session.query(ArtistUrl)
-                .filter(ArtistUrl.url == relation["url"]["resource"])
-                .first()
-            )
-            if artist_url is None:
-                # create new url entry
-                url = relation["url"]["resource"]
-                if relation["type"] == "image":
-                    # if it's a wikimedia image, do stuff
+            if lastfm_tags and len(lastfm_tags) > 0:
+                add_tags_to_artist(lastfm_tags, artist)
 
-                    if "https://commons.wikimedia.org/wiki/File:" in url:
-                        # get a proper image url out of this
-                        filename = url.split("File:")[1]
-                        md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
-                        weirdPathString = md5[0:1] + "/" + md5[0:2] + "/"
-                        url = (
-                            "https://upload.wikimedia.org/wikipedia/commons/"
-                            + weirdPathString
-                            + filename
-                        )
-                        # check that image url not already in DB
-                        artist_url = (
-                            db.session.query(ArtistUrl)
-                            .filter(ArtistUrl.url == url)
-                            .first()
-                        )
-                        if artist_url is None:
-                            # add image as media item if it's not already in db
-                            save_artist_image_from_wikimedia_url(url, artist)
-
-                if artist_url is None:
-                    # need to check twice because of artist image url
-                    artist_url = ArtistUrl(
-                        artist=artist,
-                        url=url,
-                        type=relation["type"],
-                    )
-                    db.session.add(artist_url)
-            else:
-                artist_url.artist = artist
+            if musicbrainz_response["relations"]:
+                add_urls_to_artist(musicbrainz_response["relations"], artist)
 
     elif id:
         artist = get_artist_by_id(id)
@@ -286,7 +240,10 @@ def add_artist_to_date(
 
 def save_artist_image_from_wikimedia_url(url, artist):
     try:
-        headers = {"Accept": "image/*"}
+        headers = {
+            "Accept": "image/*",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
+        }
         r = requests.get(url, headers=headers)
     except requests.exceptions.RequestException as e:
         logging.error(
@@ -298,6 +255,7 @@ def save_artist_image_from_wikimedia_url(url, artist):
         print("error getting artist image")
     print(r)
     print(r.headers)
+    print(url)
     try:
         uri = (
             "data:"
@@ -330,4 +288,141 @@ def getArtistDetailsFromMusicBrainz(mbid):
         url="https://musicbrainz.org/ws/2/artist/" + mbid + "?inc=url-rels&fmt=json",
         headers={"Accept": "application/json"},
     )
-    return response
+    if response.status_code != 200:
+        print("status code", response.status_code)
+        # wait and try again (musicbrainz api limited to one req/sec)
+        time.sleep(1)
+        return getArtistDetailsFromMusicBrainz(mbid)
+    return response.json()
+
+
+def getArtistDetailsFromLastFm(mbid):
+    url = (
+        "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&api_key="
+        + BaseConfig.LAST_FM_API_KEY
+        + "&mbid="
+        + mbid
+        + "&format=json"
+    )
+    response = requests.get(
+        url=url,
+        headers={"Accept": "application/json"},
+    )
+    if response.status_code != 200:
+        print("status code", response.status_code)
+        # wait and try again (last.fm api limited to one req/sec)
+        time.sleep(1)
+        return getArtistDetailsFromLastFm(mbid)
+
+    response = response.json()
+    bio = response.get("artist", {}).get("bio", {}).get("content", None)
+    tags = []
+    for tag in response.get("artist", {}).get("tags", {}).get("tag", []):
+        tags.append(tag.get("name"))
+
+    return bio, tags
+
+
+def add_tags_to_artist(tags, artist):
+    for t in tags:
+        print(t)
+
+        tag = Tag(tag=t)
+        # check if tag is already in db
+        if db.session.query(Tag).filter(Tag.tag == t).count():
+            tag = db.session.query(Tag).filter(Tag.tag == t).one()
+
+        existing_tag = (
+            db.session.query(ArtistTag)
+            .filter(and_(ArtistTag.tag_id == tag.tag, ArtistTag.artist_id == artist.id))
+            .first()
+        )
+        # check if artist already has tag
+        if existing_tag is None:
+            at = ArtistTag(tag=tag, artist=artist)
+            db.session.add(at)
+            # add activity
+            db.session.flush()
+            activity = Activity(verb=u"create", object=at, target=artist)
+            db.session.add(activity)
+        print(tag)
+
+    return tags
+
+
+def add_urls_to_artist(relations, artist):
+    # process artist URLs
+    for relation in relations:
+        url = relation.get("url", {}).get("resource")
+        # make sure urls are up to date
+        artist_url = db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
+        if artist_url is None:
+            # create new url entry
+            type = relation.get("type")
+            if type == "image":
+                # if it's a wikimedia image, do stuff
+
+                if "https://commons.wikimedia.org/wiki/File:" in url:
+                    # get a proper image url out of this
+                    filename = url.split("File:")[1]
+                    md5 = hashlib.md5(filename.encode("utf-8")).hexdigest()
+                    weirdPathString = md5[0:1] + "/" + md5[0:2] + "/"
+                    url = (
+                        "https://upload.wikimedia.org/wikipedia/commons/"
+                        + weirdPathString
+                        + filename
+                    )
+                    # check that image url not already in DB
+                    artist_url = (
+                        db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
+                    )
+                    if artist_url is None:
+                        # add image as media item if it's not already in db
+                        save_artist_image_from_wikimedia_url(url, artist)
+
+            if artist_url is None:
+                # need to check twice because of artist image url
+                artist_url = ArtistUrl(
+                    artist=artist,
+                    url=url,
+                    type=type,
+                )
+                db.session.add(artist_url)
+        else:
+            artist_url.artist = artist
+
+    db.session.flush()
+    return artist
+
+
+def refresh_info(id):
+    artist = get_artist_or_404(id)
+
+    if not artist.mbid:
+        raise exc.InvalidAPIRequest(
+            "This artist is not in the Musicbrainz or Last.fm databases"
+        )
+
+    # music brainz search
+    musicbrainz_response = getArtistDetailsFromMusicBrainz(artist.mbid)
+
+    # last.fm search
+    lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(artist.mbid)
+
+    area = musicbrainz_response.get("area", None)
+    if area:
+        area = area.get("name", None)
+
+    # update artist
+    artist.disambiguation = musicbrainz_response["disambiguation"]
+    artist.description = lastfm_bio
+    artist.area = area
+
+    if lastfm_tags and len(lastfm_tags) > 0:
+        add_tags_to_artist(lastfm_tags, artist)
+
+    if musicbrainz_response["relations"]:
+        add_urls_to_artist(musicbrainz_response["relations"], artist)
+
+    db.session.commit()
+    return artist

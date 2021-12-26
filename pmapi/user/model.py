@@ -83,6 +83,7 @@ class User(db.Model):
     created_media_items = db.relationship("MediaItem", back_populates="creator")
     created_event_locations = db.relationship("EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")
+    created_artist_tags = db.relationship("ArtistTag", back_populates="creator")
     created_event_artists = db.relationship("EventDateArtist", back_populates="creator")
     created_reports = db.relationship("Report", back_populates="creator")
     created_feedback = db.relationship("Feedback", back_populates="creator")

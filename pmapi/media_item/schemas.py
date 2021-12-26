@@ -44,6 +44,11 @@ class MediaItemSchema(Schema):
         if obj.thumb_filename
         else None
     )
+    thumb_xs_url = fields.Function(
+        lambda obj: generate_filepath(obj, obj.thumb_xs_filename)
+        if obj.thumb_xs_filename
+        else None
+    )
     poster_url = fields.Function(
         lambda obj: generate_filepath(obj, obj.video_poster_filename)
         if obj.video_poster_filename
@@ -65,10 +70,19 @@ class MediaItemSchemaListSchema(PaginatedSchema):
 
 
 def generate_filepath(item, filename):
-    return os.path.join(
-        current_app.config["UPLOADS_URL"]
-        + "event/"
-        + str(item.event_id)
-        + "/"
-        + str(filename)
-    )
+    if item.event_id:
+        return os.path.join(
+            current_app.config["UPLOADS_URL"]
+            + "event/"
+            + str(item.event_id)
+            + "/"
+            + str(filename)
+        )
+    elif item.artist_id:
+        return os.path.join(
+            current_app.config["UPLOADS_URL"]
+            + "artist/"
+            + str(item.artist_id)
+            + "/"
+            + str(filename)
+        )
