@@ -20,7 +20,7 @@ class UserListSchema(PaginatedSchema):
 
 class PrivateUserSchema(UserSchema):
     # this information should only be visible to current user
-    email = fields.Email()
+    email = fields.Str()
     status = fields.Str()
     pw_enabled = fields.Function(lambda obj: True if obj.password else False)
     oauth = fields.Boolean()

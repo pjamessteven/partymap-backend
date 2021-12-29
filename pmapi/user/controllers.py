@@ -115,9 +115,10 @@ def create_user(**kwargs):
     user = User(email=email, username=username, role=role)
 
     db.session.add(user)
-    db.session.flush()
+    db.session.commit()
 
     user.set_password(password)
+    print(user)
 
     if activate:
         user.activate()
@@ -137,7 +138,7 @@ def create_user(**kwargs):
     )
 
     db.session.commit()
-    user = get_user(email)
+    user, search_property = get_user(email)
     return user
 
 
