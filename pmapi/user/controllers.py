@@ -126,7 +126,7 @@ def create_user(**kwargs):
         # send activation email to user
         email_action = EmailAction(user=user, action="email_verify")
         db.session.add(email_action)
-        db.session.flush()
+        db.session.commit()
         send_signup_verify_email(user, email_action.id)
 
     logging.info(

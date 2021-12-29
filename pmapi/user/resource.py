@@ -149,16 +149,36 @@ users_blueprint.add_url_rule(
 )
 
 
-@users_blueprint.route("/activate/<string:token>", methods=("POST",))
-def activate(token):
-    activated_user = users.activate_user(token)
-    return jsonify(activated_user.to_dict()), 200
+@doc(tags=["auth"])
+class ActivateUserResource(MethodResource):
+    @doc(
+        summary="Activate user",
+    )
+    @marshal_with(PrivateUserSchema(), code=200)
+    def post(self, token):
+        return users.activate_user(token)
 
 
-@users_blueprint.route("/confirm_email/<string:token>", methods=("POST",))
-def confirm_update_email(token):
-    user = users.confirm_update_email(token)
-    return jsonify(user.to_dict()), 200
+users_blueprint.add_url_rule(
+    "/activate/<string:token>",
+    view_func=ActivateUserResource.as_view("ActivateUserResource"),
+)
+
+
+@doc(tags=["auth"])
+class ConfirmEmailResource(MethodResource):
+    @doc(
+        summary="Confirm email address when user updates their email address",
+    )
+    @marshal_with(PrivateUserSchema(), code=200)
+    def post(self, token):
+        return users.confirm_update_email(token)
+
+
+users_blueprint.add_url_rule(
+    "/confirm_email/<string:token>",
+    view_func=ConfirmEmailResource.as_view("ConfirmEmailResource"),
+)
 
 
 @users_blueprint.route("/<string:username>/activity", methods=("GET",))
