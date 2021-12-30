@@ -156,7 +156,6 @@ def add_event(**kwargs):
 
     if rrule:
         rrule = Rrule(
-            event=event,
             recurring_type=rrule["recurringType"],
             separation_count=rrule["separationCount"],
             day_of_week=rrule["dayOfWeek"],
@@ -171,6 +170,7 @@ def add_event(**kwargs):
         )
         db.session.add(rrule)
         db.session.flush()
+        event.rrule = rrule
 
     if tags:
         event_tags.add_tags_to_event(tags, event)
@@ -244,7 +244,7 @@ def update_event(event_id, **kwargs):
     hidden = kwargs.get("hidden", None)
 
     event = get_event_or_404(event_id)
-    existing_rrule = db.session.query(Rrule).filter(Rrule.event_id == event_id).first()
+    existing_rrule = db.session.query(Rrule).filter(Rrule.id == event.rrule_id).first()
 
     # this field is useful for triggering
     # a new version of this object in continuum
@@ -308,6 +308,7 @@ def update_event(event_id, **kwargs):
             existing_rrule.separation_count = rrule["separationCount"]
             existing_rrule.day_of_week = rrule["dayOfWeek"]
             existing_rrule.month_of_year = rrule["monthOfYear"]
+            existing_rrule.week_of_month = rrule["weekOfMonth"]
             existing_rrule.start_date_time = date_time["start"]
             existing_rrule.end_date_time = date_time["end"]
             existing_rrule.default_url = url
@@ -319,7 +320,6 @@ def update_event(event_id, **kwargs):
 
         else:
             rrule = Rrule(
-                event_id=event.id,
                 recurring_type=rrule["recurringType"],
                 separation_count=rrule["separationCount"],
                 day_of_week=rrule["dayOfWeek"],
@@ -334,6 +334,7 @@ def update_event(event_id, **kwargs):
             db.session.add(rrule)
             # activity for creating rrule
             db.session.flush()
+            event.rrule = rrule
             activity = Activity(verb=u"create", object=rrule, target=event)
             db.session.add(activity)
 
@@ -366,8 +367,9 @@ def update_event(event_id, **kwargs):
             event_dates.delete_future_event_dates(
                 event, preserve_next=False, activity=False
             )
+            print(rrule.week_of_month)
             event_dates.generate_future_event_dates(
-                event, date_time, rrule.default_location, event.rrule, activity=False
+                event, date_time, rrule.default_location, rrule, activity=False
             )
 
     db.session.commit()

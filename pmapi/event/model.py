@@ -86,7 +86,10 @@ class Event(db.Model):
     description = db.Column(db.Text)
     description_attribute = db.Column(db.Text)
 
-    rrule = db.relationship("Rrule", uselist=False, back_populates="event")
+    rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id"))
+    rrule = db.relationship(
+        "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"
+    )
 
     event_dates = db.relationship("EventDate", back_populates="event")
     event_tags = db.relationship("EventTag", back_populates="event")
@@ -254,8 +257,7 @@ class Rrule(db.Model):
     __versioned__ = {}
     # max_num_of_occurances = db.Column(db.Integer, nullable=True)
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
-    event = db.relationship("Event", back_populates="rrule")
+
     # recurring_type  1=weekly, 2=monthly, 3=annually
     recurring_type = db.Column(db.Integer, nullable=False)
     # if separation_count is 0, no recurrance. 1, there is one interval,

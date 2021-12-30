@@ -496,6 +496,7 @@ def generate_future_event_dates(
 # ( should become an automated task in the future )
 def generateRecurringDates(rp, start, end=None):
 
+    print(rp)
     days = [MO, TU, WE, TH, FR, SA, SU]
 
     def getWeekInMonth(date):
@@ -588,6 +589,7 @@ def generateRecurringDates(rp, start, end=None):
                     until=ten_years_away,
                 )
             )
+            print(startdates)
 
     else:
         raise exc.InvalidAPIRequest("Invalid recurring_type (1-3)")
