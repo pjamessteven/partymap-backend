@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import and_
+from sqlalchemy import and_, join
 from sqlalchemy import select, func
 
 from pmapi.extensions import db
@@ -45,15 +45,30 @@ class Artist(db.Model):
     @hybrid_property
     def event_count(self):
 
-        query = db.session.query(EventDateArtist).filter(
-            EventDateArtist.artist_id == self.id
+        query = (
+            db.session.query(EventDateArtist)
+            .join(EventDate)
+            .filter(
+                and_(
+                    EventDateArtist.artist_id == self.id,
+                    EventDate.start > datetime.utcnow(),
+                )
+            )
         )
         return query.count()
 
     @event_count.expression
     def event_count(cls):
-        return select([func.count(EventDateArtist.id)]).where(
-            EventDateArtist.artist_id == cls.id
+        j = join(EventDateArtist, EventDate)
+        return (
+            select([func.count(EventDateArtist.id)])
+            .where(
+                and_(
+                    EventDateArtist.artist_id == cls.id,
+                    EventDate.start > datetime.utcnow(),
+                )
+            )
+            .select_from(j)
         )
 
 

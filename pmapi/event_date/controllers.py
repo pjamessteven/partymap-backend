@@ -442,6 +442,7 @@ def generate_future_event_dates(
         # event is recurring
         event.recurring = True
         startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
+
         # work out how many dates to generate
         limit = 10 - len(event.future_event_dates)
 
@@ -508,6 +509,7 @@ def generateRecurringDates(rp, start, end=None):
             result += 1
             if date.day in weeks[x]:
                 return result
+
         return 1  # return 1 if all else fails
 
     startdates = []
@@ -520,10 +522,8 @@ def generateRecurringDates(rp, start, end=None):
     start_day = start.day
     start_month = start.month
     start_week_of_month = getWeekInMonth(start)
-    end_weekday = end.weekday()
-    end_day = end.day
-    end_month = end.month
-    end_week_of_month = getWeekInMonth(end)
+
+    duration = end - start
 
     if rp.recurring_type == 1:
         # weekly
@@ -536,16 +536,6 @@ def generateRecurringDates(rp, start, end=None):
                 until=two_years_away,
             )
         )
-        if end:
-            enddates = list(
-                rrule(
-                    freq=WEEKLY,
-                    interval=rp.separation_count,
-                    byweekday=end_weekday,
-                    dtstart=end,
-                    until=two_years_away,
-                )
-            )
 
     elif rp.recurring_type == 2:
         # monthly
@@ -560,15 +550,6 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-            enddates = list(
-                rrule(
-                    MONTHLY,
-                    interval=rp.separation_count,
-                    byweekday=days[end_weekday](end_week_of_month),
-                    dtstart=end,
-                    until=ten_years_away,
-                )
-            )
         else:
             # absolute monthlhy date
             startdates = list(
@@ -577,16 +558,6 @@ def generateRecurringDates(rp, start, end=None):
                     interval=rp.separation_count,
                     bymonthday=start_day,
                     dtstart=start,
-                    until=ten_years_away,
-                )
-            )
-
-            enddates = list(
-                rrule(
-                    MONTHLY,
-                    interval=rp.separation_count,
-                    bymonthday=end_day,
-                    dtstart=end,
                     until=ten_years_away,
                 )
             )
@@ -605,17 +576,6 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-            enddates = list(
-                rrule(
-                    YEARLY,
-                    interval=rp.separation_count,
-                    bymonth=end_month,
-                    byweekday=days[end_weekday](end_week_of_month),
-                    dtstart=end,
-                    until=ten_years_away,
-                )
-            )
-
         else:
             # absolute day of month of year
             startdates = list(
@@ -628,19 +588,12 @@ def generateRecurringDates(rp, start, end=None):
                     until=ten_years_away,
                 )
             )
-            enddates = list(
-                rrule(
-                    YEARLY,
-                    interval=rp.separation_count,
-                    bymonth=end_month,
-                    bymonthday=end_day,
-                    dtstart=end,
-                    until=ten_years_away,
-                )
-            )
 
     else:
         raise exc.InvalidAPIRequest("Invalid recurring_type (1-3)")
+
+    for date in startdates:
+        enddates.append(date + duration)
 
     return startdates, enddates
 
@@ -671,13 +624,14 @@ def query_event_dates(**kwargs):
     lng = None
     distance_expression = None
     sort_option = kwargs.get("sort_option", None)
+    radius = kwargs.get("radius", None)
 
     seconds_start = time.time()
 
     if kwargs.get("location", None) is not None:
         location = kwargs.get("location")
-        lat = location["lat"]
-        lng = location["lng"]
+        lat = float(location["lat"])
+        lng = float(location["lng"])
 
         if lat is None or lng is None:
             raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
@@ -728,16 +682,16 @@ def query_event_dates(**kwargs):
     query = query.filter(Event.hidden == False)  # ignore linter warning here
 
     if kwargs.get("date_min", None) is not None:
-        query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
+        query = query.filter(EventDate.start >= kwargs.pop("date_min"))
     if kwargs.get("date_max", None) is not None:
         date_max = kwargs.pop("date_max")
         query = query.filter(
             and_(
                 or_(
-                    EventDate.end_naive <= date_max,
-                    EventDate.end_naive.is_(None),
+                    EventDate.end <= date_max,
+                    EventDate.end.is_(None),
                 ),
-                EventDate.start_naive <= date_max,
+                EventDate.start <= date_max,
             )
         )
 
@@ -836,29 +790,55 @@ def query_event_dates(**kwargs):
     if lat and lng:
         # nearby search
         # 1km -> 00km
-        radii = [1000, 5000, 10000, 20000, 50000, 100000, 200000, 400000, 800000]
-        for radius in radii:
-            count = query.filter(
-                func.ST_DWithin(
-                    cast(EventLocation.geo, Geography(srid=4326)),
-                    cast("SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)),
-                    radius,
-                )
-            ).count()
-            # threshold of events required before trying the next radius
-            if count >= 10:
-                print("radius", radius)
-                query = query.filter(
+        if radius is None:
+            # determine best radius
+            radii = [
+                10000,
+                20000,
+                50000,
+                100000,
+                200000,
+                500000,
+                1000000,
+                2000000,
+                5000000,
+            ]
+            for r in radii:
+                count = query.filter(
                     func.ST_DWithin(
                         cast(EventLocation.geo, Geography(srid=4326)),
                         cast(
-                            "SRID=4326;POINT(%f %f)" % (lng, lat),
-                            Geography(srid=4326),
+                            "SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)
                         ),
-                        radius,
+                        r,
                     )
+                ).count()
+                # threshold of events required before trying the next radius
+                if count >= 20:
+                    radius = r
+                    query = query.filter(
+                        func.ST_DWithin(
+                            cast(EventLocation.geo, Geography(srid=4326)),
+                            cast(
+                                "SRID=4326;POINT(%f %f)" % (lng, lat),
+                                Geography(srid=4326),
+                            ),
+                            r,
+                        )
+                    )
+                    break
+        else:
+            # use requested radius
+            query = query.filter(
+                func.ST_DWithin(
+                    cast(EventLocation.geo, Geography(srid=4326)),
+                    cast(
+                        "SRID=4326;POINT(%f %f)" % (lng, lat),
+                        Geography(srid=4326),
+                    ),
+                    radius,
                 )
-                break
+            )
 
         if sort_option == "distance":
             print("distance")
@@ -873,4 +853,6 @@ def query_event_dates(**kwargs):
             )
     seconds_end = time.time()
     print("get seconds", seconds_end - seconds_start)
-    return paginated_results(EventDate, query, **kwargs)
+    results = paginated_results(EventDate, query, **kwargs)
+    results.radius = radius
+    return results

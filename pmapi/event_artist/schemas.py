@@ -19,7 +19,7 @@ class ArtistSchema(Schema):
 
 
 class ArtistListSchema(PaginatedSchema):
-    items = fields.Nested(ArtistSchema, many=True)
+    items = fields.Nested(ArtistSchema, many=True, exclude=["event_dates"])
 
 
 class ArtistUrlSchema(Schema):

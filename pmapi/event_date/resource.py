@@ -40,6 +40,7 @@ class DatesResource(MethodResource):
             "artists": fields.List(fields.Str(), required=False),
             "location": fields.Str(),
             "bounds": fields.Str(),
+            "radius": fields.Int(),
             "duration_options": fields.List(fields.Integer(), required=False),
             "size_options": fields.List(fields.String(), required=False),
             "country_id": fields.Str(),

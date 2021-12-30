@@ -40,3 +40,4 @@ class EventDateVersionSchema(EventDateSchema):
 
 class EventDateListSchema(PaginatedSchema):
     items = fields.Nested("EventDateSchema", many=True)
+    radius = fields.Integer()

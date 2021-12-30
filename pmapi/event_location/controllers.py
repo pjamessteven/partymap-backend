@@ -247,14 +247,14 @@ def get_all_locations(**kwargs):
         )  # fixes issues related to pagination
         if "date_min" in kwargs:
             datemin = kwargs.pop("date_min")
-            query = query.filter(EventDate.start_naive >= datemin)
-            expression = expression.where(EventDate.start_naive >= datemin)
+            query = query.filter(EventDate.start >= datemin)
+            expression = expression.where(EventDate.start >= datemin)
         if "date_max" in kwargs:
             date_max = kwargs.pop("date_max")
             query = query.filter(
-                EventDate.start_naive <= date_max,
+                EventDate.start <= date_max,
             )
-            expression = expression.where(EventDate.start_naive <= date_max)
+            expression = expression.where(EventDate.start <= date_max)
 
         if "duration_options" in kwargs:
             duration_options = kwargs.pop("duration_options")

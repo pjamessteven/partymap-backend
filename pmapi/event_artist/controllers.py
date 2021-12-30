@@ -1,7 +1,7 @@
 import pytz
 from datetime import datetime
 from timezonefinder import TimezoneFinder
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, desc
 from pmapi import exceptions as exc
 import hashlib
 import base64
@@ -56,7 +56,7 @@ def get_artists(**kwargs):
         search = "%{}%".format(kwargs.pop("query"))
         query = query.filter(Artist.name.ilike(search))
 
-    #    query = query.order_by(desc(Artist.event_count)) handled by query param in resource
+    query = query.order_by(desc(Artist.event_count))
 
     return paginated_results(Artist, query=query, **kwargs)
 
