@@ -121,6 +121,9 @@ def add_new_event_location(creator=None, **kwargs):
         location_type_objects.append(type)
 
     db.session.flush()
+    creator_id = None
+    if creator:
+        creator_id = creator.id
     location = EventLocation(
         geohash=pgh.encode(lat, lng),
         # For geodetic coordinates,
@@ -138,7 +141,7 @@ def add_new_event_location(creator=None, **kwargs):
         # country_code=geocode["country_code"],
         # city=geocode["city"],
         place_id=place_id,
-        creator_id=creator.id,
+        creator_id=creator_id,
         address_components=address_components,
     )
     db.session.add(location)
