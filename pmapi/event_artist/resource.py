@@ -1,5 +1,5 @@
+import json
 from flask import Blueprint
-
 from marshmallow import fields
 from flask_apispec import doc
 from flask_apispec import MethodResource
@@ -60,12 +60,16 @@ class ArtistsResource(MethodResource):
             "query": fields.String(required=False, allow_none=True),
             "date_min": fields.DateTime(required=False),
             "date_max": fields.DateTime(required=False),
+            "radius": fields.Int(),
+            "location": fields.Str(),
             **paginated_view_args(sort_options=["event_count", "created_at"]),
         },
         location="query",
     )
     @marshal_with(ArtistListSchema(), code=200)
     def get(self, **kwargs):
+        if kwargs.get("location"):
+            kwargs["location"] = json.loads(kwargs["location"])
         return artists.get_artists(**kwargs)
 
 

@@ -8,7 +8,7 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
-from .schemas import EventDateSchema, EventDateListSchema
+from .schemas import EventDateSchema, EventDateListSchema, EventDateQueryListSchema
 from pmapi.event.schemas import EventSchema
 
 from . import permissions as event_date_permissions
@@ -48,11 +48,12 @@ class DatesResource(MethodResource):
             "locality_id": fields.Str(),
             "favorites": fields.Boolean(),
             "sort_option": fields.Str(),
+            "distinct": fields.Boolean(),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query",
     )
-    @marshal_with(EventDateListSchema(), code=200)
+    @marshal_with(EventDateQueryListSchema(), code=200)
     def get(self, **kwargs):
         # get json from query string
         if kwargs.get("location"):

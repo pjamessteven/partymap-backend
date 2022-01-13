@@ -1,8 +1,10 @@
 from pmapi.extensions import db, activity_plugin
 from pmapi.common.controllers import paginated_results
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, cast
+from geoalchemy2 import func, Geography
 
 from .model import Tag, EventTag
+from pmapi.event_location.model import EventLocation
 from pmapi.event_date.model import EventDate
 from pmapi.event.model import Event
 
@@ -47,11 +49,14 @@ def add_tags_to_event(tags, event):
     return tags
 
 
-def get_tags(**kwargs):
+def get_event_tags(**kwargs):
     query = db.session.query(Tag)
-
+    query = query.join(EventTag)
+    # artist tags are tags too but we don't want to return them here,
+    # we only want to return event tags
+    query = query.filter(Tag.tag == EventTag.tag_id)
     if "date_min" in kwargs:
-        query = query.join(EventTag).join(Event).join(EventDate)
+        query = query.join(Event).join(EventDate)
         query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
     if "date_max" in kwargs:
         date_max = kwargs.pop("date_max")
@@ -62,6 +67,25 @@ def get_tags(**kwargs):
                     EventDate.end_naive.is_(None),
                 ),
                 EventDate.start_naive <= date_max,
+            )
+        )
+    if "radius" and "location" in kwargs:
+        radius = kwargs.get("radius")
+        location = kwargs.get("location")
+        lat = float(location["lat"])
+        lng = float(location["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        query = query.join(EventLocation)
+        query = query.filter(
+            func.ST_DWithin(
+                cast(EventLocation.geo, Geography(srid=4326)),
+                cast(
+                    "SRID=4326;POINT(%f %f)" % (lng, lat),
+                    Geography(srid=4326),
+                ),
+                radius,
             )
         )
 

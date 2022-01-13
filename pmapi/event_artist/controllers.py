@@ -1,7 +1,8 @@
 import pytz
 from datetime import datetime
 from timezonefinder import TimezoneFinder
-from sqlalchemy import or_, and_, desc
+from sqlalchemy import cast, or_, and_, desc
+from geoalchemy2 import func, Geography
 from pmapi import exceptions as exc
 import hashlib
 import base64
@@ -12,6 +13,7 @@ from pmapi.extensions import db, activity_plugin
 from .model import Artist, ArtistUrl, EventDateArtist, ArtistTag
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import Tag
+from pmapi.event_location.model import EventLocation
 import logging
 from pmapi.config import BaseConfig
 
@@ -51,6 +53,25 @@ def get_artists(**kwargs):
                 EventDate.start_naive <= date_max,
             )
         )
+    if "radius" and "location" in kwargs:
+        radius = kwargs.get("radius")
+        location = kwargs.get("location")
+        lat = float(location["lat"])
+        lng = float(location["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        query = query.join(EventLocation)
+        query = query.filter(
+            func.ST_DWithin(
+                cast(EventLocation.geo, Geography(srid=4326)),
+                cast(
+                    "SRID=4326;POINT(%f %f)" % (lng, lat),
+                    Geography(srid=4326),
+                ),
+                radius,
+            )
+        )
 
     if kwargs.get("query", None) is not None:
         search = "%{}%".format(kwargs.pop("query"))
@@ -64,6 +85,14 @@ def get_artists(**kwargs):
 def get_artist_by_name(name):
     search = "%{}%".format(name)
     return db.session.query(Artist).filter(Artist.name.ilike(search)).first()
+
+
+def get_artist_by_exact_name(name):
+    return (
+        db.session.query(Artist)
+        .filter(func.lower(Artist.name) == func.lower(name))
+        .first()
+    )
 
 
 def get_artist_by_mbid(mbid):
@@ -151,7 +180,7 @@ def add_artist_to_date(
 
         if artist is None:
             # maybe artist is already in db
-            artist = get_artist_by_name(name)
+            artist = get_artist_by_exact_name(name)
 
             # music brainz search
             musicbrainz_response = getArtistDetailsFromMusicBrainz(mbid)

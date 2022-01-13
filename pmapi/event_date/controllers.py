@@ -4,8 +4,8 @@ from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
 from geoalchemy2 import func, Geography
-from sqlalchemy import cast, or_, and_
-from sqlalchemy.orm import with_expression
+from sqlalchemy import cast, or_, and_, asc, distinct
+from sqlalchemy.orm import with_expression, lazyload
 
 from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
@@ -627,8 +627,29 @@ def query_event_dates(**kwargs):
     distance_expression = None
     sort_option = kwargs.get("sort_option", None)
     radius = kwargs.get("radius", None)
+    bounds = kwargs.get("bounds", None)
 
     seconds_start = time.time()
+
+    """
+    if kwargs.get("distinct", False) is True:
+        # use subquery to return only the next event_date of an event
+        date_min = date_time.utcnow()
+        if kwargs.get('date_min'):
+            date_min = kwargs.get('date_min')
+
+        next_ed = s.query(EventDate).\
+                    filter(EventDate.start > date_min).\
+                    order_by(EventDate.start.asc()).\
+                    subquery()
+    """
+
+    next_date = db.session.query(
+        EventDate,
+        func.row_number()
+        .over(partition_by=EventDate.event_id, order_by=EventDate.start.asc())
+        .label("rn"),
+    ).subquery()
 
     if kwargs.get("location", None) is not None:
         location = kwargs.get("location")
@@ -666,7 +687,7 @@ def query_event_dates(**kwargs):
                 with_expression(
                     EventDate.distance,
                     distance_expression,
-                )
+                ),
             )
             .join(Event, EventDate.event_id == Event.id)
             .join(EventLocation, EventDate.location_id == EventLocation.id)
@@ -757,9 +778,8 @@ def query_event_dates(**kwargs):
     # query = query.order_by(EventDate.start_naive)
 
     # filter event dates within bounds
-    if kwargs.get("bounds", None) is not None:
+    if bounds:
 
-        bounds = kwargs.pop("bounds")
         northEast = bounds["_northEast"]
         southWest = bounds["_southWest"]
 
@@ -789,7 +809,7 @@ def query_event_dates(**kwargs):
             )
         )
 
-    if lat and lng:
+    if lat and lng and bounds is None:
         # nearby search
         # 1km -> 00km
         if radius is None:
@@ -804,6 +824,8 @@ def query_event_dates(**kwargs):
                 1000000,
                 2000000,
                 5000000,
+                10000000,
+                20000000,
             ]
             for r in radii:
                 count = query.filter(
@@ -815,8 +837,9 @@ def query_event_dates(**kwargs):
                         r,
                     )
                 ).count()
+
                 # threshold of events required before trying the next radius
-                if count >= 20:
+                if count >= 10:
                     radius = r
                     query = query.filter(
                         func.ST_DWithin(
@@ -842,19 +865,33 @@ def query_event_dates(**kwargs):
                 )
             )
 
+        # sort options if distance expression is included
         if sort_option == "distance":
-            print("distance")
             query = query.order_by(
                 distance_expression.asc(), EventDate.start_naive.asc()
             )
-
         else:
-            # sort by soonest
             query = query.order_by(
                 EventDate.start_naive.asc(), distance_expression.asc()
             )
+
+    else:
+        # simply sort by date if distance expression not used
+        query = query.order_by(EventDate.start_naive.asc())
+
+    if kwargs.get("distinct", None) is True:
+        # return only the first event date of an event
+        row_number_column = (
+            func.row_number()
+            .over(partition_by=EventDate.event_id, order_by=asc(EventDate.start))
+            .label("row_number")
+        )
+        query = query.add_column(row_number_column)
+        query = query.from_self().filter(row_number_column == 1)
+
     seconds_end = time.time()
-    print("get seconds", seconds_end - seconds_start)
+    print("query time in seconds: ", seconds_end - seconds_start)
+
     results = paginated_results(EventDate, query, **kwargs)
     results.radius = radius
     return results

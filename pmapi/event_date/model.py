@@ -25,6 +25,7 @@ class EventDate(db.Model):
     location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
     distance = query_expression()
+    row_number = query_expression()
     artists = db.relationship("EventDateArtist", back_populates="event_date")
     description = db.Column(db.Text)
     description_attribute = db.Column(db.Text)

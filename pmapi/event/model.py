@@ -92,7 +92,9 @@ class Event(db.Model):
     )
 
     event_dates = db.relationship("EventDate", back_populates="event")
-    event_tags = db.relationship("EventTag", back_populates="event")
+    event_tags = db.relationship(
+        "EventTag", back_populates="event", order_by="EventTag.tag_id"
+    )
     event_contributions = db.relationship("EventContribution", back_populates="event")
 
     media_items = db.relationship(
@@ -196,6 +198,25 @@ class Event(db.Model):
         eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()[1:]
+
+    @hybrid_property
+    def next_event_date(self):
+        now = datetime.utcnow()
+        eds = db.session.query(EventDate)
+        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.order_by(EventDate.start.asc())
+        return eds.first()
+
+    @next_event_date.expression
+    def next_event_date(cls):
+        # EventTransaction = transaction_class(Event)
+        # return select(EventTransaction).order_by(EventTransaction.id.desc()).first()
+        now = datetime.utcnow()
+        return (
+            select(EventDate)
+            .where(and_(EventDate.event_id == cls.id), EventDate.start >= now)
+            .first()
+        )
 
         """
     def favorite(self, user_id):

@@ -54,6 +54,7 @@ class PointSchema(Schema):
     lat = fields.Float()
     lng = fields.Float()
     name = fields.Str()
+    # events = fields.Nested("EventSchema", only=["name", "id"], many=True)
     events = fields.List(fields.Dict())
     # events = fields.Nested(
     #    "EventDateSchema", only=["name", "event_id", "id"], many=True

@@ -2,8 +2,6 @@ from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
 
-from pmapi.event_artist.schemas import EventDateArtistSchema
-
 
 class EventDateSchema(Schema):
     id = fields.Integer()
@@ -16,7 +14,9 @@ class EventDateSchema(Schema):
     tz = fields.Str()
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     location_id = fields.Str()
-    event = fields.Nested("EventSchema", only=["event_tags", "cover_items", "host"])
+    event = fields.Nested(
+        "EventSchema", only=["event_tags", "cover_items", "host", "rrule"]
+    )
     description = fields.Str()
     description_attribute = fields.Str()
     url = fields.Str()
@@ -26,7 +26,7 @@ class EventDateSchema(Schema):
     distance = fields.Float()
     duration = fields.Float()
     size = fields.Integer()
-    artists = fields.Nested(EventDateArtistSchema, many=True)
+    artists = fields.Nested("EventDateArtistSchema", many=True)
 
 
 class EventDateVersionSchema(EventDateSchema):
@@ -40,4 +40,8 @@ class EventDateVersionSchema(EventDateSchema):
 
 class EventDateListSchema(PaginatedSchema):
     items = fields.Nested("EventDateSchema", many=True)
+
+
+class EventDateQueryListSchema(PaginatedSchema):
+    items = fields.List(fields.Tuple((fields.Nested("EventDateSchema"), fields.Str())))
     radius = fields.Integer()

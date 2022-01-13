@@ -53,8 +53,8 @@ class RruleSchema(Schema):
     week_of_month = fields.Integer()
     day_of_month = fields.Integer()
     month_of_year = fields.Integer()
-    default_url = fields.Str()
-    default_location = fields.Nested("LocationSchema")
+    # default_url = fields.Str()
+    # default_location = fields.Nested("LocationSchema")
     start_date_time = fields.Str()
     end_date_time = fields.Str()
 

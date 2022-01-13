@@ -55,3 +55,16 @@ class EventTag(db.Model):
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship("User", back_populates="created_event_tags")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @hybrid_property
+    def count(self):
+        return len(self.tag.events_with_tag)
+
+    @count.expression
+    def count(cls):
+        return (
+            select([func.count(EventTag.tag_id)])
+            .where(EventTag.tag_id == cls.tag_id)
+            .correlate(Tag)
+            .label("count")
+        )
