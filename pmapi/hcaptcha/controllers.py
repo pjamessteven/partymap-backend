@@ -13,9 +13,7 @@ def validate_hcaptcha(token):
     json_data = response.json() if response and response.status_code == 200 else None
 
     # Parse JSON from response. Check for success or error codes.
-    print(json_data)
     success = json_data["success"]
-    print("success", success, json_data)
     if success is True:
         return True
     else:

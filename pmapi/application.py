@@ -157,6 +157,7 @@ def register_blueprints(app):
     from pmapi.feedback.resource import feedback_blueprint
     from pmapi.suggestions.resource import suggestions_blueprint
     from pmapi.event_artist.resource import artists_blueprint
+    from pmapi.services.resource import services_blueprint
 
     from pmapi.event_contribution.resource import event_contribution_blueprint
     from pmapi.search.resource import search_blueprint
@@ -180,6 +181,7 @@ def register_blueprints(app):
     app.register_blueprint(suggestions_blueprint, url_prefix="/api/suggestions")
     app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
+    app.register_blueprint(services_blueprint, url_prefix="/api/services")
 
 
 def register_blueprints_with_tracker(app):
@@ -241,6 +243,7 @@ def register_docs(app):
     from pmapi.event_artist.resource import (
         ArtistResource,
     )
+    from pmapi.services.resource import IpLookupResource
 
     extensions.apidocs.register(LoginResource, "auth.LoginResource")
     extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
@@ -261,6 +264,7 @@ def register_docs(app):
         SuggestedEditResource, "suggestions.SuggestedEditResource"
     )
     extensions.apidocs.register(ArtistResource, "artists.ArtistResource")
+    extensions.apidocs.register(IpLookupResource, "service.IpLookupResource")
 
 
 def register_errorhandlers(app):
