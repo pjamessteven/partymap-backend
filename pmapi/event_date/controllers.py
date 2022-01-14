@@ -865,7 +865,8 @@ def query_event_dates(**kwargs):
                 )
             )
 
-        # sort options if distance expression is included
+    if lat and lng:
+        # sort options if distance expression is used
         if sort_option == "distance":
             query = query.order_by(
                 distance_expression.asc(), EventDate.start_naive.asc()
@@ -874,7 +875,6 @@ def query_event_dates(**kwargs):
             query = query.order_by(
                 EventDate.start_naive.asc(), distance_expression.asc()
             )
-
     else:
         # simply sort by date if distance expression not used
         query = query.order_by(EventDate.start_naive.asc())

@@ -154,7 +154,8 @@ def add_event(**kwargs):
     db.session.add(event)
     db.session.flush()
 
-    if rrule:
+    # separation count of 0 means no recurrance
+    if rrule and rrule["separationCount"] > 0:
         rrule = Rrule(
             recurring_type=rrule["recurringType"],
             separation_count=rrule["separationCount"],
@@ -295,7 +296,8 @@ def update_event(event_id, **kwargs):
         media_items.add_media_to_event(media, event, creator=current_user)
 
     # require these three fields to update
-    if date_time and location and rrule:
+    # separtion count of 0 means no recurrance
+    if date_time and location and rrule and rrule["separationCount"] > 0:
 
         # location
         event_location = event_locations.get_location(location["place_id"])
