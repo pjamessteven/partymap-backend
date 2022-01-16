@@ -172,6 +172,8 @@ def add_event(**kwargs):
         db.session.add(rrule)
         db.session.flush()
         event.rrule = rrule
+    else:
+        rrule = None
 
     if tags:
         event_tags.add_tags_to_event(tags, event)

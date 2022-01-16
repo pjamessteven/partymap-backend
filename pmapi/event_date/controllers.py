@@ -379,16 +379,11 @@ def generate_future_event_dates(
     activity=True,
 ):
 
-    if rrule is None:
+    if rrule is None and event.rrule:
+        # use existing rrule if one not provided
         rrule = event.rrule
 
-    if url:
-        rrule.default_url = url
-
-    else:
-        url = rrule.default_url
-
-    if event_location is None:
+    if event_location is None and rrule:
         event_location = rrule.default_location
 
     if date_time:
@@ -418,9 +413,7 @@ def generate_future_event_dates(
 
         tz = event.last_event_date().tz
 
-    print("RRULE", rrule)
-
-    if rrule.separation_count == 0 or rrule is None:
+    if rrule is None or rrule.separation_count == 0:
         # event is a one-off
         event.recurring = False
         add_event_date(
@@ -439,6 +432,13 @@ def generate_future_event_dates(
         )
 
     else:
+
+        if url:
+            rrule.default_url = url
+
+        else:
+            url = rrule.default_url
+
         # event is recurring
         event.recurring = True
         startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
