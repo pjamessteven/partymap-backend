@@ -642,7 +642,6 @@ def query_event_dates(**kwargs):
                     filter(EventDate.start > date_min).\
                     order_by(EventDate.start.asc()).\
                     subquery()
-    """
 
     next_date = db.session.query(
         EventDate,
@@ -650,6 +649,7 @@ def query_event_dates(**kwargs):
         .over(partition_by=EventDate.event_id, order_by=EventDate.start.asc())
         .label("rn"),
     ).subquery()
+    """
 
     if kwargs.get("location", None) is not None:
         location = kwargs.get("location")
@@ -698,8 +698,18 @@ def query_event_dates(**kwargs):
         query = query.join(Event)
 
     joined_tables = [mapper.class_ for mapper in query._join_entities]
+
     if EventLocation not in joined_tables:
         query = query.join(EventLocation)
+
+    # add row number column so we can filter
+    # for the next occurance of an event date below
+    row_number_column = (
+        func.row_number()
+        .over(partition_by=EventDate.event_id, order_by=asc(EventDate.start))
+        .label("row_number")
+    )
+    query = query.add_column(row_number_column)
 
     # filter hidden events out
     query = query.filter(Event.hidden == False)  # ignore linter warning here
@@ -775,8 +785,6 @@ def query_event_dates(**kwargs):
             Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
         )
 
-    # query = query.order_by(EventDate.start_naive)
-
     # filter event dates within bounds
     if bounds:
 
@@ -828,18 +836,25 @@ def query_event_dates(**kwargs):
                 20000000,
             ]
             for r in radii:
-                count = query.filter(
-                    func.ST_DWithin(
-                        cast(EventLocation.geo, Geography(srid=4326)),
-                        cast(
-                            "SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)
-                        ),
-                        r,
+                count = (
+                    query.filter(
+                        func.ST_DWithin(
+                            cast(EventLocation.geo, Geography(srid=4326)),
+                            cast(
+                                "SRID=4326;POINT(%f %f)" % (lng, lat),
+                                Geography(srid=4326),
+                            ),
+                            r,
+                        )
                     )
-                ).count()
+                    .from_self()
+                    .filter(row_number_column == 1)
+                    .count()
+                    # only count first occurance of event
+                )
 
                 # threshold of events required before trying the next radius
-                if count >= 10:
+                if count >= 4:
                     radius = r
                     query = query.filter(
                         func.ST_DWithin(
@@ -865,6 +880,10 @@ def query_event_dates(**kwargs):
                 )
             )
 
+    if kwargs.get("distinct", None) is True:
+        # return only the first event date of an event
+        query = query.from_self().filter(row_number_column == 1)
+
     if lat and lng:
         # sort options if distance expression is used
         if sort_option == "distance":
@@ -878,16 +897,6 @@ def query_event_dates(**kwargs):
     else:
         # simply sort by date if distance expression not used
         query = query.order_by(EventDate.start_naive.asc())
-
-    if kwargs.get("distinct", None) is True:
-        # return only the first event date of an event
-        row_number_column = (
-            func.row_number()
-            .over(partition_by=EventDate.event_id, order_by=asc(EventDate.start))
-            .label("row_number")
-        )
-        query = query.add_column(row_number_column)
-        query = query.from_self().filter(row_number_column == 1)
 
     seconds_end = time.time()
     print("query time in seconds: ", seconds_end - seconds_start)
