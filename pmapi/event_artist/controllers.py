@@ -167,6 +167,21 @@ def add_artists_to_date(event_date, artists):
             add_artist_to_date(event_date, **artist)
 
 
+def add_artist(name, mbid=None):
+    # create new record
+    artist = Artist(
+        name=name,
+        mbid=mbid,
+    )
+    db.session.add(artist)
+    db.session.flush()
+    if artist.mbid:
+        artist = refresh_info(artist.id)
+        return artist
+
+    return artist
+
+
 def add_artist_to_date(
     event_date, name, id=None, mbid=None, stage=None, start_naive=None, **kwargs
 ):
@@ -182,40 +197,14 @@ def add_artist_to_date(
             # maybe artist is already in db
             artist = get_artist_by_exact_name(name)
 
-            # music brainz search
-            musicbrainz_response = getArtistDetailsFromMusicBrainz(mbid)
-
-            # last.fm search
-            lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(mbid)
-
-            area = musicbrainz_response.get("area", None)
-            if area:
-                area = area.get("name", None)
-
             if artist is None:
-                # create new record
-                artist = Artist(
-                    name=name,
-                    disambiguation=musicbrainz_response["disambiguation"],
-                    description=lastfm_bio,
-                    area=area,
-                    mbid=mbid,
-                )
-                db.session.add(artist)
-                db.session.flush()
+                artist = add_artist(name, mbid)
+
             else:
-                # update existing manual entry to be music brainz entry
-                artist.disambiguation = musicbrainz_response["disambiguation"]
-                artist.description = lastfm_bio
-                artist.area = area
+                # update existing artist with mbid
                 artist.mbid = mbid
                 db.session.flush()
-
-            if lastfm_tags and len(lastfm_tags) > 0:
-                add_tags_to_artist(lastfm_tags, artist)
-
-            if musicbrainz_response["relations"]:
-                add_urls_to_artist(musicbrainz_response["relations"], artist)
+                artist = refresh_info(artist.id)
 
     elif id:
         artist = get_artist_by_id(id)
@@ -308,7 +297,7 @@ def save_artist_image_from_wikimedia_url(url, artist):
         media_items.add_media_to_artist(items, artist)
     except Exception:
         logging.error(
-            "event_artist.get_image_from_url_base64_encode.add_media_to_artist",
+            "event_artist.save_artist_image_from_wikimedia_url.add_media_to_artist",
         )
 
 
@@ -350,6 +339,84 @@ def getArtistDetailsFromLastFm(mbid):
         tags.append(tag.get("name"))
 
     return bio, tags
+
+
+def get_artist_image_from_deezer(artist):
+    # search for artist
+    url = (
+        'https://api.deezer.com/search/artist?q=artist:"'
+        + artist.name
+        + '"&output=json'
+    )
+    response = requests.get(
+        url=url,
+        headers={"Accept": "application/json"},
+    )
+    response = response.json()
+    data = response.get("data", None)
+    try:
+        deezer_artist = data[0]
+    except IndexError as e:
+        print("sorry, no deezer result")
+        logging.error(
+            "event_artist.get_artist_image_from_deezer.index_error",
+            exception=e,
+        )
+
+    if deezer_artist:
+        deezer_artist_id = deezer_artist.get("id")
+        # get artist object
+        url = "https://api.deezer.com/artist/" + str(deezer_artist_id)
+        response = requests.get(
+            url=url,
+            headers={"Accept": "application/json"},
+        )
+        response = response.json()
+        print(response)
+
+        img_url = response.get("picture_xl")
+        try:
+            headers = {
+                "Accept": "image/*",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
+            }
+            r = requests.get(img_url, headers=headers)
+            print(r)
+
+        except requests.exceptions.RequestException as e:
+            logging.error(
+                "event_artist.get_artist_image_from_deezer.request_error",
+                status_code=r.status_code,
+                error_body=r.body,
+                exception=e,
+            )
+            print("error getting artist image from deezer")
+        # add to db
+        try:
+            uri = (
+                "data:"
+                + r.headers["Content-Type"]
+                + ";"
+                + "base64,"
+                + base64.b64encode(r.content).decode("utf-8")
+            )
+        except Exception:
+            logging.error(
+                "event_artist.get_artist_image_from_deezer.base_64_encode",
+            )
+            print("error encoding deezer artist image as uri")
+        items = [
+            {
+                "base64File": uri,
+                "caption": "Artist image from Deezer (https://www.deezer.com/artist/11184566)",
+            }
+        ]
+        try:
+            media_items.add_media_to_artist(items, artist)
+        except Exception:
+            logging.error(
+                "event_artist.get_artist_image_from_deezer.add_media_to_artist",
+            )
 
 
 def add_tags_to_artist(tags, artist):
@@ -452,6 +519,15 @@ def refresh_info(id):
 
     if musicbrainz_response["relations"]:
         add_urls_to_artist(musicbrainz_response["relations"], artist)
+
+    # get deezer image if not exists
+    deezer_image_exists = False
+    for image in artist.media_items:
+        if "Deezer" in image.caption:
+            deezer_image_exists = True
+
+    if not deezer_image_exists:
+        get_artist_image_from_deezer(artist)
 
     db.session.commit()
     return artist

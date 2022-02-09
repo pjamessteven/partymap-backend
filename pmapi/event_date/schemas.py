@@ -20,7 +20,7 @@ class EventDateSchema(Schema):
     description = fields.Str()
     description_attribute = fields.Str()
     url = fields.Str()
-    # ticket_url = fields.Str()
+    ticket_url = fields.Str()
     tz = fields.Str()
     cancelled = fields.Boolean()
     distance = fields.Float()

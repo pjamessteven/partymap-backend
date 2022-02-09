@@ -224,6 +224,8 @@ def get_all_locations(**kwargs):
 
         j = join(Event, EventDate)
         # j = join(j, user_event_favorites_table)
+
+        # an event having multiple locations is an edge case, find a better way to deal with this later
         expression = select(
             [
                 func.array_agg(
@@ -233,8 +235,8 @@ def get_all_locations(**kwargs):
                             Event.name,
                             "event_id",
                             Event.id,
-                            "event_date_id",
-                            EventDate.id,
+                            # "event_date_id",
+                            # EventDate.id,
                         )
                     )
                 )
