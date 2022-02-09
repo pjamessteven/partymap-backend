@@ -15,6 +15,7 @@ from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import Tag
 from pmapi.event_location.model import EventLocation
 import logging
+import difflib
 from pmapi.config import BaseConfig
 
 from pmapi.common.controllers import paginated_results
@@ -341,6 +342,106 @@ def getArtistDetailsFromLastFm(mbid):
     return bio, tags
 
 
+def get_artist_image_from_spotify(artist):
+    # GET ACCESS TOKEN
+    AUTH_URL = "https://accounts.spotify.com/api/token"
+    auth_response = requests.post(
+        AUTH_URL,
+        {
+            "grant_type": "client_credentials",
+            "client_id": BaseConfig.SPOTIFY_CLIENT_ID,
+            "client_secret": BaseConfig.SPOTIFY_API_KEY,
+        },
+    )
+    auth_response_data = auth_response.json()
+
+    # save the access token
+    access_token = auth_response_data["access_token"]
+    headers = {
+        "Authorization": "Bearer {token}".format(token=access_token),
+        "Accept": "application/json",
+    }
+
+    url = "https://api.spotify.com/v1/search?type=artist&q=" + artist.name
+    response = requests.get(
+        url=url,
+        headers=headers,
+    )
+    response = response.json()
+    items = response.get("artists", {}).get("items")
+
+    # try to get the right artist from the deezer response
+    # make sure artist name exists in response
+    spotify_artist_names = []
+    for item in items:
+        spotify_artist_names.append(item.get("name"))
+    close_matches = difflib.get_close_matches(artist.name, spotify_artist_names)
+    spotify_artist_name = None
+    spotify_artist = None
+    if len(close_matches) > 0:
+        spotify_artist_name = close_matches[0]
+    # get the right artist from response
+    for item in sorted(items, key=lambda d: d.get("popularity"), reverse=True):
+        if item.get("name") == spotify_artist_name:
+            spotify_artist = item
+            break
+
+    print(spotify_artist)
+    # get artist image
+    if spotify_artist:
+        # get tags too, why not
+        add_tags_to_artist(spotify_artist.get("genres"), artist)
+
+        images = spotify_artist.get("images")
+        # sort images by biggest first
+        images_sorted = sorted(images, key=lambda d: d.get("height"), reverse=True)
+        image_url = images_sorted[0].get("url")
+        print(image_url)
+        try:
+            headers = {
+                "Accept": "image/*",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
+            }
+            r = requests.get(image_url, headers=headers)
+        except requests.exceptions.RequestException as e:
+            logging.error(
+                "event_artist.get_artist_image_from_spotify.request_error",
+                status_code=r.status_code,
+                error_body=r.body,
+                exception=e,
+            )
+            print("error getting artist image from spotify")
+        # add to db
+        try:
+            uri = (
+                "data:"
+                + r.headers["Content-Type"]
+                + ";"
+                + "base64,"
+                + base64.b64encode(r.content).decode("utf-8")
+            )
+        except Exception:
+            logging.error(
+                "event_artist.get_artist_image_from_spotify.base_64_encode",
+            )
+            print("error encoding spotify artist image as uri")
+        items = [
+            {
+                "base64File": uri,
+                "caption": "Artist image from Spotify",
+            }
+        ]
+        try:
+            media_items.add_media_to_artist(items, artist)
+        except Exception:
+            logging.error(
+                "event_artist.get_artist_image_from_spotify.add_media_to_artist",
+            )
+        return True
+    else:
+        return False
+
+
 def get_artist_image_from_deezer(artist):
     # search for artist
     url = (
@@ -353,15 +454,23 @@ def get_artist_image_from_deezer(artist):
         headers={"Accept": "application/json"},
     )
     response = response.json()
-    data = response.get("data", None)
-    try:
-        deezer_artist = data[0]
-    except IndexError as e:
-        print("sorry, no deezer result")
-        logging.error(
-            "event_artist.get_artist_image_from_deezer.index_error",
-            exception=e,
-        )
+    response = response.get("data", None)
+
+    # try to get the right artist from the deezer response
+    # make sure artist name exists in response
+    deezer_artist_names = []
+    for item in response:
+        deezer_artist_names.append(item.get("name"))
+    close_matches = difflib.get_close_matches(artist.name, deezer_artist_names)
+    deezer_artist_name = None
+    deezer_artist = None
+    if len(close_matches) > 0:
+        deezer_artist_name = close_matches[0]
+    # get the right artist from response
+    for item in response:
+        if item.get("name") == deezer_artist_name:
+            deezer_artist = item
+            break
 
     if deezer_artist:
         deezer_artist_id = deezer_artist.get("id")
@@ -381,7 +490,6 @@ def get_artist_image_from_deezer(artist):
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
             }
             r = requests.get(img_url, headers=headers)
-            print(r)
 
         except requests.exceptions.RequestException as e:
             logging.error(
@@ -408,7 +516,7 @@ def get_artist_image_from_deezer(artist):
         items = [
             {
                 "base64File": uri,
-                "caption": "Artist image from Deezer (https://www.deezer.com/artist/11184566)",
+                "caption": "Artist image from Deezer",
             }
         ]
         try:
@@ -421,12 +529,10 @@ def get_artist_image_from_deezer(artist):
 
 def add_tags_to_artist(tags, artist):
     for t in tags:
-        print(t)
-
-        tag = Tag(tag=t)
+        tag = Tag(tag=t.lower())
         # check if tag is already in db
-        if db.session.query(Tag).filter(Tag.tag == t).count():
-            tag = db.session.query(Tag).filter(Tag.tag == t).one()
+        if db.session.query(Tag).filter(Tag.tag == t.lower()).count():
+            tag = db.session.query(Tag).filter(Tag.tag == t.lower()).one()
 
         existing_tag = (
             db.session.query(ArtistTag)
@@ -441,7 +547,6 @@ def add_tags_to_artist(tags, artist):
             db.session.flush()
             activity = Activity(verb=u"create", object=at, target=artist)
             db.session.add(activity)
-        print(tag)
 
     return tags
 
@@ -520,13 +625,19 @@ def refresh_info(id):
     if musicbrainz_response["relations"]:
         add_urls_to_artist(musicbrainz_response["relations"], artist)
 
-    # get deezer image if not exists
-    deezer_image_exists = False
-    for image in artist.media_items:
-        if "Deezer" in image.caption:
-            deezer_image_exists = True
+    # get images from external services
+    # only use deezer as fallback
 
-    if not deezer_image_exists:
+    for image in artist.media_items:
+        if "Spotify" in image.caption:
+            db.session.delete(image)
+        if "Deezer" in image.caption:
+            db.session.delete(image)
+    db.session.flush()
+
+    spotify_image_found = get_artist_image_from_spotify(artist)
+    if not spotify_image_found:
+        # get deezer image if spotify image doesn't exist
         get_artist_image_from_deezer(artist)
 
     db.session.commit()

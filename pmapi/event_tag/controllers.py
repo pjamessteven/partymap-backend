@@ -13,11 +13,11 @@ Activity = activity_plugin.activity_cls
 
 def add_tags_to_event(tags, event):
     for t in tags:
-        tag = Tag(tag=t)
+        tag = Tag(tag=t.lower())
 
         # check if tag is already in db
-        if db.session.query(Tag).filter(Tag.tag == t).count():
-            tag = db.session.query(Tag).filter(Tag.tag == t).one()
+        if db.session.query(Tag).filter(Tag.tag == t.lower()).count():
+            tag = db.session.query(Tag).filter(Tag.tag == t.lower()).one()
 
         # remove tag if it already exists
         if (
@@ -90,7 +90,7 @@ def get_event_tags(**kwargs):
         )
 
     if kwargs.get("tag_name", None) is not None:
-        tag_name = kwargs.pop("tag_name")
+        tag_name = kwargs.pop("tag_name").lower()
         if len(tag_name) > 0:
             query_string = ""
             for word in tag_name.split():
