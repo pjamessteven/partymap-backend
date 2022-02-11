@@ -342,7 +342,7 @@ def getArtistDetailsFromLastFm(mbid):
     return bio, tags
 
 
-def get_artist_image_from_spotify(artist):
+def refresh_spotify_data_for_artist(artist):
     # GET ACCESS TOKEN
     AUTH_URL = "https://accounts.spotify.com/api/token"
     auth_response = requests.post(
@@ -386,12 +386,22 @@ def get_artist_image_from_spotify(artist):
             spotify_artist = item
             break
 
-    print(spotify_artist)
     # get artist image
     if spotify_artist:
         # get tags too, why not
         add_tags_to_artist(spotify_artist.get("genres"), artist)
 
+        # get spotify URL if artist doesn't have a spotify URL
+        has_spotify_url = False
+        for url in artist.urls:
+            if "spotify" in url.type.lower():
+                has_spotify_url = True
+        if not has_spotify_url:
+            url = spotify_artist.get("external_urls", {}).get("spotify")
+            if url:
+                add_url_to_artist(url, "spotify", artist)
+
+        # now save image
         images = spotify_artist.get("images")
         # sort images by biggest first
         images_sorted = sorted(images, key=lambda d: d.get("height"), reverse=True)
@@ -405,7 +415,7 @@ def get_artist_image_from_spotify(artist):
             r = requests.get(image_url, headers=headers)
         except requests.exceptions.RequestException as e:
             logging.error(
-                "event_artist.get_artist_image_from_spotify.request_error",
+                "event_artist.refresh_spotify_data_for_artist.request_error",
                 status_code=r.status_code,
                 error_body=r.body,
                 exception=e,
@@ -422,7 +432,7 @@ def get_artist_image_from_spotify(artist):
             )
         except Exception:
             logging.error(
-                "event_artist.get_artist_image_from_spotify.base_64_encode",
+                "event_artist.refresh_spotify_data_for_artist.base_64_encode",
             )
             print("error encoding spotify artist image as uri")
         items = [
@@ -435,7 +445,7 @@ def get_artist_image_from_spotify(artist):
             media_items.add_media_to_artist(items, artist)
         except Exception:
             logging.error(
-                "event_artist.get_artist_image_from_spotify.add_media_to_artist",
+                "event_artist.refresh_spotify_data_for_artist.add_media_to_artist",
             )
         return True
     else:
@@ -551,7 +561,7 @@ def add_tags_to_artist(tags, artist):
     return tags
 
 
-def add_urls_to_artist(relations, artist):
+def add_musicbrainz_urls_to_artist(relations, artist):
     # process artist URLs
     for relation in relations:
         url = relation.get("url", {}).get("resource")
@@ -582,13 +592,7 @@ def add_urls_to_artist(relations, artist):
                         save_artist_image_from_wikimedia_url(url, artist)
 
             if artist_url is None:
-                # need to check twice because of artist image url
-                artist_url = ArtistUrl(
-                    artist=artist,
-                    url=url,
-                    type=type,
-                )
-                db.session.add(artist_url)
+                add_url_to_artist(url, type, artist)
         else:
             artist_url.artist = artist
 
@@ -596,34 +600,43 @@ def add_urls_to_artist(relations, artist):
     return artist
 
 
+def add_url_to_artist(url, type, artist):
+    # need to check twice because of artist image url
+    artist_url = ArtistUrl(
+        artist=artist,
+        url=url,
+        type=type,
+    )
+    db.session.add(artist_url)
+    db.session.flush()
+    return artist_url
+
+
 def refresh_info(id):
     artist = get_artist_or_404(id)
 
-    if not artist.mbid:
-        raise exc.InvalidAPIRequest(
-            "This artist is not in the Musicbrainz or Last.fm databases"
-        )
+    if artist.mbid:
 
-    # music brainz search
-    musicbrainz_response = getArtistDetailsFromMusicBrainz(artist.mbid)
+        # music brainz search
+        musicbrainz_response = getArtistDetailsFromMusicBrainz(artist.mbid)
 
-    # last.fm search
-    lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(artist.mbid)
+        # last.fm search
+        lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(artist.mbid)
 
-    area = musicbrainz_response.get("area", None)
-    if area:
-        area = area.get("name", None)
+        area = musicbrainz_response.get("area", None)
+        if area:
+            area = area.get("name", None)
 
-    # update artist
-    artist.disambiguation = musicbrainz_response["disambiguation"]
-    artist.description = lastfm_bio
-    artist.area = area
+        # update artist
+        artist.disambiguation = musicbrainz_response["disambiguation"]
+        artist.description = lastfm_bio
+        artist.area = area
 
-    if lastfm_tags and len(lastfm_tags) > 0:
-        add_tags_to_artist(lastfm_tags, artist)
+        if lastfm_tags and len(lastfm_tags) > 0:
+            add_tags_to_artist(lastfm_tags, artist)
 
-    if musicbrainz_response["relations"]:
-        add_urls_to_artist(musicbrainz_response["relations"], artist)
+        if musicbrainz_response["relations"]:
+            add_musicbrainz_urls_to_artist(musicbrainz_response["relations"], artist)
 
     # get images from external services
     # only use deezer as fallback
@@ -635,7 +648,7 @@ def refresh_info(id):
             db.session.delete(image)
     db.session.flush()
 
-    spotify_image_found = get_artist_image_from_spotify(artist)
+    spotify_image_found = refresh_spotify_data_for_artist(artist)
     if not spotify_image_found:
         # get deezer image if spotify image doesn't exist
         get_artist_image_from_deezer(artist)

@@ -49,6 +49,11 @@ class MediaItemSchema(Schema):
         if obj.thumb_xs_filename
         else None
     )
+    thumb_xxs_url = fields.Function(
+        lambda obj: generate_filepath(obj, obj.thumb_xxs_filename)
+        if obj.thumb_xxs_filename
+        else None
+    )
     poster_url = fields.Function(
         lambda obj: generate_filepath(obj, obj.video_poster_filename)
         if obj.video_poster_filename

@@ -31,6 +31,7 @@ class MediaItem(db.Model):
     type = db.Column(db.Enum("image", "video", name="media_type"))
     position = db.Column(db.Integer)
 
+    thumb_xxs_filename = db.Column(db.String, default=None, nullable=True)  # 64x64
     thumb_xs_filename = db.Column(db.String, default=None, nullable=True)  # 256x256
     thumb_filename = db.Column(db.String, default=None, nullable=False)  # 512x512
     image_med_filename = db.Column(db.String, default=None, nullable=True)  # 1024x1024
