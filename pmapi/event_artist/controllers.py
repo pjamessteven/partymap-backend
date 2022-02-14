@@ -391,22 +391,24 @@ def refresh_spotify_data_for_artist(artist):
         # get tags too, why not
         add_tags_to_artist(spotify_artist.get("genres"), artist)
 
-        # get spotify URL if artist doesn't have a spotify URL
-        has_spotify_url = False
+        # delete existing spotify url
         for url in artist.urls:
-            if "spotify" in url.type.lower():
-                has_spotify_url = True
-        if not has_spotify_url:
-            url = spotify_artist.get("external_urls", {}).get("spotify")
-            if url:
-                add_url_to_artist(url, "spotify", artist)
+            if "spotify" in url.url.lower():
+                db.session.delete(url)
+
+        # save url
+        url = spotify_artist.get("external_urls", {}).get("spotify")
+        if url:
+            add_url_to_artist(url, "spotify", artist)
+
+        # save popularity
+        artist.popularity = spotify_artist.get("popularity")
 
         # now save image
         images = spotify_artist.get("images")
         # sort images by biggest first
         images_sorted = sorted(images, key=lambda d: d.get("height"), reverse=True)
         image_url = images_sorted[0].get("url")
-        print(image_url)
         try:
             headers = {
                 "Accept": "image/*",

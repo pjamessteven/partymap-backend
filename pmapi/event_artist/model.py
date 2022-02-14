@@ -19,7 +19,7 @@ class Artist(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     suggestions = db.relationship("SuggestedEdit", back_populates="artist")
     artist_tags = db.relationship("ArtistTag", back_populates="artist")
-
+    popularity = db.Column(db.Integer)
     # artist specific stuff
     description = db.Column(db.Text)
     disambiguation = db.Column(db.Text)
