@@ -9,6 +9,7 @@ class ArtistSchema(Schema):
     area = fields.Str()
     mbid = fields.Str()
     description = fields.Str()
+    popularity = fields.Int()
     disambiguation = fields.Str()
     urls = fields.Nested("ArtistUrlSchema", many=True)
     tags = fields.Nested("ArtistTagSchema", many=True, attribute="artist_tags")
@@ -39,9 +40,15 @@ class EventDateArtistSchema(Schema):
         "ArtistSchema", "disambiguation", attribute="artist", dump_only=True
     )
     name = fields.Pluck("ArtistSchema", "name", attribute="artist", dump_only=True)
+    popularity = fields.Pluck(
+        "ArtistSchema", "popularity", attribute="artist", dump_only=True
+    )
     area = fields.Pluck("ArtistSchema", "area", attribute="artist", dump_only=True)
     mbid = fields.Pluck("ArtistSchema", "mbid", attribute="artist", dump_only=True)
     urls = fields.Pluck("ArtistSchema", "urls", attribute="artist", dump_only=True)
+    media_items = fields.Pluck(
+        "ArtistSchema", "media_items", attribute="artist", dump_only=True
+    )
     artist_id = fields.Pluck("ArtistSchema", "id", attribute="artist", dump_only=True)
     id = fields.Int()
     start_naive = fields.Str()
