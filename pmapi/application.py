@@ -26,9 +26,6 @@ from .exceptions import SystemError
 
 from .extensions import db
 
-from .tasks import configure_celery
-from . import tasks
-
 from sqlalchemy.exc import DatabaseError
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import IntegrityError
@@ -61,13 +58,12 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     app = Flask(app_name)
 
     app.config.from_object(config)
-
-    configure_celery(app, tasks.celery)
     register_extensions(app)
     register_blueprints(app)
     register_blueprints_with_tracker(app)
     register_errorhandlers(app)
     register_docs(app)
+    extensions.lm.login_view = "auth.LoginResource"
 
     @app.before_request
     def update_last_active():
@@ -132,9 +128,9 @@ def register_extensions(app):
     extensions.admin.init_app(app)
     extensions.lm.init_app(app)
     extensions.cors.init_app(app)
-    extensions.lm.login_view = "auth.LoginResource"
     extensions.mail.init_app(app)
     extensions.apidocs.init_app(app)
+    extensions.configure_celery(app, extensions.celery)
     with app.app_context():
         extensions.tracker.init_app(
             app,

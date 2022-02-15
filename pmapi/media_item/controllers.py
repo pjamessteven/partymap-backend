@@ -87,12 +87,23 @@ def remove_all_media_from_event(event):
     return
 
 
-def add_media_to_artist(items, artist, creator=current_user):
+def add_media_to_artist(items, artist, creator=None):
+    # all this shit so the celery process can work, because
+    # because it's a new instance it doesn't have current_user
+    if creator:
+        creator_id = creator.id
+    elif current_user and current_user.is_authenticated:
+        creator_id = current_user.id
+    else:
+        creator_id = None
+
     for i in items:
+
         file = i["base64File"]
         path = os.path.join(
             current_app.config["MEDIA_UPLOAD_FOLDER"] + str("artist/") + str(artist.id)
         )
+
         (
             thumb_xxs_filename,
             thumb_xs_filename,
@@ -121,15 +132,17 @@ def add_media_to_artist(items, artist, creator=current_user):
                 thumb_xs_filename=thumb_xs_filename,
                 thumb_xxs_filename=thumb_xxs_filename,
                 type=type,
-                creator_id=creator.id,
+                creator_id=creator_id,
             )
+            print(media_item)
             db.session.add(media_item)
             db.session.flush()
             artist.media_items.append(media_item)
             # activity
             db.session.flush()
-            activity = Activity(verb=u"create", object=media_item, target=artist)
-            db.session.add(activity)
+            if creator_id:
+                activity = Activity(verb=u"create", object=media_item, target=artist)
+                db.session.add(activity)
 
     db.session.commit()
     return artist.media_items

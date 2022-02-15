@@ -1,28 +1,15 @@
 import logging
-from celery import Celery
-
-from pmapi.extensions import mail
-from pmapi.config import BaseConfig as CONFIG
+from pmapi.extensions import mail, celery
 from ffmpy import FFmpeg
+import pmapi.event_artist.controllers as artists
+import pmapi.application as application
+from .config import DevConfig
+from .config import ProdConfig
+from flask.helpers import get_debug_flag
 
-celery = Celery(
-    __name__,
-    backend=CONFIG.CELERY_RESULT_BACKEND,
-    broker=CONFIG.CELERY_BROKER_URL,
-)
+DEV_ENVIRON = get_debug_flag()
 
-
-def configure_celery(app, celery):
-
-    celery.conf.update(app.config)
-
-    class ContextTask(celery.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-
-    celery.Task = ContextTask
-    return celery
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
 
 @celery.task(ignore_result=True)
@@ -87,3 +74,10 @@ def get_video_thumbnail(
         outputs={poster_out_filepath: "-ss 00:00:01.000 -vframes 1"},
     )
     ff.run()
+
+
+@celery.task()
+def refresh_artist_info(artist_id):
+    app = application.create_app(config=CONFIG, app_name="PARTYMAP")
+    with app.app_context():
+        artists.refresh_info(artist_id)
