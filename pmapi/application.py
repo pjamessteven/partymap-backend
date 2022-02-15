@@ -58,16 +58,16 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     app = Flask(app_name)
 
     app.config.from_object(config)
-    register_extensions(app)
     register_blueprints(app)
+    register_extensions(app)
     register_blueprints_with_tracker(app)
+    extensions.lm.login_view = "auth.LoginResource"
     register_errorhandlers(app)
     register_docs(app)
-    extensions.lm.login_view = "auth.LoginResource"
 
     @app.before_request
     def update_last_active():
-        if current_user.is_authenticated:
+        if current_user and current_user.is_authenticated:
             current_user.last_active = datetime.utcnow()
             extensions.db.session.add(current_user)
             extensions.db.session.commit()

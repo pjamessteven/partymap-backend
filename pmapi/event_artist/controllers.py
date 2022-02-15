@@ -8,6 +8,7 @@ import hashlib
 import base64
 import time
 import requests
+from requests.exceptions import RequestException
 from flask_login import current_user
 from pmapi.extensions import db, activity_plugin
 from .model import Artist, ArtistUrl, EventDateArtist, ArtistTag
@@ -23,6 +24,8 @@ import pmapi.media_item.controllers as media_items
 import pmapi.tasks as tasks
 
 Activity = activity_plugin.activity_cls
+
+TIMEOUT = 5
 
 
 def get_artist_or_404(id):
@@ -212,8 +215,7 @@ def add_artist_to_date(
         artist = get_artist_by_name(name)
         if artist is None:
             # create new artist record
-            artist = Artist(name=name)
-            db.session.add(artist)
+            artist = add_artist(name)
 
     db.session.flush()
 
@@ -262,18 +264,15 @@ def save_artist_image_from_wikimedia_url(url, artist):
             "Accept": "image/*",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
         }
-        r = requests.get(url, headers=headers)
-    except requests.exceptions.RequestException as e:
+        r = requests.get(url, headers=headers, timeout=TIMEOUT)
+    except RequestException as e:
         logging.error(
             "event_artist.save_artist_image_from_wikimedia_url.request_error",
             status_code=r.status_code,
             error_body=r.body,
             exception=e,
         )
-        print("error getting artist image")
-    print(r)
-    print(r.headers)
-    print(url)
+
     try:
         uri = (
             "data:"
@@ -301,20 +300,31 @@ def save_artist_image_from_wikimedia_url(url, artist):
         )
 
 
-def getArtistDetailsFromMusicBrainz(mbid):
-    response = requests.get(
-        url="https://musicbrainz.org/ws/2/artist/" + mbid + "?inc=url-rels&fmt=json",
-        headers={"Accept": "application/json"},
-    )
+def get_artist_details_from_music_brainz(mbid):
+    try:
+        response = requests.get(
+            url="https://musicbrainz.org/ws/2/artist/"
+            + mbid
+            + "?inc=url-rels&fmt=json",
+            headers={"Accept": "application/json"},
+            timeout=TIMEOUT,
+        )
+    except RequestException as e:
+        logging.error(
+            "event_artist.get_artist_details_from_music_brainz.request_error",
+            status_code=response.status_code,
+            error_body=response.body,
+            exception=e,
+        )
+
     if response.status_code != 200:
-        print("status code", response.status_code)
         # wait and try again (musicbrainz api limited to one req/sec)
         time.sleep(1)
-        return getArtistDetailsFromMusicBrainz(mbid)
+        return get_artist_details_from_music_brainz(mbid)
     return response.json()
 
 
-def getArtistDetailsFromLastFm(mbid):
+def get_artist_details_from_last_fm(mbid):
     url = (
         "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&api_key="
         + BaseConfig.LAST_FM_API_KEY
@@ -322,15 +332,22 @@ def getArtistDetailsFromLastFm(mbid):
         + mbid
         + "&format=json"
     )
-    response = requests.get(
-        url=url,
-        headers={"Accept": "application/json"},
-    )
+    try:
+        response = requests.get(
+            url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
+        )
+    except RequestException as e:
+        logging.error(
+            "event_artist.get_artist_details_from_last_fm.request_error",
+            status_code=response.status_code,
+            error_body=response.body,
+            exception=e,
+        )
+
     if response.status_code != 200:
-        print("status code", response.status_code)
         # wait and try again (last.fm api limited to one req/sec)
         time.sleep(1)
-        return getArtistDetailsFromLastFm(mbid)
+        return get_artist_details_from_last_fm(mbid)
 
     response = response.json()
     bio = response.get("artist", {}).get("bio", {}).get("content", None)
@@ -344,14 +361,23 @@ def getArtistDetailsFromLastFm(mbid):
 def refresh_spotify_data_for_artist(artist):
     # GET ACCESS TOKEN
     AUTH_URL = "https://accounts.spotify.com/api/token"
-    auth_response = requests.post(
-        AUTH_URL,
-        {
-            "grant_type": "client_credentials",
-            "client_id": BaseConfig.SPOTIFY_CLIENT_ID,
-            "client_secret": BaseConfig.SPOTIFY_API_KEY,
-        },
-    )
+    try:
+        auth_response = requests.post(
+            AUTH_URL,
+            {
+                "grant_type": "client_credentials",
+                "client_id": BaseConfig.SPOTIFY_CLIENT_ID,
+                "client_secret": BaseConfig.SPOTIFY_API_KEY,
+            },
+        )
+    except RequestException as e:
+        logging.error(
+            "event_artist.refresh_spotify_data_for_artist.auth_token_request_error",
+            status_code=auth_response.status_code,
+            error_body=auth_response.body,
+            exception=e,
+        )
+
     auth_response_data = auth_response.json()
 
     # save the access token
@@ -360,12 +386,18 @@ def refresh_spotify_data_for_artist(artist):
         "Authorization": "Bearer {token}".format(token=access_token),
         "Accept": "application/json",
     }
-
     url = "https://api.spotify.com/v1/search?type=artist&q=" + artist.name
-    response = requests.get(
-        url=url,
-        headers=headers,
-    )
+
+    try:
+        response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
+    except RequestException as e:
+        logging.error(
+            "event_artist.refresh_spotify_data_for_artist.main_request_error",
+            status_code=response.status_code,
+            error_body=response.body,
+            exception=e,
+        )
+
     response = response.json()
     items = response.get("artists", {}).get("items", [])
 
@@ -418,10 +450,10 @@ def refresh_spotify_data_for_artist(artist):
                         "Accept": "image/*",
                         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
                     }
-                    r = requests.get(image_url, headers=headers)
-                except requests.exceptions.RequestException as e:
+                    r = requests.get(image_url, headers=headers, timeout=TIMEOUT)
+                except RequestException as e:
                     logging.error(
-                        "event_artist.refresh_spotify_data_for_artist.request_error",
+                        "event_artist.refresh_spotify_data_for_artist.image_request_error",
                         status_code=r.status_code,
                         error_body=r.body,
                         exception=e,
@@ -448,7 +480,6 @@ def refresh_spotify_data_for_artist(artist):
                     }
                 ]
                 try:
-                    print(artist, items)
                     media_items.add_media_to_artist(items, artist)
                 except Exception:
                     logging.error(
@@ -466,10 +497,18 @@ def get_artist_image_from_deezer(artist):
         + artist.name
         + '"&output=json'
     )
-    response = requests.get(
-        url=url,
-        headers={"Accept": "application/json"},
-    )
+    try:
+        response = requests.get(
+            url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
+        )
+    except RequestException as e:
+        logging.error(
+            "event_artist.get_artist_image_from_deezer.search_request_error",
+            status_code=response.status_code,
+            error_body=response.body,
+            exception=e,
+        )
+
     response = response.json()
     response = response.get("data", None)
 
@@ -494,23 +533,20 @@ def get_artist_image_from_deezer(artist):
         # get artist object
         url = "https://api.deezer.com/artist/" + str(deezer_artist_id)
         response = requests.get(
-            url=url,
-            headers={"Accept": "application/json"},
+            url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
         )
         response = response.json()
-        print(response)
-
         img_url = response.get("picture_xl")
         try:
             headers = {
                 "Accept": "image/*",
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
             }
-            r = requests.get(img_url, headers=headers)
+            r = requests.get(img_url, headers=headers, timeout=TIMEOUT)
 
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             logging.error(
-                "event_artist.get_artist_image_from_deezer.request_error",
+                "event_artist.get_artist_image_from_deezer.artist_request_error",
                 status_code=r.status_code,
                 error_body=r.body,
                 exception=e,
@@ -546,10 +582,11 @@ def get_artist_image_from_deezer(artist):
 
 def add_tags_to_artist(tags, artist):
     for t in tags:
-        tag = Tag(tag=t.lower())
         # check if tag is already in db
         if db.session.query(Tag).filter(Tag.tag == t.lower()).count():
             tag = db.session.query(Tag).filter(Tag.tag == t.lower()).one()
+        else:
+            tag = Tag(tag=t.lower())
 
         existing_tag = (
             db.session.query(ArtistTag)
@@ -625,10 +662,10 @@ def refresh_info(id):
     if artist.mbid:
 
         # music brainz search
-        musicbrainz_response = getArtistDetailsFromMusicBrainz(artist.mbid)
+        musicbrainz_response = get_artist_details_from_music_brainz(artist.mbid)
 
         # last.fm search
-        lastfm_bio, lastfm_tags = getArtistDetailsFromLastFm(artist.mbid)
+        lastfm_bio, lastfm_tags = get_artist_details_from_last_fm(artist.mbid)
 
         area = musicbrainz_response.get("area", None)
         if area:
@@ -638,14 +675,11 @@ def refresh_info(id):
         artist.disambiguation = musicbrainz_response["disambiguation"]
         artist.description = lastfm_bio
         artist.area = area
-        print("allg1")
         if lastfm_tags and len(lastfm_tags) > 0:
             add_tags_to_artist(lastfm_tags, artist)
-        print("allg2")
 
         if musicbrainz_response["relations"]:
             add_musicbrainz_urls_to_artist(musicbrainz_response["relations"], artist)
-        print("allg3")
 
     # get images from external services
     # only use deezer as fallback

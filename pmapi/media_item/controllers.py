@@ -88,6 +88,7 @@ def remove_all_media_from_event(event):
 
 
 def add_media_to_artist(items, artist, creator=None):
+
     # all this shit so the celery process can work, because
     # because it's a new instance it doesn't have current_user
     if creator:
