@@ -15,7 +15,8 @@ class EventDateSchema(Schema):
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     location_id = fields.Str()
     event = fields.Nested(
-        "EventSchema", only=["event_tags", "cover_items", "host", "rrule"]
+        "EventSchema",
+        only=["event_tags", "cover_items", "host", "rrule", "description"],
     )
     description = fields.Str()
     description_attribute = fields.Str()
