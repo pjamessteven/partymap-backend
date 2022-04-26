@@ -111,6 +111,28 @@ def send_password_reset_email(user, action_id):
     )
 
 
+def send_new_event_notification(event, username="anonymous"):
+    template = "email/new_event.html"
+    subject = "New event submitted by " + username
+
+    context = {
+        "event_id": event.event_id,
+        "event_name": event.name,
+        "creator_username": username,
+        "year": datetime.now().year,
+        "domain_business_name": "PartyMap",
+    }
+
+    content = render_template(template, **context)
+    return send_mail(
+        to=current_app.config["SUPPORT_EMAIL"],
+        subject=subject,
+        content=content,
+        content_type="text/html",
+        msg_type="report.notification",
+    )
+
+
 def send_report_notification_email(report_id, message, email, username="anonymous"):
     template = "email/new_report.html"
     subject = "Content report submitted by " + username

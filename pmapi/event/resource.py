@@ -42,7 +42,7 @@ class EventsResource(MethodResource):
             "query": fields.String(required=False),
             "created_by": fields.String(required=False),
             "hidden": fields.Boolean(required=False),
-            **paginated_view_args(sort_options=["created_at"]),
+            **paginated_view_args(sort_options=["created_at", "name", "id"]),
         },
         location="query",
     )

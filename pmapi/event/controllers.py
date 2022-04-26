@@ -21,6 +21,9 @@ from flask_login import current_user, login_user
 from pmapi.config import BaseConfig
 from sqlalchemy_continuum import versioning_manager
 import pprint
+from pmapi.mail.controllers import (
+    send_new_event_notification,
+)
 
 Activity = activity_plugin.activity_cls
 
@@ -200,6 +203,11 @@ def add_event(**kwargs):
     )
 
     db.session.commit()
+
+    # send notification
+    send_new_event_notification(
+        event, creator.username if creator is not None else None
+    )
     return event
 
 
