@@ -205,9 +205,11 @@ def add_event(**kwargs):
     db.session.commit()
 
     # send notification
+    """
     send_new_event_notification(
         event, creator.username if creator is not None else None
     )
+    """
     return event
 
 
