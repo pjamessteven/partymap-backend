@@ -82,7 +82,7 @@ def get_artists(**kwargs):
         search = "%{}%".format(kwargs.pop("query"))
         query = query.filter(Artist.name.ilike(search))
 
-    query = query.order_by(desc(Artist.event_count))
+    # query = query.order_by(desc(Artist.event_count))
 
     return paginated_results(Artist, query=query, **kwargs)
 

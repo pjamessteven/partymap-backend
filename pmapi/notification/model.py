@@ -64,6 +64,7 @@ class EmailAction(db.Model):
     user_id = db.Column(
         UUID, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
+    actioned = db.Column(db.Boolean(), default=False)
     user = db.relationship("User")
     expires = db.Column(db.DateTime(timezone=True))
     action = db.Column(

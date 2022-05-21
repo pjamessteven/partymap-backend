@@ -25,6 +25,7 @@ class PrivateUserSchema(UserSchema):
     pw_enabled = fields.Function(lambda obj: True if obj.password else False)
     oauth = fields.Boolean()
     oauth_obj = fields.Nested("OAuth")
+    last_active = fields.DateTime()
 
 
 class OAuth(Schema):

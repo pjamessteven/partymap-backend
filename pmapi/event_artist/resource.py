@@ -62,7 +62,9 @@ class ArtistsResource(MethodResource):
             "date_max": fields.DateTime(required=False),
             "radius": fields.Int(),
             "location": fields.Str(),
-            **paginated_view_args(sort_options=["event_count", "created_at"]),
+            **paginated_view_args(
+                sort_options=["event_count", "created_at", "name", "popularity", "id"]
+            ),
         },
         location="query",
     )

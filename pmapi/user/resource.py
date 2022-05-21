@@ -14,7 +14,7 @@ from pmapi.exceptions import InvalidUsage
 import pmapi.activity.controllers as activities
 import pmapi.user.controllers as users
 
-from .schemas import UserSchema, PrivateUserSchema
+from .schemas import UserSchema, PrivateUserSchema, UserListSchema
 from . import permissions as user_permissions
 
 users_blueprint = Blueprint("users", __name__)
@@ -31,19 +31,30 @@ def handle_invalid_usage(error):
 
 @doc(tags=["users"])
 class UsersResource(MethodResource):
-    list_users_args = {
-        "username": fields.Str(description="search by username"),
-        "status": fields.Str(
-            description="Filter by status (staff+ only) (default: active)",
-            missing="active",
-            validate=OneOf(["active", "pending", "disabled", "all"]),
-        ),
-        "role": fields.Int(
-            description="Show users by role (staff+ only)",
-            validate=OneOf([*ROLES.values()]),
-        ),
-        **paginated_view_args(sort_options=["username", "created", "modified"]),
-    }
+    @doc(
+        summary="Get a list of users that are in the db.",
+        description="""Returns a list of users that are in the db. \n""",
+    )
+    @use_kwargs(
+        {
+            "query": fields.Str(description="search by username, email or UUID"),
+            "status": fields.Str(
+                description="Filter by status (staff+ only) (default: active)",
+                missing="active",
+                validate=OneOf(["active", "pending", "disabled", "all"]),
+            ),
+            "role": fields.Int(
+                description="Show users by role (staff+ only)",
+                validate=OneOf([*ROLES.values()]),
+            ),
+            **paginated_view_args(sort_options=["username", "created_at"]),
+        },
+        location="query",
+    )
+    @marshal_with(UserListSchema(), code=200)
+    @user_permissions.get_users
+    def get(self, **kwargs):
+        return users.get_users(**kwargs)
 
     @doc(summary="Add a User", description="Adds a User")
     @use_kwargs(

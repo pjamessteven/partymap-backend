@@ -46,12 +46,40 @@ def get_user(user_identifier):
 
 def get_user_or_404(user_identifier):
     """Return a user or raise 404 exception"""
-    user, search_property = get_user(user_identifier.lower())
+    user, search_property = get_user(user_identifier)
     if not user:
         msg = "No such user with {} {}".format(search_property, user_identifier)
         raise exc.RecordNotFound(msg)
 
     return user
+
+
+def get_users(**kwargs):
+    query = db.session.query(User)
+
+    if kwargs.get("query", None) is not None:
+        query_string = "%{}%".format(kwargs.pop("query"))
+        search_property = "username"
+        # identifier is uuid?
+        try:
+            validate.uuid(query_string)
+            search_property = "id"
+        except exc.InvalidAPIRequest:
+            pass
+        # identifier is email?
+        if "@" in query_string:
+            search_property = "email"
+        query = User.query.filter(getattr(User, search_property).ilike(query_string))
+
+    if kwargs.get("status", None) is not None:
+        status = kwargs.pop("status")
+        query = query.filter(User.status == status)
+
+    if kwargs.get("role", None) is not None:
+        role = kwargs.pop("role")
+        query = query.filter(User.role == role)
+
+    return paginated_results(User, query=query, **kwargs)
 
 
 def check_user_does_not_exist(username, email):
@@ -146,13 +174,19 @@ def activate_user(token):
     """Activate a user using the EmailAction id that was emailed to the user"""
     email_action = EmailAction.query.get(token)
     if not email_action:
+        # token not found
         raise exc.RecordNotFound("No such token ({})".format(token))
-    user = email_action.user
-    user.activate()
-    db.session.delete(email_action)
-    db.session.commit()
-    logging.info("user.activated")
-    return user
+    if email_action.actioned:
+        # account already activated
+        raise exc.InvalidAPIRequest("Your account has already been activated!")
+    else:
+        # activate user
+        user = email_action.user
+        user.activate()
+        email_action.actioned = True
+        db.session.commit()
+        logging.info("user.activated")
+        return user
 
 
 def confirm_update_email(token):
