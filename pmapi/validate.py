@@ -1,6 +1,8 @@
 from pmapi.exceptions import InvalidAPIRequest
 from uuid import UUID
 from flask import current_app
+from pmapi.utils import ROLES
+from pmapi.utils import ACCOUNT_STATUSES
 import re
 
 PASSWORD_LENGTH_MIN = 8
@@ -22,8 +24,21 @@ def username(username):
         raise InvalidAPIRequest(
             "Username may only contain lower case alphanumeric, '-', or '_'"
         )
-    if username.startswith("q_"):
-        raise InvalidAPIRequest("Usernames starting with 'q_' are reserved")
+
+    return True
+
+
+def role(role):
+    if not isinstance(role, int):
+        raise InvalidAPIRequest("Role must be a number")
+    if role not in list(ROLES.values()):
+        raise InvalidAPIRequest("Role does not exist")
+    return True
+
+
+def status(status):
+    if status not in ACCOUNT_STATUSES:
+        raise InvalidAPIRequest("Status is not valid")
     return True
 
 

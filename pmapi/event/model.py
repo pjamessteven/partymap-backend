@@ -91,7 +91,9 @@ class Event(db.Model):
         "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"
     )
 
-    event_dates = db.relationship("EventDate", back_populates="event")
+    event_dates = db.relationship(
+        "EventDate", back_populates="event", order_by="EventDate.start"
+    )
     event_tags = db.relationship(
         "EventTag", back_populates="event", order_by="EventTag.tag_id"
     )
@@ -184,10 +186,18 @@ class Event(db.Model):
         return None
 
     @property
+    def past_event_dates(self):
+        now = datetime.utcnow()
+        eds = db.session.query(EventDate)
+        eds = eds.filter(and_(EventDate.end < now, EventDate.event_id == self.id))
+        eds = eds.order_by(EventDate.start.asc())
+        return eds.all()
+
+    @property
     def future_event_dates(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()
 
@@ -195,7 +205,7 @@ class Event(db.Model):
     def future_event_dates_except_next(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()[1:]
 
@@ -203,7 +213,7 @@ class Event(db.Model):
     def next_event_date(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.start >= now, EventDate.event_id == self.id))
+        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.first()
 
@@ -214,7 +224,7 @@ class Event(db.Model):
         now = datetime.utcnow()
         return (
             select(EventDate)
-            .where(and_(EventDate.event_id == cls.id), EventDate.start >= now)
+            .where(and_(EventDate.event_id == cls.id), EventDate.end >= now)
             .first()
         )
 

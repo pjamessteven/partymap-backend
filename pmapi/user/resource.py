@@ -83,6 +83,8 @@ class UserResource(MethodResource):
             "email": fields.Email(required=False),
             "password": fields.Str(required=False),
             "password_confirm": fields.Str(required=False),
+            "role": fields.Int(required=False),
+            "status": fields.Str(require=False),
         }
     )
     @marshal_with(PrivateUserSchema(), code=200)
@@ -104,7 +106,7 @@ class UserResource(MethodResource):
 
 
 users_blueprint.add_url_rule(
-    "/<user_id>/", view_func=UserResource.as_view("UserResource")
+    "/<user_id>", view_func=UserResource.as_view("UserResource")
 )
 
 

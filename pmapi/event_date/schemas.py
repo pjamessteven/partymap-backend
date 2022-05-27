@@ -30,6 +30,16 @@ class EventDateSchema(Schema):
     artists = fields.Nested("EventDateArtistSchema", many=True)
 
 
+class MiniEventDateSchema(Schema):
+    id = fields.Integer()
+    event_id = fields.Integer()
+    start = fields.Str(attribute="start")
+    end = fields.Str(attribute="end")
+    start_naive = fields.Str(attribute="start_naive")
+    end_naive = fields.Str(attribute="end_naive")
+    tz = fields.Str()
+
+
 class EventDateVersionSchema(EventDateSchema):
     changeset = fields.Dict()
     previous = fields.Nested("EventDateVersionSchema", exclude=["previous"])

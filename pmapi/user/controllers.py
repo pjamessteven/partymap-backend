@@ -206,8 +206,14 @@ def edit_user(user_id, **kwargs):
     email = kwargs.pop("email", None)
     password = kwargs.pop("password", None)
     password_confirm = kwargs.pop("password_confirm", None)
+    role = kwargs.pop("role", None)
+    status = kwargs.pop("status", None)
 
     user = get_user_or_404(user_id)
+
+    if username or password:
+        # check username doesn't exist
+        check_user_does_not_exist(username, email)
 
     if username:
         validate.username(username)
@@ -222,12 +228,30 @@ def edit_user(user_id, **kwargs):
     if email:
         validate.email(email)
         check_email_not_registered(email)
-        # send verification email to user
-        # save new email address as extra data so it can be retrieved at vfcation
-        email_action = EmailAction(user=user, action="email_verify", extra_data=email)
-        db.session.add(email_action)
-        db.session.commit()
-        send_change_email_address_email(user, email_action.id)
+        if current_user.role < ROLES["STAFF"]:
+            # send verification email to user
+            email_action = EmailAction(
+                user=user, action="email_verify", extra_data=email
+            )
+            db.session.add(email_action)
+            db.session.commit()
+            send_change_email_address_email(user, email_action.id)
+        else:
+            # staff users can update email addresses without verification
+            user.email = email
+
+    if role:
+        role = int(role)
+        if current_user.role < ROLES["ADMIN"]:
+            raise exc.InvalidPermissions("Only admin can update user role")
+        validate.role(role)
+        user.role = role
+
+    if status:
+        if current_user.role < ROLES["STAFF"]:
+            raise exc.InvalidPermissions("Only staff can update user status")
+        validate.status(status)
+        user.status = status
 
     db.session.commit()
     return user

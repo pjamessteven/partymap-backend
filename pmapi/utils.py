@@ -3,6 +3,8 @@ import string
 
 ROLES = {"UNPRIVILIGED_USER": 0, "HOST": 10, "STAFF": 20, "ADMIN": 30}
 
+ACCOUNT_STATUSES = ["active", "disabled", "pending"]
+
 chars = string.ascii_letters + string.digits
 
 
