@@ -11,6 +11,7 @@ from sqlalchemy.orm import with_expression
 from pmapi.event_date.model import EventDate
 from pmapi.user.model import User
 import pmapi.user.controllers as users
+import pmapi.event_artist.controllers as artists
 import pmapi.event_tag.controllers as event_tags
 import pmapi.media_item.controllers as media_items
 import pmapi.event_date.controllers as event_dates
@@ -53,13 +54,22 @@ def get_suggested_edits(**kwargs):
 
 
 def add_suggested_edit(
-    event_id, action, object_type=None, event_date_id=None, **kwargs
+    action,
+    object_type=None,
+    event_date_id=None,
+    event_id=None,
+    artist_id=None,
+    **kwargs
 ):
-    print("ED ID", event_date_id)
-    # check that event and event_date both exist
-    events.get_event_or_404(event_id)
+    # check target object exists
+    if not event_id or not artist_id or not event_date_id:
+        raise exc.InvalidAPIRequest("Suggestion must have a target")
+    if event_id:
+        events.get_event_or_404(event_id)
     if event_date_id:
         event_dates.get_event_date_or_404(event_date_id)
+    if artist_id:
+        artists.get_artist_or_404(artist_id)
 
     message = kwargs.pop("message", None)
 
@@ -69,6 +79,7 @@ def add_suggested_edit(
 
     suggested_edit = SuggestedEdit(
         event_id=event_id,
+        artist_id=artist_id,
         event_date_id=event_date_id,
         action=action,
         object_type=object_type,
@@ -120,10 +131,16 @@ def update_suggested_edit(id, **kwargs):
                     suggestion.event_id, is_suggestion=True, **suggestion.kwargs
                 )
 
+            elif suggestion.object_type == "Artist":
+                artists.update_artist(suggestion.artist_id, **suggestion.kwargs)
+
         if suggestion.action == "delete":
             if suggestion.object_type == "EventDate":
                 # create event date
                 event_dates.delete_event_date(suggestion.event_date_id)
+
+            elif suggestion.object_type == "Artist":
+                artists.delete_artist(suggestion.artist_id, **suggestion.kwargs)
 
         suggestion.status = "approved"
         suggestion.approved_at = datetime.utcnow()

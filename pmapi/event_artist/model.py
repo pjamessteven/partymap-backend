@@ -33,13 +33,23 @@ class Artist(db.Model):
     )
 
     @property
-    def event_dates(self):
+    def future_event_dates(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate).join(EventDateArtist)
         eds = eds.filter(
-            and_(EventDate.start >= now, EventDateArtist.artist_id == self.id)
+            and_(EventDate.end >= now, EventDateArtist.artist_id == self.id)
         )
         eds = eds.order_by(EventDate.start_naive.asc())
+        return eds.all()
+
+    @property
+    def past_event_dates(self):
+        now = datetime.utcnow()
+        eds = db.session.query(EventDate).join(EventDateArtist)
+        eds = eds.filter(
+            and_(EventDate.end < now, EventDateArtist.artist_id == self.id)
+        )
+        eds = eds.order_by(EventDate.start_naive.desc())
         return eds.all()
 
     @hybrid_property

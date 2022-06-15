@@ -14,13 +14,18 @@ class ArtistSchema(Schema):
     urls = fields.Nested("ArtistUrlSchema", many=True)
     tags = fields.Nested("ArtistTagSchema", many=True, attribute="artist_tags")
     # events_with_tag?
-    event_dates = fields.Nested("EventDateSchema", many=True, exclude=["artists"])
+    future_event_dates = fields.Nested(
+        "EventDateSchema", many=True, exclude=["artists"]
+    )
+    past_event_dates = fields.Nested("EventDateSchema", many=True, exclude=["artists"])
     event_count = fields.Int()
     media_items = fields.Nested("MediaItemSchema", many=True)
 
 
 class ArtistListSchema(PaginatedSchema):
-    items = fields.Nested(ArtistSchema, many=True, exclude=["event_dates"])
+    items = fields.Nested(
+        ArtistSchema, many=True, exclude=["future_event_dates", "past_event_dates"]
+    )
 
 
 class ArtistUrlSchema(Schema):

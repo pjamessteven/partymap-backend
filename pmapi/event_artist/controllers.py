@@ -18,10 +18,12 @@ from pmapi.event_location.model import EventLocation
 import logging
 import difflib
 from pmapi.config import BaseConfig
+from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 from pmapi.common.controllers import paginated_results
 import pmapi.media_item.controllers as media_items
 import pmapi.tasks as tasks
+import pmapi.suggestions.controllers as suggestions
 
 Activity = activity_plugin.activity_cls
 
@@ -43,7 +45,7 @@ def get_artist(id):
 def get_artists(**kwargs):
 
     query = db.session.query(Artist)
-
+    print("test")
     if "date_min" in kwargs:
         query = query.join(EventDateArtist).join(EventDate)
         query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
@@ -122,7 +124,80 @@ def remove_artists_from_date(event_date, ed_artists):
     return
 
 
-def update_artists(event_date, artists):
+def update_artist(id, **kwargs):
+    creator = kwargs.pop("creator", None)
+
+    artist = get_artist_or_404(id)
+
+    urls_to_add = kwargs.get("add_urls", None)
+    urls_to_remove = kwargs.get("remove_urls", None)
+    tags_to_add = kwargs.get("add_tags", None)
+    tags_to_remove = kwargs.get("remove_tags", None)
+    media_items = kwargs.get("media_items", None)
+
+    for key, value in kwargs.items():
+        # update basic values
+        if hasattr(artist, key):
+            setattr(artist, key, value)
+
+    if urls_to_add:
+        for url in urls_to_add:
+            add_artist_url(url.get("url"), url.get("type"), artist)
+
+    if urls_to_remove:
+        for url_id in urls_to_remove:
+            delete_artist_url(url_id)
+
+    if tags_to_add:
+        add_tags_to_artist(tags_to_add, artist)
+
+    if tags_to_remove:
+        remove_tags_from_artist(tags_to_remove, artist)
+
+    if media_items:
+        media_items.add_media_to_artist(media_items, artist, creator=creator)
+
+    db.session.flush()
+    activity = Activity(verb=u"update", object=artist, target=artist)
+    db.session.add(activity)
+    db.session.commit()
+    return artist
+
+
+def suggest_update(id, **kwargs):
+    # used by unpriviliged users to suggest updates
+    token = kwargs.pop("hcaptcha_token", None)
+    artist = get_artist_or_404(id)
+    if not current_user.is_authenticated:
+        if not validate_hcaptcha(token):
+            raise exc.InvalidAPIRequest("HCaptcha not valid")
+
+    return suggestions.add_suggested_edit(
+        action="update",
+        artist_id=artist.id,
+        creator_id=current_user.get_id(),
+        object_type="Artist",
+        **kwargs
+    )
+
+
+def suggest_delete(id, **kwargs):
+    # used by unpriviliged users to suggest updates
+    token = kwargs.pop("hcaptcha_token", None)
+    artist = get_artist_or_404(id)
+    if not current_user.is_authenticated:
+        if not validate_hcaptcha(token):
+            raise exc.InvalidAPIRequest("HCaptcha not valid")
+
+    return suggestions.add_suggested_edit(
+        action="delete",
+        artist_id=artist.id,
+        creator_id=current_user.get_id(),
+        object_type="Artist",
+    )
+
+
+def update_artists_of_date(event_date, artists):
     for artist in artists:
         existing_record = (
             db.session.query(EventDateArtist)
@@ -130,6 +205,7 @@ def update_artists(event_date, artists):
             .first()
         )
         if existing_record:
+
             start_naive = artist.get("start_naive", None)
             if start_naive is not None:
                 # get timezone of event_date
@@ -432,7 +508,7 @@ def refresh_spotify_data_for_artist(artist):
             # save url
             url = spotify_artist.get("external_urls", {}).get("spotify", None)
             if url:
-                add_url_to_artist(url, "spotify", artist)
+                add_artist_url(url, "spotify", artist)
 
             # save popularity
             artist.popularity = spotify_artist.get("popularity", 0)
@@ -605,6 +681,24 @@ def add_tags_to_artist(tags, artist):
     return tags
 
 
+def remove_tags_from_artist(tags, artist):
+    for t in tags:
+        existing_tag = (
+            db.session.query(ArtistTag)
+            .filter(and_(ArtistTag.tag_id == t, ArtistTag.artist_id == artist.id))
+            .first()
+        )
+        # check if artist already has tag
+        if existing_tag:
+            db.session.delete(existing_tag)
+            # add activity
+            db.session.flush()
+            activity = Activity(verb=u"delete", object=existing_tag, target=artist)
+            db.session.add(activity)
+
+    return
+
+
 def add_musicbrainz_urls_to_artist(relations, artist):
     # process artist URLs
     for relation in relations:
@@ -636,7 +730,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
                         save_artist_image_from_wikimedia_url(url, artist)
 
             if artist_url is None:
-                add_url_to_artist(url, type, artist)
+                add_artist_url(url, type, artist)
         else:
             artist_url.artist = artist
 
@@ -644,7 +738,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
     return artist
 
 
-def add_url_to_artist(url, type, artist):
+def add_artist_url(url, type, artist):
     # need to check twice because of artist image url
     artist_url = ArtistUrl(
         artist=artist,
@@ -652,8 +746,46 @@ def add_url_to_artist(url, type, artist):
         type=type,
     )
     db.session.add(artist_url)
+    # activity
+    activity = Activity(verb=u"create", object=artist_url, target=artist)
+    db.session.add(activity)
+
     db.session.flush()
     return artist_url
+
+
+def delete_artist_url(id):
+    url = ArtistUrl.query.get(id)
+    artist = get_artist_by_id(url.artist_id)
+    if url is not None:
+        db.session.delete(url)
+        db.session.flush()
+        # activity
+        activity = Activity(verb=u"delete", object=url, target=artist)
+        db.session.add(activity)
+
+    db.session.flush()
+
+
+def delete_artist(id):
+    artist = get_artist_or_404(id)
+    if artist.artist_tags:
+        for tag in artist.artist_tags:
+            db.session.delete(tag)
+    if artist.artist_urls:
+        for url in artist.artist_urls:
+            db.session.delete(url)
+    if artist.suggestions:
+        for suggestion in artist.suggestions:
+            db.session.delete(suggestion)
+    if artist.media_items:
+        for media_item in artist.media_items:
+            db.session.delete(media_item)
+    db.session.flush()
+
+    db.session.delete(artist)
+    db.session.commit()
+    db.session.flush()
 
 
 def refresh_info(id):

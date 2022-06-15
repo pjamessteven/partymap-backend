@@ -335,14 +335,13 @@ def update_event_date(id, **kwargs):
         event_artists.add_artists_to_date(event_date, kwargs.pop("add_artists"))
 
     if "update_artists" in kwargs:
-        event_artists.update_artists(event_date, kwargs.pop("update_artists"))
+        event_artists.update_artists_of_date(event_date, kwargs.pop("update_artists"))
 
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event_date.event.updated_at = datetime.utcnow()
 
     db.session.flush()
-    # had to abandon sqlalchemy-continuum because it requires big integer ID types
     activity = Activity(verb=u"update", object=event_date, target=event_date.event)
     db.session.add(activity)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
@@ -715,7 +714,7 @@ def query_event_dates(**kwargs):
     query = query.filter(Event.hidden == False)  # ignore linter warning here
 
     if kwargs.get("date_min", None) is not None:
-        query = query.filter(EventDate.start >= kwargs.pop("date_min"))
+        query = query.filter(EventDate.end >= kwargs.pop("date_min"))
     if kwargs.get("date_max", None) is not None:
         date_max = kwargs.pop("date_max")
         query = query.filter(
