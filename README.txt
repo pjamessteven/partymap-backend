@@ -1,35 +1,92 @@
-Celery requires rabbitmq
+How to run the PartyMap Flask backend (PMAPI) on Mac or Linux:
 
-Video converter requires ffmpeg and ffprobe
 
+SETUP YOUR LOCAL ENVIRONMENT
+
+Install prerequisite dependencies:
+
+>sudo apt install python3, python3-pip, postgresql, qt5-default
+
+If you get and3
+
+1) Set up the database
+
+First you need to install Postgres. 
+>sudo apt install postgresql (or for Mac: https://www.postgresql.org/download/macosx/)
+
+Create a database with the command:
+>sudo su - postgres -c "createdb partymap"
+
+Then you need to add the postgis extension which PartyMap uses to calculate distances to events on the fly
+>sudo su - postgres // login as postgres user
+>psql -d partymap // connect to database
+>CREATE EXTENSION postgis; // add postgis extension
+>\q // exit postgres console
+>su 'your username' // switch users back to your main user
+
+You might need do also run this command in the Postgres console..
+ALTER TABLE spatial_ref_sys OWNER TO <your-username>;
+
+2) Enter the venv
+
+If you're not familiar with python development, virtual environments (venv) are often used to seperate local dependency packages from global/system python packages. 
+This way you can be sure that you have the correct version of all the dependencies installed, and that they won't interfere with other programs on your computer. 
+There is already a venv in this project, you can enter into it using the source command:
+
+>source env/bin/activate
+
+3) Install python project dependencies into your virtual environment
+
+>pip3 install -R requirements.txt 
+
+4) Create database tables
+
+>python3 manage.py db upgrade
+
+
+
+RUNNING PMAPI OMCE YOU'RE ALL SET UP
+
+1) Enter your venv if you're not already in it
+>source venv/bin/activate
+
+2) Set debug environment variable (so PMAPI knows it's running locally)
+>export FLASK_DEBUG=1
+
+2) Run celery
+
+PartyMap uses celery for some tasks that can happen asynchronously, at the moment for converting video in the background (uploading video is possible!) 
+and refreshing artist profiles with information from last.fm and spotify. If these tasks weren't handed off to a-synchronous worker threads (which is what celery does)
+it would make some operations really slow. An example of this would be if someone adds an event where there's a huge lineup and none of the artists are already in the DB, so PMAPI does a lookup on last.fm and spotify for 
+every artist. This would take a lot of time and the end-user would be staring at a loading indicator for ages, when these things are really not that important, they can be done 'later' using celery. 
+
+>celery -A pmapi.tasks worker (& to run in background)  
+
+3) Run rabbitmq
+
+Rabbitmq is used by celery for the main application thread to be able to talk to the celery worker threads. 
+
+>sudo rabbitmq-server -detached
+
+4) Run PMAPI
+
+>python3 manage.py runserver
+
+
+git+http://git.example.com/MyProject#egg=MyProject
+git+https://github.com/ashcrow/flask-track-usage@629ad1c#egg=Flask-Track-Usage
+
+Additional Notes: 
+
+
+-Video converting requires ffmpeg and ffprobe to be installed.
+
+UWSGI command for production:
+(Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
 
 Recreate database:
 sudo su - postgres -c "dropdb partymap"
 sudo su - postgres -c "createdb partymap"
-
-Connect to database:
-sudo su - postgres // login as root
 psql -d partymap // connect to database
 CREATE EXTENSION postgis; // add postgis extension
-
-Might need this..
-ALTER TABLE spatial_ref_sys OWNER TO pete;
-
-For runtime:
-
-Run rabbitmq server: 
-
-sudo rabbitmq-server -detached
-
-Run celery worker (in venv):
-celery -A pmapi.tasks worker (& to run in background)  
-
-UWSGI command:
-(Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
-
-FLASK USAGE TABLE NEEDS FIXING ON DEPLOY
-	- URL field length and various other fields
-
-export FLASK_DEBUG=1 for dev
-
-
+python3 manage.py db init
