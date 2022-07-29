@@ -44,7 +44,6 @@ class EventsResource(MethodResource):
             "hidden": fields.Boolean(required=False),
             **paginated_view_args(sort_options=["created_at", "name", "id"]),
         },
-        location="query",
     )
     @marshal_with(EventListSchema(), code=200)
     def get(self, **kwargs):
@@ -185,7 +184,6 @@ class EventActivityResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query",
     )
     @marshal_with(ActivityListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -206,7 +204,6 @@ class EventVersionsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query",
     )
     @marshal_with(EventVersionListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -229,7 +226,6 @@ class EventContributorsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query",
     )
     @marshal_with(ContributorListSchema(), code=200)
     def get(self, event_id, **kwargs):

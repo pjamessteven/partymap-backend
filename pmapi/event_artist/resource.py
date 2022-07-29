@@ -146,7 +146,6 @@ class ArtistsResource(MethodResource):
                 sort_options=["event_count", "created_at", "name", "popularity", "id"]
             ),
         },
-        location="query",
     )
     @marshal_with(ArtistListSchema(), code=200)
     def get(self, **kwargs):

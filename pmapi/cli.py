@@ -21,7 +21,7 @@ def seed_db():
 
 app.cli.add_command(seed_db)
 
-
+# CURRENTLY UNUSED
 def _seed_db():
     """Seed the db with admin account and anon account"""
     from pmapi.user.models import User
@@ -40,7 +40,7 @@ def _seed_db():
 
     anon = User(
         id=anon_id,
-        username="anonymous",
+        username="anon",
         email="anon@partymap.com",
         role=0,
         status="active",

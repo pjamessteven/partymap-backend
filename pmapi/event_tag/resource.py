@@ -25,7 +25,6 @@ class TagsResource(MethodResource):
             "location": fields.Str(),
             **paginated_view_args(sort_options=["count", "created_at"]),
         },
-        location="query",
     )
     @marshal_with(TagListSchema(), code=200)
     def get(self, **kwargs):

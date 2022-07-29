@@ -51,7 +51,6 @@ class DatesResource(MethodResource):
             "distinct": fields.Boolean(),
             **paginated_view_args(sort_options=["created_at"]),
         },
-        location="query",
     )
     @marshal_with(EventDateQueryListSchema(), code=200)
     def get(self, **kwargs):

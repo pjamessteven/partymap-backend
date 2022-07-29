@@ -25,7 +25,6 @@ class SearchResource(MethodResource):
         {
             "query": fields.String(required=False, allow_none=True),
         },
-        location="query",
     )
     @marshal_with(SearchSchema(), code=200)
     def get(self, **kwargs):

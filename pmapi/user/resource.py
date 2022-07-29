@@ -49,7 +49,6 @@ class UsersResource(MethodResource):
             ),
             **paginated_view_args(sort_options=["username", "created_at"]),
         },
-        location="query",
     )
     @marshal_with(UserListSchema(), code=200)
     @user_permissions.get_users

@@ -4,29 +4,72 @@ manage.py
   application to perform interactive debugging and setup
 """
 
-from flask_script import Manager
+from flask_script import Manager, Command
 from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag
-
+from flask.cli import FlaskGroup
 # from utils.populate_db import Populate
 # from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
 from pmapi.extensions import db
 from pmapi.config import ProdConfig, DevConfig
-
+from pmapi.utils import ROLES
+from seed_db import SeedTestDb
 # export FLASK_DEBUG=1 for dev
 CONFIG = DevConfig if get_debug_flag() else ProdConfig
 
 app = create_app(CONFIG)
-
+cli = FlaskGroup(app)
 migrate = Migrate(app, db)
 manager = Manager(app)
 
 # provide a migration utility command
 manager.add_command("db", MigrateCommand)
+
 # manager.add_command("populate", Populate)
 # manager.add_command("cluster", ClusterEventLocations)
+class CreateDb(Command):
+    def run(self):
+        db.create_all()
+        db.session.commit()
 
+class CreateUsers(Command):
+    def run(self):
+        from pmapi.user.model import User
+        anon = User(
+            username="anon",
+            email="anon@partymap.com",
+            status="active",
+            id=CONFIG.ANON_USER_ID,
+        )
+        system = User(
+            username="partymap-bot",
+            email="info@partymap.com",
+            status="active",
+            id=CONFIG.SYSTEM_USER_ID,
+        )
+        admin = User(
+            username="admin",
+            email="admin@partymap.com",
+            status="active",
+            role=ROLES["ADMIN"]
+        )
+        admin.set_password('password')
+        db.session.add(anon)
+        db.session.add(system)
+        db.session.add(admin)
+        db.session.commit()
+
+# seed database with prod db snapshot (july 2022)
+# so that we can have some real events, artists and tags 
+# to test with 
+
+   
+
+
+manager.add_command("create_db", CreateDb)
+manager.add_command("create_users", CreateUsers)
+manager.add_command("seed_test_db", SeedTestDb)
 
 # enable python shell with application context
 @manager.shell
