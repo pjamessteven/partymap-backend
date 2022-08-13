@@ -116,3 +116,4 @@ webargs==8.0.0
 Werkzeug==1.0.1
 WTForms==2.3.3
 zipp==3.6.0
+pexpect==4.8.0

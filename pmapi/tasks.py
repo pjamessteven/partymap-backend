@@ -1,7 +1,7 @@
+from flask.helpers import get_debug_flag
 import logging
 from celery import Celery
 from pmapi.extensions import mail
-from pmapi.config import BaseConfig as CONFIG
 from ffmpy import FFmpeg
 import pmapi.event_artist.controllers as artists
 import pmapi.application as application
@@ -9,6 +9,9 @@ from flask.helpers import get_debug_flag
 from .config import DevConfig
 from .config import ProdConfig
 from requests.exceptions import RequestException
+
+DEV_ENVIRON = get_debug_flag()
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
 celery = Celery(
     __name__,

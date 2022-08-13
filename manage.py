@@ -8,6 +8,7 @@ from flask_script import Manager, Command
 from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag
 from flask.cli import FlaskGroup
+from sqlalchemy import exc
 # from utils.populate_db import Populate
 # from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
@@ -35,30 +36,36 @@ class CreateDb(Command):
 
 class CreateUsers(Command):
     def run(self):
+        print("Creating users...")
         from pmapi.user.model import User
-        anon = User(
-            username="anon",
-            email="anon@partymap.com",
-            status="active",
-            id=CONFIG.ANON_USER_ID,
-        )
-        system = User(
-            username="partymap-bot",
-            email="info@partymap.com",
-            status="active",
-            id=CONFIG.SYSTEM_USER_ID,
-        )
-        admin = User(
-            username="admin",
-            email="admin@partymap.com",
-            status="active",
-            role=ROLES["ADMIN"]
-        )
-        admin.set_password('password')
-        db.session.add(anon)
-        db.session.add(system)
-        db.session.add(admin)
-        db.session.commit()
+        try:
+            anon = User(
+                username="anon",
+                email="anon@partymap.com",
+                status="active",
+                id=CONFIG.ANON_USER_ID,
+            )
+            system = User(
+                username="partymap-bot",
+                email="info@partymap.com",
+                status="active",
+                id=CONFIG.SYSTEM_USER_ID,
+            )
+            admin = User(
+                username="admin",
+                email="admin@partymap.com",
+                status="active",
+                role=ROLES["ADMIN"]
+            )
+            admin.set_password('password')
+            db.session.add(anon)
+            db.session.add(system)
+            db.session.add(admin)
+            db.session.commit()
+            print("Created users: ",  anon, system, admin)
+        except exc.SQLAlchemyError:
+            print("There was en error creating users, perhaps they already exist.")
+
 
 # seed database with prod db snapshot (july 2022)
 # so that we can have some real events, artists and tags 

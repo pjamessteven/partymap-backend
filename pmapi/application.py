@@ -6,7 +6,7 @@ application.py
 from flask import Flask, session
 from flask_cors import cross_origin
 from flask.helpers import get_debug_flag
-
+import psycopg2
 # from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 # from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
 # from sqlalchemy_continuum import make_versioned
@@ -66,13 +66,16 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     register_docs(app)
     print('MEDIA UPLOAD FOLDER', CONFIG.MEDIA_UPLOAD_FOLDER)
 
+    """
     def Test2(rootDir): 
         for lists in os.listdir(rootDir): 
             path = os.path.join(rootDir, lists) 
             print(path)
             if os.path.isdir(path): 
                 Test2(path)
+
     Test2(CONFIG.MEDIA_UPLOAD_FOLDER)
+    """
     @app.before_request
     def update_last_active():
         if current_user and current_user.is_authenticated:
@@ -132,7 +135,11 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
 
 def register_extensions(app):
     extensions.cache.init_app(app)
-    extensions.db.init_app(app)
+    try:
+        extensions.db.init_app(app)
+    except:
+        print("Error initiating db extension")
+        pass
     extensions.admin.init_app(app)
     extensions.lm.init_app(app)
     extensions.cors.init_app(app)
@@ -140,13 +147,16 @@ def register_extensions(app):
     extensions.apidocs.init_app(app)
     extensions.configure_celery(app, extensions.celery)
     with app.app_context():
-        extensions.tracker.init_app(
-            app,
-            [
-                SQLStorage(db=db),
-            ],
-        )
-
+        try:
+            extensions.tracker.init_app(
+                app,
+                [
+                    SQLStorage(db=db),
+                ],
+            )
+        except:
+            print("Error initiating tracker, likely due to db problem.")
+            pass
 
 def register_blueprints(app):
     from pmapi.auth.oauth_resource import oauth_blueprint
