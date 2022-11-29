@@ -51,12 +51,16 @@ class DatesResource(MethodResource):
             "distinct": fields.Boolean(),
             **paginated_view_args(sort_options=["created_at"]),
         },
+        location="query"
     )
     @marshal_with(EventDateQueryListSchema(), code=200)
     def get(self, **kwargs):
         # get json from query string
+        print(kwargs)
         if kwargs.get("location"):
             kwargs["location"] = json.loads(kwargs["location"])
+            print(kwargs['location'])
+
         if kwargs.get("bounds"):
             kwargs["bounds"] = json.loads(kwargs["bounds"])
         return event_dates.query_event_dates(**kwargs)
@@ -201,7 +205,8 @@ class EventDateSuggestAddResource(MethodResource):
 
 event_dates_blueprint.add_url_rule(
     "/event/<event_id>/suggest",
-    view_func=EventDateSuggestAddResource.as_view("EventDateSuggestAddResource"),
+    view_func=EventDateSuggestAddResource.as_view(
+        "EventDateSuggestAddResource"),
 )
 
 

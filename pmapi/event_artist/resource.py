@@ -42,7 +42,8 @@ class ArtistResource(MethodResource):
             "add_urls": fields.List(fields.Dict(), required=False, allow_none=True),
             "remove_urls": fields.List(fields.Str(), required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
-        }
+        },
+        location="query"
     )
     @marshal_with(ArtistSchema(), code=200)
     @login_required
@@ -142,15 +143,22 @@ class ArtistsResource(MethodResource):
             "date_max": fields.DateTime(required=False),
             "radius": fields.Int(),
             "location": fields.Str(),
+            "bounds": fields.Str(),
             **paginated_view_args(
-                sort_options=["event_count", "created_at", "name", "popularity", "id"]
+                sort_options=["event_count", "created_at",
+                              "name", "popularity", "id"]
             ),
         },
+        location="query"
     )
     @marshal_with(ArtistListSchema(), code=200)
     def get(self, **kwargs):
+        # get json from query string
         if kwargs.get("location"):
             kwargs["location"] = json.loads(kwargs["location"])
+        if kwargs.get("bounds"):
+            kwargs["bounds"] = json.loads(kwargs["bounds"])
+
         return artists.get_artists(**kwargs)
 
 

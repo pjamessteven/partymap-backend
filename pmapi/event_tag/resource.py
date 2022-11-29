@@ -25,6 +25,7 @@ class TagsResource(MethodResource):
             "location": fields.Str(),
             **paginated_view_args(sort_options=["count", "created_at"]),
         },
+        location="query"
     )
     @marshal_with(TagListSchema(), code=200)
     def get(self, **kwargs):
@@ -33,4 +34,5 @@ class TagsResource(MethodResource):
         return event_tags.get_event_tags(**kwargs)
 
 
-event_tags_blueprint.add_url_rule("/", view_func=TagsResource.as_view("TagsResource"))
+event_tags_blueprint.add_url_rule(
+    "/", view_func=TagsResource.as_view("TagsResource"))

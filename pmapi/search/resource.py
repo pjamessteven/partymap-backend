@@ -25,10 +25,12 @@ class SearchResource(MethodResource):
         {
             "query": fields.String(required=False, allow_none=True),
         },
+        location="query"
     )
     @marshal_with(SearchSchema(), code=200)
     def get(self, **kwargs):
         return search.search(kwargs.pop("query"))
 
 
-search_blueprint.add_url_rule("/", view_func=SearchResource.as_view("SearchResource"))
+search_blueprint.add_url_rule(
+    "/", view_func=SearchResource.as_view("SearchResource"))

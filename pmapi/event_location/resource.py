@@ -31,6 +31,7 @@ class LocationsResource(MethodResource):
             "tags": fields.List(fields.Str(), required=False),
             **paginated_view_args(sort_options=["created_at"]),
         },
+        location="query"
     )
     @marshal_with(LocationListSchema(), code=200)
     def get(self, **kwargs):
@@ -82,6 +83,7 @@ class PointsResource(MethodResource):
             "size_options": fields.List(fields.String(), required=False),
             "query": fields.Str(),
         },
+        location="query"
     )
     @marshal_with(PointSchema(many=True), code=200)
     def get(self, **kwargs):

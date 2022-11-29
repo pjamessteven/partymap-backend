@@ -50,6 +50,7 @@ class ActivitiesOfTransactionResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
+        location="query"
     )
     @marshal_with(ActivityListSchema(), code=200)
     def get(self, transaction_id, **kwargs):

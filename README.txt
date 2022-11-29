@@ -1,92 +1,122 @@
 How to run the PartyMap Flask backend (PMAPI) on Mac or Linux:
 
 
-SETUP YOUR LOCAL ENVIRONMENT
+Overview:
+_____________________________________________________________________________
 
-Install prerequisite dependencies:
+I dockerized PMAPI because it has dependencies like rabbitmq, celery and postgres that can take a while to set up. 
+Docker makes it possible to automate the creation of virtual machines (services) that are set up the same every time according to a script. 
+The file docker-compose.yml contains the definitions for each of the creation and configuration of the four services that make up PMAPI. 
+These services all talk to each other over a virtual network. The hostname of each machine or 'service' on the network is simply the name of the service as defined in docker-copmose.yml.
 
->sudo apt install python3, python3-pip, postgresql, qt5-default
+These containers are:
 
-If you get and3
+'web': 		This is the main container which contains and runs the Python Flask application. The base is Debian 11 'Bullseye'.
+		When docker builds this image, it follows the script in the file named 'Dockerfile'.
+		This script uses apt to install some system packages that are dependencies of the project. 
+		It also installs all of the 3rd party Python packages defined in requirements.txt.
+		Environment variables (mostly used by the flask app, see config.py) are defined in the file .env.dev
+		You will need to rebuild this image if you add or change any environment variables. 
 
-1) Set up the database
+'db': 		This is the Postgresql database configured with the Postgis extension (for geo features like getting distances between two points extremely fast with a SQL query). 
+		This image is based on Alpine Linux (a very minimal distro). 
+		When first built, the image creates a database with the name and password defined in the environment variables. 
 
-First you need to install Postgres. 
->sudo apt install postgresql (or for Mac: https://www.postgresql.org/download/macosx/)
+'rabbit': 	Rabbitmq is used as a message broker between the main PMAPI Flask thread and additional worker threads (using celery). These celery workers 
+		are used so we can hand over heavy or a-synchronous work to another thread while the main Flask thread continues and returns a response. 
+		For example, celery is used when we add an event, to handle getting the information for each artist in the lineup if it doesn't already exist
+		in the database. If we didn't hand it off to another worker thread using celery then the user would be staring at a loading spinner for wayyy
+		too long and wonder wtf is going if we hold up the main thread with work that takes a lot of time and could be done async.
 
-Create a database with the command:
->sudo su - postgres -c "createdb partymap"
-
-Then you need to add the postgis extension which PartyMap uses to calculate distances to events on the fly
->sudo su - postgres // login as postgres user
->psql -d partymap // connect to database
->CREATE EXTENSION postgis; // add postgis extension
->\q // exit postgres console
->su 'your username' // switch users back to your main user
-
-You might need do also run this command in the Postgres console..
-ALTER TABLE spatial_ref_sys OWNER TO <your-username>;
-
-2) Enter the venv
-
-If you're not familiar with python development, virtual environments (venv) are often used to seperate local dependency packages from global/system python packages. 
-This way you can be sure that you have the correct version of all the dependencies installed, and that they won't interfere with other programs on your computer. 
-There is already a venv in this project, you can enter into it using the source command:
-
->source env/bin/activate
-
-3) Install python project dependencies into your virtual environment
-
->pip3 install -R requirements.txt 
-
-4) Create database tables
-
->python3 manage.py db upgrade
+'worker_1':	A celery worker that waits for asynchronous work and then does it 'in the background'. Explained above.  This uses the same Debian container created by the 'web' service. 
 
 
+Initial install: 
+_____________________________________________________________________________
 
-RUNNING PMAPI OMCE YOU'RE ALL SET UP
+1) Make sure you have Docker and Docker Compose installed on your system!
 
-1) Enter your venv if you're not already in it
->source venv/bin/activate
+2) Navigate to the project root
+> cd ~/wherever/the/project/is/partymap-backend
 
-2) Set debug environment variable (so PMAPI knows it's running locally)
->export FLASK_DEBUG=1
+3) Pull images
+> docker compose pull
 
-2) Run celery
+4) Build images
+> docker compose build
 
-PartyMap uses celery for some tasks that can happen asynchronously, at the moment for converting video in the background (uploading video is possible!) 
-and refreshing artist profiles with information from last.fm and spotify. If these tasks weren't handed off to a-synchronous worker threads (which is what celery does)
-it would make some operations really slow. An example of this would be if someone adds an event where there's a huge lineup and none of the artists are already in the DB, so PMAPI does a lookup on last.fm and spotify for 
-every artist. This would take a lot of time and the end-user would be staring at a loading indicator for ages, when these things are really not that important, they can be done 'later' using celery. 
+5) Run containers
+> docker compose up
 
->celery -A pmapi.tasks worker (& to run in background)  
+6) 	A) If you want to your database prepopulated with events from a partymap.com snapshot
+		> docker compose exec web python3 manage.py seed_db
 
-3) Run rabbitmq
+	B) If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
+		> docker compose exec web python3 manage.py create_users
 
-Rabbitmq is used by celery for the main application thread to be able to talk to the celery worker threads. 
-
->sudo rabbitmq-server -detached
-
-4) Run PMAPI
-
->python3 manage.py runserver
+7) That should be it! You should now be able to access the api from your local environment at localhost:5000
 
 
-git+http://git.example.com/MyProject#egg=MyProject
-git+https://github.com/ashcrow/flask-track-usage@629ad1c#egg=Flask-Track-Usage
 
-Additional Notes: 
+Subsequent runs: 
+_____________________________________________________________________________
+
+> docker compose up
 
 
--Video converting requires ffmpeg and ffprobe to be installed.
+
+Handy commands:
+_____________________________________________________________________________
+
+Completely destroy database:
+> docker compose exec db dropdb -U partymap -f partymap
+
+Create empty database:
+> docker compose exec db createdb -U partymap partymap
+
+Make a new database migration:
+> docker compose exec web python3 manage.py db migrate
+	
+Upgrade to the latest database migration:
+> docker compose exec web python3 manage.py db upgrade
+
+Adjust SQLAlchemy tables (do this after recreating the database)
+> docker compose exec web ./adjust_sqlalchemy_tables.sh
+
+Seed database with production snapshot:
+> docker compose exec web python3 manage.py seed_test_db
+
+Access bash within the main 'web' container:
+> docker compose exec -it web /bin/bash
+
+Send any command to a container:
+> docker compose exec [container name] [command]
+
+
+Tips related to the production environment:
+_____________________________________________________________________________
+
+How to backup the production Postgresql DB:
+1) Login to prod machine or other environment via ssh
+2) Switch to the postgres user
+> sudo su - postgres
+3)
+ > psql 
+4)> Dump
+
+How to restore a backup (in docker container)
+1) Open a shell for the web service
+2) Run: psql -h db -U partymap -p 5432 partymap < snapshot_prod_23_7_22/partymap_23_jul_22.sql
+3) Move static folder to root (for media)
+
 
 UWSGI command for production:
 (Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
 
-Recreate database:
-sudo su - postgres -c "dropdb partymap"
-sudo su - postgres -c "createdb partymap"
-psql -d partymap // connect to database
-CREATE EXTENSION postgis; // add postgis extension
-python3 manage.py db init
+_______________________________________________________________________________
+
+
+Additional Notes: 
+
+-Video converting requires ffmpeg and ffprobe to be installed.
+

@@ -49,6 +49,7 @@ class UsersResource(MethodResource):
             ),
             **paginated_view_args(sort_options=["username", "created_at"]),
         },
+        location="query"
     )
     @marshal_with(UserListSchema(), code=200)
     @user_permissions.get_users
@@ -70,7 +71,8 @@ class UsersResource(MethodResource):
         return users.create_user(**kwargs)
 
 
-users_blueprint.add_url_rule("/", view_func=UsersResource.as_view("UsersResource"))
+users_blueprint.add_url_rule(
+    "/", view_func=UsersResource.as_view("UsersResource"))
 
 
 @doc(tags=["users"])
@@ -135,7 +137,8 @@ class RequestPasswordResetResource(MethodResource):
 
 users_blueprint.add_url_rule(
     "/<string:user_id>/request_pw_reset",
-    view_func=RequestPasswordResetResource.as_view("RequestPasswordResetResource"),
+    view_func=RequestPasswordResetResource.as_view(
+        "RequestPasswordResetResource"),
 )
 
 

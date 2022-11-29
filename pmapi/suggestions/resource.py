@@ -40,6 +40,7 @@ class SuggestedEditsResource(MethodResource):
             "status": fields.String(required=False, allow_none=True),
             **paginated_view_args(sort_options=["created_at"]),
         },
+        location="query"
     )
     @suggestions_permissions.get
     @marshal_with(SuggestedEditListSchema(), code=200)

@@ -44,6 +44,7 @@ class EventsResource(MethodResource):
             "hidden": fields.Boolean(required=False),
             **paginated_view_args(sort_options=["created_at", "name", "id"]),
         },
+        location="query"
     )
     @marshal_with(EventListSchema(), code=200)
     def get(self, **kwargs):
@@ -82,12 +83,13 @@ class EventsResource(MethodResource):
         return events.add_event(**kwargs, creator=current_user)
 
 
-events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
+events_blueprint.add_url_rule(
+    "/", view_func=EventsResource.as_view("EventsResource"))
 
 
 @doc(tags=["events"])
 class EventResource(MethodResource):
-    @doc(summary="Get an event", description="Update an event")
+    @doc(summary="Get an event", description="Get an event")
     @marshal_with(EventSchema(), code=200)
     def get(self, event_id, **kwargs):
         return events.get_event_or_404(event_id)
@@ -184,6 +186,7 @@ class EventActivityResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
+        location="query"
     )
     @marshal_with(ActivityListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -204,6 +207,7 @@ class EventVersionsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
+        location="query"
     )
     @marshal_with(EventVersionListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -226,6 +230,7 @@ class EventContributorsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
+        location="query"
     )
     @marshal_with(ContributorListSchema(), code=200)
     def get(self, event_id, **kwargs):

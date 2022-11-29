@@ -43,6 +43,7 @@ class ReportsResource(MethodResource):
             "open": fields.Boolean(),
             **paginated_view_args(sort_options=["created_at"]),
         },
+        location="query"
     )
     @login_required
     @report_permissions.get_reports

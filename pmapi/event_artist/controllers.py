@@ -12,6 +12,7 @@ from requests.exceptions import RequestException
 from flask_login import current_user
 from pmapi.extensions import db, activity_plugin
 from .model import Artist, ArtistUrl, EventDateArtist, ArtistTag
+from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import Tag
 from pmapi.event_location.model import EventLocation
@@ -60,13 +61,15 @@ def get_artists(**kwargs):
                 EventDate.start_naive <= date_max,
             )
         )
+
     if "radius" and "location" in kwargs:
         radius = kwargs.get("radius")
         location = kwargs.get("location")
         lat = float(location["lat"])
         lng = float(location["lng"])
         if lat is None or lng is None:
-            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+            raise exc.InvalidAPIRequest(
+                "lat and lng are required for nearby search.")
 
         query = query.join(EventLocation)
         query = query.filter(
@@ -77,6 +80,47 @@ def get_artists(**kwargs):
                     Geography(srid=4326),
                 ),
                 radius,
+            )
+        )
+
+    elif "bounds" in kwargs:
+        query = (
+            query
+            .join(Event, EventDate.event_id == Event.id)
+            .join(EventLocation, EventDate.location_id == EventLocation.id)
+        )
+        bounds = kwargs.get("bounds")
+
+        northEast = bounds["_northEast"]
+        southWest = bounds["_southWest"]
+
+        query = query.filter(
+            and_(
+                or_(
+                    and_(
+                        southWest["lat"] < northEast["lat"],
+                        EventLocation.lat.between(
+                            southWest["lat"], northEast["lat"]),
+                    ),
+                    and_(
+                        northEast["lat"] < southWest["lat"],
+                        EventLocation.lat.between(
+                            northEast["lat"], southWest["lat"]),
+                    ),
+                ),
+                # match lng
+                or_(
+                    and_(
+                        southWest["lng"] < northEast["lng"],
+                        EventLocation.lng.between(
+                            southWest["lng"], northEast["lng"]),
+                    ),
+                    and_(
+                        northEast["lng"] < southWest["lng"],
+                        EventLocation.lng.between(
+                            northEast["lng"], southWest["lng"]),
+                    ),
+                ),
             )
         )
 
@@ -483,7 +527,8 @@ def refresh_spotify_data_for_artist(artist):
         spotify_artist_names = []
         for item in items:
             spotify_artist_names.append(item.get("name"))
-        close_matches = difflib.get_close_matches(artist.name, spotify_artist_names)
+        close_matches = difflib.get_close_matches(
+            artist.name, spotify_artist_names)
         spotify_artist_name = None
         spotify_artist = None
         if len(close_matches) > 0:
@@ -526,7 +571,8 @@ def refresh_spotify_data_for_artist(artist):
                         "Accept": "image/*",
                         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
                     }
-                    r = requests.get(image_url, headers=headers, timeout=TIMEOUT)
+                    r = requests.get(
+                        image_url, headers=headers, timeout=TIMEOUT)
                 except RequestException as e:
                     logging.error(
                         "event_artist.refresh_spotify_data_for_artist.image_request_error",
@@ -693,7 +739,8 @@ def remove_tags_from_artist(tags, artist):
             db.session.delete(existing_tag)
             # add activity
             db.session.flush()
-            activity = Activity(verb=u"delete", object=existing_tag, target=artist)
+            activity = Activity(
+                verb=u"delete", object=existing_tag, target=artist)
             db.session.add(activity)
 
     return
@@ -704,7 +751,8 @@ def add_musicbrainz_urls_to_artist(relations, artist):
     for relation in relations:
         url = relation.get("url", {}).get("resource")
         # make sure urls are up to date
-        artist_url = db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
+        artist_url = db.session.query(ArtistUrl).filter(
+            ArtistUrl.url == url).first()
         if artist_url is None:
             # create new url entry
             type = relation.get("type")
@@ -723,7 +771,8 @@ def add_musicbrainz_urls_to_artist(relations, artist):
                     )
                     # check that image url not already in DB
                     artist_url = (
-                        db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
+                        db.session.query(ArtistUrl).filter(
+                            ArtistUrl.url == url).first()
                     )
                     if artist_url is None:
                         # add image as media item if it's not already in db
@@ -794,7 +843,8 @@ def refresh_info(id):
     if artist.mbid:
 
         # music brainz search
-        musicbrainz_response = get_artist_details_from_music_brainz(artist.mbid)
+        musicbrainz_response = get_artist_details_from_music_brainz(
+            artist.mbid)
 
         # last.fm search
         lastfm_bio, lastfm_tags = get_artist_details_from_last_fm(artist.mbid)
@@ -811,7 +861,8 @@ def refresh_info(id):
             add_tags_to_artist(lastfm_tags, artist)
 
         if musicbrainz_response["relations"]:
-            add_musicbrainz_urls_to_artist(musicbrainz_response["relations"], artist)
+            add_musicbrainz_urls_to_artist(
+                musicbrainz_response["relations"], artist)
 
     # get images from external services
     # only use deezer as fallback
