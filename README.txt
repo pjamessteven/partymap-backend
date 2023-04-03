@@ -75,7 +75,7 @@ Create empty database:
 > docker compose exec db createdb -U partymap partymap
 
 Adjust SQLAlchemy tables (do this after recreating the database)
-> docker compose exec web ./adjust_sqlalchemy_tables.sh
+> docker compose exec web ./alter_sqlalchemy_tables.sh
 
 Seed database with production snapshot:
 > docker compose exec web python3 manage.py seed_test_db
