@@ -61,7 +61,8 @@ class Locality(db.Model):
         return (
             cls.long_name
             + ", "
-            + select([Region.long_name]).where(cls.region_id == Region.id).as_scalar()
+            + select([Region.long_name]).where(cls.region_id ==
+                                               Region.id).as_scalar()
             + ", "
             + select([Country.long_name])
             .where(cls.country_id == Country.short_name)
@@ -159,36 +160,66 @@ class EventLocation(db.Model):
     creator = db.relationship("User", back_populates="created_event_locations")
 
     # serverside clustering
-    cluster_zoom_2_id = db.Column(db.Integer, db.ForeignKey("clusters_2.cluster_id"))
-    cluster_zoom_2 = db.relationship("ClusterZoom2", back_populates="locations")
-    cluster_zoom_3_id = db.Column(db.Integer, db.ForeignKey("clusters_3.cluster_id"))
-    cluster_zoom_3 = db.relationship("ClusterZoom3", back_populates="locations")
-    cluster_zoom_4_id = db.Column(db.Integer, db.ForeignKey("clusters_4.cluster_id"))
-    cluster_zoom_4 = db.relationship("ClusterZoom4", back_populates="locations")
-    cluster_zoom_5_id = db.Column(db.Integer, db.ForeignKey("clusters_5.cluster_id"))
-    cluster_zoom_5 = db.relationship("ClusterZoom5", back_populates="locations")
-    cluster_zoom_6_id = db.Column(db.Integer, db.ForeignKey("clusters_6.cluster_id"))
-    cluster_zoom_6 = db.relationship("ClusterZoom6", back_populates="locations")
-    cluster_zoom_7_id = db.Column(db.Integer, db.ForeignKey("clusters_7.cluster_id"))
-    cluster_zoom_7 = db.relationship("ClusterZoom7", back_populates="locations")
-    cluster_zoom_8_id = db.Column(db.Integer, db.ForeignKey("clusters_8.cluster_id"))
-    cluster_zoom_8 = db.relationship("ClusterZoom8", back_populates="locations")
-    cluster_zoom_9_id = db.Column(db.Integer, db.ForeignKey("clusters_9.cluster_id"))
-    cluster_zoom_9 = db.relationship("ClusterZoom9", back_populates="locations")
-    cluster_zoom_10_id = db.Column(db.Integer, db.ForeignKey("clusters_10.cluster_id"))
-    cluster_zoom_10 = db.relationship("ClusterZoom10", back_populates="locations")
-    cluster_zoom_11_id = db.Column(db.Integer, db.ForeignKey("clusters_11.cluster_id"))
-    cluster_zoom_11 = db.relationship("ClusterZoom11", back_populates="locations")
-    cluster_zoom_12_id = db.Column(db.Integer, db.ForeignKey("clusters_12.cluster_id"))
-    cluster_zoom_12 = db.relationship("ClusterZoom12", back_populates="locations")
-    cluster_zoom_13_id = db.Column(db.Integer, db.ForeignKey("clusters_13.cluster_id"))
-    cluster_zoom_13 = db.relationship("ClusterZoom13", back_populates="locations")
-    cluster_zoom_14_id = db.Column(db.Integer, db.ForeignKey("clusters_14.cluster_id"))
-    cluster_zoom_14 = db.relationship("ClusterZoom14", back_populates="locations")
-    cluster_zoom_15_id = db.Column(db.Integer, db.ForeignKey("clusters_15.cluster_id"))
-    cluster_zoom_15 = db.relationship("ClusterZoom15", back_populates="locations")
-    cluster_zoom_16_id = db.Column(db.Integer, db.ForeignKey("clusters_16.cluster_id"))
-    cluster_zoom_16 = db.relationship("ClusterZoom16", back_populates="locations")
+    cluster_zoom_2_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_2.cluster_id"))
+    cluster_zoom_2 = db.relationship(
+        "ClusterZoom2", back_populates="locations")
+    cluster_zoom_3_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_3.cluster_id"))
+    cluster_zoom_3 = db.relationship(
+        "ClusterZoom3", back_populates="locations")
+    cluster_zoom_4_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_4.cluster_id"))
+    cluster_zoom_4 = db.relationship(
+        "ClusterZoom4", back_populates="locations")
+    cluster_zoom_5_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_5.cluster_id"))
+    cluster_zoom_5 = db.relationship(
+        "ClusterZoom5", back_populates="locations")
+    cluster_zoom_6_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_6.cluster_id"))
+    cluster_zoom_6 = db.relationship(
+        "ClusterZoom6", back_populates="locations")
+    cluster_zoom_7_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_7.cluster_id"))
+    cluster_zoom_7 = db.relationship(
+        "ClusterZoom7", back_populates="locations")
+    cluster_zoom_8_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_8.cluster_id"))
+    cluster_zoom_8 = db.relationship(
+        "ClusterZoom8", back_populates="locations")
+    cluster_zoom_9_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_9.cluster_id"))
+    cluster_zoom_9 = db.relationship(
+        "ClusterZoom9", back_populates="locations")
+    cluster_zoom_10_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_10.cluster_id"))
+    cluster_zoom_10 = db.relationship(
+        "ClusterZoom10", back_populates="locations")
+    cluster_zoom_11_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_11.cluster_id"))
+    cluster_zoom_11 = db.relationship(
+        "ClusterZoom11", back_populates="locations")
+    cluster_zoom_12_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_12.cluster_id"))
+    cluster_zoom_12 = db.relationship(
+        "ClusterZoom12", back_populates="locations")
+    cluster_zoom_13_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_13.cluster_id"))
+    cluster_zoom_13 = db.relationship(
+        "ClusterZoom13", back_populates="locations")
+    cluster_zoom_14_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_14.cluster_id"))
+    cluster_zoom_14 = db.relationship(
+        "ClusterZoom14", back_populates="locations")
+    cluster_zoom_15_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_15.cluster_id"))
+    cluster_zoom_15 = db.relationship(
+        "ClusterZoom15", back_populates="locations")
+    cluster_zoom_16_id = db.Column(
+        db.Integer, db.ForeignKey("clusters_16.cluster_id"))
+    cluster_zoom_16 = db.relationship(
+        "ClusterZoom16", back_populates="locations")
 
     def next_event_at_location(self):
         now = datetime.utcnow()
@@ -221,7 +252,8 @@ class ClusterZoom2(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_2")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_2")
 
 
 class ClusterZoom3(db.Model):
@@ -229,7 +261,8 @@ class ClusterZoom3(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_3")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_3")
 
 
 class ClusterZoom4(db.Model):
@@ -237,7 +270,8 @@ class ClusterZoom4(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_4")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_4")
 
 
 class ClusterZoom5(db.Model):
@@ -245,7 +279,8 @@ class ClusterZoom5(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_5")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_5")
 
 
 class ClusterZoom6(db.Model):
@@ -253,7 +288,8 @@ class ClusterZoom6(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_6")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_6")
 
 
 class ClusterZoom7(db.Model):
@@ -261,7 +297,8 @@ class ClusterZoom7(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_7")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_7")
 
 
 class ClusterZoom8(db.Model):
@@ -269,7 +306,8 @@ class ClusterZoom8(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_8")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_8")
 
 
 class ClusterZoom9(db.Model):
@@ -277,7 +315,8 @@ class ClusterZoom9(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_9")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_9")
 
 
 class ClusterZoom10(db.Model):
@@ -285,7 +324,8 @@ class ClusterZoom10(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_10")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_10")
 
 
 class ClusterZoom11(db.Model):
@@ -293,7 +333,8 @@ class ClusterZoom11(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_11")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_11")
 
 
 class ClusterZoom12(db.Model):
@@ -301,7 +342,8 @@ class ClusterZoom12(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_12")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_12")
 
 
 class ClusterZoom13(db.Model):
@@ -309,7 +351,8 @@ class ClusterZoom13(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_13")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_13")
 
 
 class ClusterZoom14(db.Model):
@@ -317,7 +360,8 @@ class ClusterZoom14(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_14")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_14")
 
 
 class ClusterZoom15(db.Model):
@@ -325,7 +369,8 @@ class ClusterZoom15(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_15")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_15")
 
 
 class ClusterZoom16(db.Model):
@@ -333,4 +378,5 @@ class ClusterZoom16(db.Model):
     cluster_id = db.Column(db.Integer, primary_key=True)
     count = db.Column(db.Integer)
     centroid = db.Column(Geometry(geometry_type="POINT"))
-    locations = db.relationship("EventLocation", back_populates="cluster_zoom_16")
+    locations = db.relationship(
+        "EventLocation", back_populates="cluster_zoom_16")

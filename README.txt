@@ -74,12 +74,6 @@ Completely destroy database:
 Create empty database:
 > docker compose exec db createdb -U partymap partymap
 
-Make a new database migration:
-> docker compose exec web python3 manage.py db migrate
-	
-Upgrade to the latest database migration:
-> docker compose exec web python3 manage.py db upgrade
-
 Adjust SQLAlchemy tables (do this after recreating the database)
 > docker compose exec web ./adjust_sqlalchemy_tables.sh
 
@@ -94,6 +88,26 @@ Send any command to a container:
 
 Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_types.ts)
 > docker compose exec web python3 manage.py generate_types
+
+Expose local Docker network to local network (useful for testing on mobile)
+> docker compose run --service-ports web
+
+_____________________________________________________________________________
+
+Alembic Postgres Database Management commands:
+
+Make a new database migration:
+> docker compose exec web python3 manage.py db migrate
+
+List all database migrations/revisions:
+> docker compose exec web python3 manage.py db history
+	
+Upgrade to the latest database migration:
+> docker compose exec web python3 manage.py db upgrade
+
+Downgrade to the latest database migration:
+> docker compose exec web python3 manage.py db downgrade [REVISION_ID]
+
 
 Tips related to the production environment:
 _____________________________________________________________________________

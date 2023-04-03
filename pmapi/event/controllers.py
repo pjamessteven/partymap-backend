@@ -1,4 +1,4 @@
-from .model import Event, Rrule, user_event_favorites_table, event_page_views_table
+from .model import Event, Rrule, user_event_following_table, event_page_views_table
 from pmapi import exceptions as exc
 from pmapi.extensions import db, Session, activity_plugin
 from datetime import datetime
@@ -6,7 +6,7 @@ from flask_login import current_user
 from sqlalchemy_continuum import version_class, transaction_class
 from sqlalchemy import cast, or_, and_, func, select, join
 from sqlalchemy.orm import with_expression
-from pmapi.event_date.model import EventDate
+from pmapi.event_date.model import EventDate, user_event_date_going_table, user_event_date_interested_table
 from pmapi.user.model import User
 import pmapi.user.controllers as users
 import pmapi.event_tag.controllers as event_tags
@@ -37,12 +37,12 @@ def get_event_or_404(id):
 
 
 def get_event(id):
-    favorite_expression = (
-        db.session.query(user_event_favorites_table)
+    following_expression = (
+        db.session.query(user_event_following_table)
         .filter(
             and_(
-                user_event_favorites_table.c.user_id == current_user.id,
-                user_event_favorites_table.c.event_id == id,
+                user_event_following_table.c.user_id == current_user.id,
+                user_event_following_table.c.event_id == id,
             )
         )
         .exists()
@@ -53,8 +53,8 @@ def get_event(id):
         .filter(Event.id == id)
         .options(
             with_expression(
-                Event.is_favorited,
-                favorite_expression,
+                Event.user_following,
+                following_expression,
             )
         )
     ).first()
@@ -108,7 +108,8 @@ def search_events(**kwargs):
             else:
                 query_text = query_text + (str(word) + str(":* & "))
         query = query.filter(
-            Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+            Event.__ts_vector__.match(
+                query_text, postgresql_regconfig="english")
         )
 
     if "created_by" in kwargs:
@@ -257,7 +258,8 @@ def update_event(event_id, **kwargs):
     hidden = kwargs.get("hidden", None)
 
     event = get_event_or_404(event_id)
-    existing_rrule = db.session.query(Rrule).filter(Rrule.id == event.rrule_id).first()
+    existing_rrule = db.session.query(Rrule).filter(
+        Rrule.id == event.rrule_id).first()
 
     # this field is useful for triggering
     # a new version of this object in continuum
@@ -286,7 +288,8 @@ def update_event(event_id, **kwargs):
             db.session.delete(existing_rrule)
             db.session.flush()
             # add activity for delete rrule activity
-            activity = Activity(verb=u"delete", object=existing_rrule, target=event)
+            activity = Activity(
+                verb=u"delete", object=existing_rrule, target=event)
             db.session.add(activity)
 
     if add_tags is not None and len(add_tags) > 0:
@@ -328,7 +331,8 @@ def update_event(event_id, **kwargs):
             existing_rrule.default_url = url
             existing_rrule.default_location = event_location
             db.session.flush()
-            activity = Activity(verb=u"update", object=existing_rrule, target=event)
+            activity = Activity(
+                verb=u"update", object=existing_rrule, target=event)
             db.session.add(activity)
             rrule = existing_rrule
 
@@ -415,7 +419,8 @@ def delete_event(event_id):
 
     # delete page views
     db.engine.execute(
-        event_page_views_table.delete(event_page_views_table.c.event_id == event_id)
+        event_page_views_table.delete(
+            event_page_views_table.c.event_id == event_id)
     )
 
     db.session.commit()

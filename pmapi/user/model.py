@@ -17,11 +17,18 @@ from pmapi.extensions import db
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
 import pmapi.validate as validate
+
 from pmapi.event.model import (
     Event,
     user_event_following_table,
-    user_event_favorites_table,
 )
+
+from pmapi.event_date.model import (
+    user_event_date_interested_table,
+    user_event_date_going_table
+)
+
+
 import pmapi.activity.controllers as activities
 
 import uuid
@@ -34,7 +41,8 @@ class User(db.Model):
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    role = db.Column(db.Integer, nullable=False, default=ROLES["UNPRIVILIGED_USER"])
+    role = db.Column(db.Integer, nullable=False,
+                     default=ROLES["UNPRIVILIGED_USER"])
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     # Username can be null before social user has chosen a username
     username = db.Column(db.String(80), unique=True, nullable=True)
@@ -53,8 +61,12 @@ class User(db.Model):
         "Event", back_populates="followers", secondary=user_event_following_table
     )
 
-    favorite_events = db.relationship(
-        "Event", back_populates="favorites", secondary=user_event_favorites_table
+    going_event_dates = db.relationship(
+        "EventDate", back_populates="going", secondary=user_event_date_going_table
+    )
+
+    interested_event_dates = db.relationship(
+        "EventDate", back_populates="interested", secondary=user_event_date_interested_table
     )
 
     created_events = db.relationship(
@@ -62,11 +74,13 @@ class User(db.Model):
         back_populates="creator",
         primaryjoin="Event.creator_id == User.id",
     )
+
     hosted_events = db.relationship(
         "Event",
         back_populates="host",
         primaryjoin="Event.host_id == User.id",
     )
+
     created_suggestions = db.relationship(
         "SuggestedEdit",
         back_populates="creator",
@@ -80,11 +94,15 @@ class User(db.Model):
     )
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
-    created_media_items = db.relationship("MediaItem", back_populates="creator")
-    created_event_locations = db.relationship("EventLocation", back_populates="creator")
+    created_media_items = db.relationship(
+        "MediaItem", back_populates="creator")
+    created_event_locations = db.relationship(
+        "EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")
-    created_artist_tags = db.relationship("ArtistTag", back_populates="creator")
-    created_event_artists = db.relationship("EventDateArtist", back_populates="creator")
+    created_artist_tags = db.relationship(
+        "ArtistTag", back_populates="creator")
+    created_event_artists = db.relationship(
+        "EventDateArtist", back_populates="creator")
     created_reports = db.relationship("Report", back_populates="creator")
     created_feedback = db.relationship("Feedback", back_populates="creator")
 

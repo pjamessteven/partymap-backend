@@ -8,7 +8,7 @@ from flask_apispec import use_kwargs
 
 from pmapi.common.controllers import paginated_view_args
 import pmapi.event_location.controllers as event_locations
-from .schemas import PointSchema, LocationSchema, LocationListSchema, CountrySchema
+from .schemas import PointSchema, LocationSchema, LocationListSchema, CountrySchema, RegionSchema, LocalitySchema
 
 
 locations_blueprint = Blueprint("locations", __name__)
@@ -63,9 +63,9 @@ locations_blueprint.add_url_rule(
 @doc(tags=["locations"])
 class PointsResource(MethodResource):
     @doc(
-        summary="Get all event location points",
-        description="""Returns the latitude and longitude of all unique event \
-        within a specified time period. Also supports filtering by tag. \
+        summary="Get all points",
+        description="""Returns all unique locations on map for query criteria \
+        within a specified time period. Supports filters. \
         This resource is used to show the points on the map.
         ### Usage:
         Start and end date format must be in ISO-8601 format.
@@ -92,6 +92,50 @@ class PointsResource(MethodResource):
 
 locations_blueprint.add_url_rule(
     "/points/", view_func=PointsResource.as_view("PointsResource")
+)
+
+
+@doc(tags=["locations"])
+class CountriesResource(MethodResource):
+    @doc(
+        summary="Get all countries",
+        description="""Returns all countries in the db. \n
+        ### Usage:  \n
+
+        """,
+    )
+    @marshal_with(CountrySchema(many=True), code=200)
+    def get(self, **kwargs):
+        return event_locations.get_all_countries()
+
+
+locations_blueprint.add_url_rule(
+    "/countries", view_func=CountriesResource.as_view("CountriesResource")
+)
+
+
+@doc(tags=["locations"])
+class RegionsResource(MethodResource):
+    @doc(
+        summary="Get regions of country",
+        description="""Returns all regions for country x db. \n
+        ### Usage:  \n
+
+        """,
+    )
+    @use_kwargs(
+        {
+            "country_short_name": fields.Str(),
+        },
+        location="query"
+    )
+    @marshal_with(RegionSchema(many=True), code=200)
+    def get(self, country_short_name):
+        return event_locations.get_country(country_short_name)
+
+
+locations_blueprint.add_url_rule(
+    "/countries/<country_short_name>", view_func=RegionsResource.as_view("RegionsResource")
 )
 
 

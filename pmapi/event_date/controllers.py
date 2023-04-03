@@ -11,14 +11,18 @@ from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
 import pmapi.event_artist.controllers as event_artists
 import pmapi.event.controllers as events
+import pmapi.user.controllers as users
 from pmapi.extensions import db, activity_plugin
 from pmapi.event_location.model import EventLocation
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
 
-from pmapi.event.model import Event, user_event_favorites_table
+from pmapi.event.model import Event, user_event_following_table
+
+from .model import EventDate, user_event_date_interested_table, user_event_date_going_table
+
 from pmapi import exceptions as exc
-from .model import EventDate
+
 import pmapi.suggestions.controllers as suggestions
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
@@ -87,8 +91,8 @@ def add_event_date_with_datetime(
             ticket_url=ticket_url,
             artists=artists,
         )
-
-        return event_date
+        db.session.commit()
+        return event
 
     else:
 
@@ -101,8 +105,8 @@ def add_event_date(
     start_naive,
     end_naive,
     event,
-    location=None,  # this parameter is used by direct api calls to this function
-    event_location=None,  # this parameter is only used by generate_event_dates
+    location=None,  # this parameter is used by add_event_date_with_datetime
+    event_location=None,  # this parameter is add_event_date_with_datetime
     creator=None,
     tz=None,
     url=None,
@@ -168,7 +172,8 @@ def add_event_date(
     db.session.flush()
 
     if activity:
-        activity = Activity(verb=u"create", object=event_date, target=event_date.event)
+        activity = Activity(verb=u"create", object=event_date,
+                            target=event_date.event)
         db.session.add(activity)
 
     if artists is not None:
@@ -246,7 +251,8 @@ def update_event_date(id, **kwargs):
 
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = datetime.strptime(
+            date_time["start"], "%Y-%m-%d %H:%M:%S")
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
@@ -255,7 +261,8 @@ def update_event_date(id, **kwargs):
         end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if end_naive < start_naive:
-            raise exc.InvalidAPIRequest("End time can't be before the start time")
+            raise exc.InvalidAPIRequest(
+                "End time can't be before the start time")
 
         try:
             # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
@@ -317,7 +324,8 @@ def update_event_date(id, **kwargs):
         event_date.description = kwargs.pop("description", None)
 
     if "description_attribute" in kwargs:
-        event_date.description_attribute = kwargs.pop("description_attribute", None)
+        event_date.description_attribute = kwargs.pop(
+            "description_attribute", None)
 
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
@@ -329,20 +337,24 @@ def update_event_date(id, **kwargs):
         event_date.size = kwargs.pop("size")
 
     if "remove_artists" in kwargs:
-        event_artists.remove_artists_from_date(event_date, kwargs.pop("remove_artists"))
+        event_artists.remove_artists_from_date(
+            event_date, kwargs.pop("remove_artists"))
 
     if "add_artists" in kwargs:
-        event_artists.add_artists_to_date(event_date, kwargs.pop("add_artists"))
+        event_artists.add_artists_to_date(
+            event_date, kwargs.pop("add_artists"))
 
     if "update_artists" in kwargs:
-        event_artists.update_artists_of_date(event_date, kwargs.pop("update_artists"))
+        event_artists.update_artists_of_date(
+            event_date, kwargs.pop("update_artists"))
 
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event_date.event.updated_at = datetime.utcnow()
 
     db.session.flush()
-    activity = Activity(verb=u"update", object=event_date, target=event_date.event)
+    activity = Activity(verb=u"update", object=event_date,
+                        target=event_date.event)
     db.session.add(activity)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
     db.session.commit()
@@ -388,7 +400,8 @@ def generate_future_event_dates(
     if date_time:
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = datetime.strptime(
+            date_time["start"], "%Y-%m-%d %H:%M:%S")
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
@@ -440,7 +453,8 @@ def generate_future_event_dates(
 
         # event is recurring
         event.recurring = True
-        startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
+        startdates, enddates = generateRecurringDates(
+            rrule, start_naive, end_naive)
 
         # work out how many dates to generate
         limit = 10 - len(event.future_event_dates)
@@ -607,7 +621,8 @@ def delete_event_date(id):
     event_date.event.updated_at = datetime.utcnow()
     db.session.delete(event_date)
     db.session.flush()
-    activity = Activity(verb=u"delete", object=event_date, target=event_date.event)
+    activity = Activity(verb=u"delete", object=event_date,
+                        target=event_date.event)
     db.session.add(activity)
     db.session.commit()
     return event
@@ -656,7 +671,8 @@ def query_event_dates(**kwargs):
         lng = float(location["lng"])
 
         if lat is None or lng is None:
-            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+            raise exc.InvalidAPIRequest(
+                "lat and lng are required for nearby search.")
 
         # potentially faster to keep geometry type
         # than convert degrees to meters.
@@ -667,7 +683,8 @@ def query_event_dates(**kwargs):
                 EventDate,
                 func.ST_Distance(
                     cast(EventLocation.geo, Geography(srid=4326)),
-                    cast("SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)),
+                    cast("SRID=4326;POINT(%f %f)" %
+                         (lng, lat), Geography(srid=4326)),
                 ).label("distance"),
             )
             .join(Event, EventDate.event_id == Event.id)
@@ -713,8 +730,68 @@ def query_event_dates(**kwargs):
     # filter hidden events out
     query = query.filter(Event.hidden == False)  # ignore linter warning here
 
+    if kwargs.get("creator_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("creator_user"))
+        query = query.filter(Event.creator_id == user.id)
+
+    if kwargs.get("host_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("host_user"))
+        query = query.filter(Event.host_id == user.id)
+
+    if kwargs.get("interested_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("interested_user"))
+
+        interested_event_date_ids = db.session.query(
+            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
+
+        query = query.filter(
+            EventDate.id.in_(interested_event_date_ids)
+        )
+
+    if kwargs.get("going_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("going_user"))
+
+        going_event_date_ids = db.session.query(
+            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
+
+        query = query.filter(
+            EventDate.id.in_(going_event_date_ids)
+        )
+
+    if kwargs.get("following_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("following_user"))
+
+        following_event_ids = db.session.query(
+            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
+
+        query = query.filter(
+            Event.id.in_(following_event_ids)
+        )
+
+    if kwargs.get("all_related_to_user", None) is not None:
+        user = users.get_user_or_404(kwargs.pop("all_related_to_user"))
+
+        interested_event_date_ids = db.session.query(
+            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
+
+        going_event_date_ids = db.session.query(
+            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
+
+        following_event_ids = db.session.query(
+            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
+
+        query = query.filter(
+            or_(
+                (Event.creator_id == user.id), (Event.host_id == user.id),
+                (EventDate.id.in_(going_event_date_ids)),
+                (EventDate.id.in_(interested_event_date_ids)), (
+                    Event.id.in_(following_event_ids)
+                ))
+        )
+
     if kwargs.get("date_min", None) is not None:
         query = query.filter(EventDate.end >= kwargs.pop("date_min"))
+
     if kwargs.get("date_max", None) is not None:
         date_max = kwargs.pop("date_max")
         query = query.filter(
@@ -739,17 +816,10 @@ def query_event_dates(**kwargs):
                 EventDate.artists.any(EventDateArtist.artist_id == artist_id)
             )
 
-    if kwargs.get("favorites", None) is not None:
-        if kwargs.get("favorites") is True:
-            if not current_user.is_authenticated:
-                raise exc.InvalidAPIRequest("Login required for favorites")
-            query = query.join(user_event_favorites_table).filter(
-                user_event_favorites_table.c.user_id == current_user.id
-            )
-
     if kwargs.get("duration_options", None) is not None:
         duration_options = kwargs.pop("duration_options")
-        search_args = [EventDate.duration == option for option in duration_options]
+        search_args = [EventDate.duration ==
+                       option for option in duration_options]
         query = query.filter(or_(*search_args))
 
     if kwargs.get("size_options", None) is not None:
@@ -765,11 +835,14 @@ def query_event_dates(**kwargs):
         query = query.filter(or_(*search_args))
 
     if kwargs.get("locality_id", None) is not None:
-        query = query.filter(EventLocation.locality_id == kwargs.pop("locality_id"))
+        query = query.filter(EventLocation.locality_id ==
+                             kwargs.pop("locality_id"))
     if kwargs.get("region_id", None) is not None:
-        query = query.filter(EventLocation.region_id == kwargs.pop("region_id"))
+        query = query.filter(EventLocation.region_id ==
+                             kwargs.pop("region_id"))
     if kwargs.get("country_id", None) is not None:
-        query = query.filter(EventLocation.country_id == kwargs.pop("country_id"))
+        query = query.filter(EventLocation.country_id ==
+                             kwargs.pop("country_id"))
 
     if kwargs.get("query", None) is not None:
         query_string = kwargs.pop("query")
@@ -781,7 +854,8 @@ def query_event_dates(**kwargs):
             else:
                 query_text = query_text + (str(word) + str(":* & "))
         query = query.filter(
-            Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+            Event.__ts_vector__.match(
+                query_text, postgresql_regconfig="english")
         )
 
     # filter event dates within bounds
@@ -795,22 +869,26 @@ def query_event_dates(**kwargs):
                 or_(
                     and_(
                         southWest["lat"] < northEast["lat"],
-                        EventLocation.lat.between(southWest["lat"], northEast["lat"]),
+                        EventLocation.lat.between(
+                            southWest["lat"], northEast["lat"]),
                     ),
                     and_(
                         northEast["lat"] < southWest["lat"],
-                        EventLocation.lat.between(northEast["lat"], southWest["lat"]),
+                        EventLocation.lat.between(
+                            northEast["lat"], southWest["lat"]),
                     ),
                 ),
                 # match lng
                 or_(
                     and_(
                         southWest["lng"] < northEast["lng"],
-                        EventLocation.lng.between(southWest["lng"], northEast["lng"]),
+                        EventLocation.lng.between(
+                            southWest["lng"], northEast["lng"]),
                     ),
                     and_(
                         northEast["lng"] < southWest["lng"],
-                        EventLocation.lng.between(northEast["lng"], southWest["lng"]),
+                        EventLocation.lng.between(
+                            northEast["lng"], southWest["lng"]),
                     ),
                 ),
             )

@@ -34,11 +34,6 @@ user_event_following_table = db.Table(
     db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
 )
 
-user_event_favorites_table = db.Table(
-    "user_event_favorites_table",
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
-)
 
 event_page_views_table = db.Table(
     "event_page_views_table",
@@ -60,10 +55,6 @@ class Event(db.Model):
         "User", back_populates="following_events", secondary=user_event_following_table
     )
 
-    favorites = db.relationship(
-        "User", back_populates="favorite_events", secondary=user_event_favorites_table
-    )
-
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
         "User",
@@ -78,7 +69,7 @@ class Event(db.Model):
         foreign_keys=[host_id],
     )
 
-    is_favorited = query_expression()
+    user_following = query_expression()
 
     # deleted = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -97,7 +88,8 @@ class Event(db.Model):
     event_tags = db.relationship(
         "EventTag", back_populates="event", order_by="EventTag.tag_id"
     )
-    event_contributions = db.relationship("EventContribution", back_populates="event")
+    event_contributions = db.relationship(
+        "EventContribution", back_populates="event")
 
     media_items = db.relationship(
         "MediaItem",
@@ -114,7 +106,8 @@ class Event(db.Model):
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events
     # this was causing tests to fail, unsure if needed
-    __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
+    __table_args__ = (
+        Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
 
     @property
     def cover_items(self):
@@ -189,7 +182,8 @@ class Event(db.Model):
     def past_event_dates(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.end < now, EventDate.event_id == self.id))
+        eds = eds.filter(
+            and_(EventDate.end < now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()
 
@@ -197,7 +191,8 @@ class Event(db.Model):
     def future_event_dates(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
+        eds = eds.filter(
+            and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()
 
@@ -205,7 +200,8 @@ class Event(db.Model):
     def future_event_dates_except_next(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
+        eds = eds.filter(
+            and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()[1:]
 
@@ -213,7 +209,8 @@ class Event(db.Model):
     def next_event_date(self):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
-        eds = eds.filter(and_(EventDate.end >= now, EventDate.event_id == self.id))
+        eds = eds.filter(
+            and_(EventDate.end >= now, EventDate.event_id == self.id))
         eds = eds.order_by(EventDate.start.asc())
         return eds.first()
 
@@ -305,7 +302,8 @@ class Rrule(db.Model):
     end_date_time = db.Column(db.String)  # naive datetime string
     default_url = db.Column(db.String)
     default_ticket_url = db.Column(db.String)
-    default_location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
+    default_location_id = db.Column(
+        db.Integer, db.ForeignKey("event_locations.id"))
     default_location = db.relationship("EventLocation")
 
     def to_dict(self):
