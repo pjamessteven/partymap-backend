@@ -19,7 +19,7 @@ from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
-from pmapi.event.model import Event, user_event_favorites_table
+from pmapi.event.model import Event
 from pmapi.common.controllers import paginated_results
 from pmapi import exceptions as exc
 
@@ -59,7 +59,8 @@ def add_new_event_location(creator=None, **kwargs):
     for component in address_components:
         if "administrative_area_level_1" in component["types"]:
             short_name = component["short_name"]
-            existing_region_of_country = get_region_of_country(short_name, country)
+            existing_region_of_country = get_region_of_country(
+                short_name, country)
             if existing_region_of_country is not None:
                 region = existing_region_of_country
             else:
@@ -173,6 +174,18 @@ def get_region_of_country(short_name, country):
     return None
 
 
+def get_all_regions_of_country(country_short_name, **kwargs):
+    country = get_country(country_short_name)
+    return paginated_results(Region, query=country.regions, **kwargs)
+
+
+def get_all_localities_of_region_of_country(country_short_name, region_short_name, **kwargs):
+    country = get_country(country_short_name)
+    for reg in country.regions:
+        if region_short_name == region.short_name:
+            return paginatied_results(Locality, query=query, **kwargs)
+
+
 def get_locality_of_region_of_country(short_name, region, country):
     for reg in country.regions:
         if reg.short_name == region.short_name:
@@ -183,7 +196,8 @@ def get_locality_of_region_of_country(short_name, region, country):
 
 
 def get_location(place_id):
-    result = EventLocation.query.filter(EventLocation.place_id == place_id).first()
+    result = EventLocation.query.filter(
+        EventLocation.place_id == place_id).first()
     return result
 
 
@@ -263,7 +277,8 @@ def get_all_locations(**kwargs):
 
         if "duration_options" in kwargs:
             duration_options = kwargs.pop("duration_options")
-            search_args = [EventDate.duration == option for option in duration_options]
+            search_args = [EventDate.duration ==
+                           option for option in duration_options]
             query = query.filter(or_(*search_args))
 
         if "size_options" in kwargs:
@@ -281,7 +296,8 @@ def get_all_locations(**kwargs):
         if "tags" in kwargs:
             tags = kwargs.pop("tags")
             for tag in tags:
-                query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
+                query = query.filter(
+                    Event.event_tags.any(EventTag.tag_id == tag))
                 expression = expression.where(
                     Event.event_tags.any(EventTag.tag_id == tag)
                 )
@@ -290,10 +306,12 @@ def get_all_locations(**kwargs):
             artists = kwargs.pop("artists")
             for artist_id in artists:
                 query = query.filter(
-                    EventDate.artists.any(EventDateArtist.artist_id == artist_id)
+                    EventDate.artists.any(
+                        EventDateArtist.artist_id == artist_id)
                 )
                 expression = expression.where(
-                    EventDate.artists.any(EventDateArtist.artist_id == artist_id)
+                    EventDate.artists.any(
+                        EventDateArtist.artist_id == artist_id)
                 )
 
         if kwargs.get("query", None) is not None:
@@ -306,12 +324,29 @@ def get_all_locations(**kwargs):
                 else:
                     query_text = query_text + (str(word) + str(":* & "))
             query = query.filter(
-                Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+                Event.__ts_vector__.match(
+                    query_text, postgresql_regconfig="english")
             )
             expression = expression.where(
-                Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+                Event.__ts_vector__.match(
+                    query_text, postgresql_regconfig="english")
             )
+    # filter cancelled events out
+    # query = query.filter(EventDate.cancelled != True)
 
+    # filter hidden events out
+    # ignore linter warning here
+    query = query.filter(Event.hidden == False)
+
+    return query.options(
+        with_expression(
+            EventLocation.events,
+            expression.where(EventDate.location_id == EventLocation.id),
+        )
+    )
+
+
+"""
         if kwargs.get("favorites", None) is not None:
             if kwargs.get("favorites") is True:
                 if not current_user.is_authenticated:
@@ -326,19 +361,7 @@ def get_all_locations(**kwargs):
                 expression = expression.where(
                     user_event_favorites_table.c.user_id == current_user.id
                 )
-
-        # filter cancelled events out
-        # query = query.filter(EventDate.cancelled != True)
-
-        # filter hidden events out
-        query = query.filter(Event.hidden == False)  # ignore linter warning here
-
-        return query.options(
-            with_expression(
-                EventLocation.events,
-                expression.where(EventDate.location_id == EventLocation.id),
-            )
-        )
+"""
 
 
 def get_all_locations_paginated(**kwargs):

@@ -92,6 +92,10 @@ class InvalidContentType(JSONException):
     pass
 
 
+class NotAuthenticated(JSONException):
+    status_code = 401
+
+
 class LoginRequired(JSONException):
     status_code = 401
     code = "AUTH_FAIL"

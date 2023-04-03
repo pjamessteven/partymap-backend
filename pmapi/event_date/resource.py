@@ -49,6 +49,12 @@ class DatesResource(MethodResource):
             "favorites": fields.Boolean(),
             "sort_option": fields.Str(),
             "distinct": fields.Boolean(),
+            "creator_user": fields.Str(),
+            "host_user": fields.Str(),
+            "interested_user": fields.Str(),
+            "going_user": fields.Str(),
+            "following_user": fields.Str(),
+            "all_related_to_user": fields.Str(),
             **paginated_view_args(sort_options=["created_at"]),
         },
         location="query"
@@ -151,13 +157,13 @@ class EventDatesResource(MethodResource):
             "artists": fields.List(fields.Dict(), required=False, allow_none=True),
         }
     )
-    @marshal_with(EventDateSchema(), code=200)
+    @marshal_with(EventSchema(), code=200)
     def post(self, event_id, **kwargs):
-        event_date = event_dates.add_event_date_with_datetime(
+        event = event_dates.add_event_date_with_datetime(
             event_id, **kwargs, creator=current_user
         )
         db.session.commit()
-        return event_date
+        return event
 
     @doc(
         summary="Get dates of an event.",

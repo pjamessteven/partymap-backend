@@ -49,10 +49,11 @@ class LoginResource(MethodResource):
         if current_user.is_authenticated:
             return current_user
         else:
-            raise exc.LoginRequired()
+            raise exc.NotAuthenticated()
 
 
-auth_blueprint.add_url_rule("/login/", view_func=LoginResource.as_view("LoginResource"))
+auth_blueprint.add_url_rule(
+    "/login/", view_func=LoginResource.as_view("LoginResource"))
 
 
 @doc(tags=["auth"])

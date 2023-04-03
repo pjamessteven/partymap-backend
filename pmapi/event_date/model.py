@@ -3,8 +3,22 @@ from sqlalchemy.orm import query_expression
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import func, extract, select
 from sqlalchemy_continuum import version_class
+from sqlalchemy.dialects.postgresql import UUID
 
 from pmapi.extensions import db
+
+
+user_event_date_going_table = db.Table(
+    "user_event_date_going_table",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id")),
+)
+
+user_event_date_interested_table = db.Table(
+    "user_event_date_interested_table",
+    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id")),
+)
 
 
 class EventDate(db.Model):
@@ -12,6 +26,13 @@ class EventDate(db.Model):
     __tablename__ = "event_dates"
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    interested = db.relationship(
+        "User", back_populates="interested_event_dates", secondary=user_event_date_interested_table
+    )
+    going = db.relationship(
+        "User", back_populates="going_event_dates", secondary=user_event_date_going_table
+    )
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="event_dates")
@@ -34,9 +55,13 @@ class EventDate(db.Model):
     cancelled = db.Column(db.Boolean, default=False)
     size = db.Column(db.Integer)
 
-    contributions = db.relationship("EventContribution", back_populates="event_date")
+    contributions = db.relationship(
+        "EventContribution", back_populates="event_date")
     media_items = db.relationship("MediaItem", back_populates="event_date")
     suggestions = db.relationship("SuggestedEdit", back_populates="event_date")
+
+    user_going = query_expression()
+    user_interested = query_expression()
 
     @hybrid_property
     def duration(self):
