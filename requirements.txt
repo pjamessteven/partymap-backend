@@ -37,7 +37,9 @@ Flask-Login==0.5.0
 Flask-Migrate==2.5.3
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.4.4
-git+https://github.com/ashcrow/flask-track-usage@629ad1c#egg=Flask-Track-Usage
+sphinxcontrib-applehelp==1.0.3
+typemallow2==0.0.3
+git+https://github.com/pjamessteven/Typemallow2#egg=Typemallow2
 fonttools==4.29.0
 GeoAlchemy2==0.8.4
 greenlet==1.0.0

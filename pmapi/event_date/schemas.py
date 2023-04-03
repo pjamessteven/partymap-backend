@@ -1,8 +1,9 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
+from typemallow2 import ts_interface
 
-
+@ts_interface()
 class EventDateSchema(Schema):
     id = fields.Integer()
     event_id = fields.Integer()
@@ -29,7 +30,7 @@ class EventDateSchema(Schema):
     size = fields.Integer()
     artists = fields.Nested("EventDateArtistSchema", many=True)
 
-
+@ts_interface()
 class MiniEventDateSchema(Schema):
     id = fields.Integer()
     event_id = fields.Integer()
@@ -39,7 +40,7 @@ class MiniEventDateSchema(Schema):
     end_naive = fields.Str(attribute="end_naive")
     tz = fields.Str()
 
-
+@ts_interface()
 class EventDateVersionSchema(EventDateSchema):
     changeset = fields.Dict()
     previous = fields.Nested("EventDateVersionSchema", exclude=["previous"])

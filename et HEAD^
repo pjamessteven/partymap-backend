@@ -1,0 +1,469 @@
+[33mcommit fce6586c3bf880a01c34a5ff7d6abcf25f15b217[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Sat Jan 21 20:42:57 2023 +1300
+
+    allow strings as well as class names for fields.Nested()
+
+[33mcommit 35edf83583b2192924367e436d0d95c8bafe2b2f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Nov 29 21:11:06 2022 +1300
+
+    dockerization
+
+[33mcommit 62653f92fa449a655de6cc227febd5cc00debbe1[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Sat Aug 13 17:58:01 2022 +1200
+
+    add env file
+
+[33mcommit e7b0dd05574e3be30ff134b7b7b7531abd79d37b[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Sat Aug 13 16:22:00 2022 +1200
+
+    dockerized pmapi
+
+[33mcommit d77e450ef36397b0de6d4f9aeb4d0532cd3ab326[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Fri Jul 29 19:21:23 2022 +1200
+
+    dockerize pmapi
+
+[33mcommit 7c17aa3ef9f29320168813bd87548813324f3ba9[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Fri Jul 15 11:20:59 2022 +1200
+
+    update instructions
+
+[33mcommit a9ba6fc3eb05b0a33d729aed6653def7c05fe599[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Thu Jun 16 09:25:58 2022 +1200
+
+    -updated requirements.txt with correct version of flask-track-usage
+    -added suggestions to artists
+    -bugfixes that I forgot about lol
+
+[33mcommit 56d6440084522c2ea20ebd401ef9a65b6bfa8621[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Fri May 27 15:39:55 2022 +1200
+
+    updates
+
+[33mcommit b7b2f1d171c5379ac65ac1db1be586c101b764e2[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Sun May 22 10:27:39 2022 +1200
+
+    -get_user function no longer enforces lowercase (this caused problems if
+    a user had a capital in their email address)
+    -system is now aware if an account activation code has been already used
+    or not.
+
+[33mcommit 39095a50763ff72eb036e40b52b9d636d7586c6f[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Sun May 1 21:23:15 2022 +1200
+
+    fixed shit that was fucked
+
+[33mcommit 8a6dcb7ff72f5d1848b1caa5353d0b5a72d9a7f3[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Wed Apr 27 09:50:36 2022 +1200
+
+    -send email notification to admin on add event
+    -allow sorting events by id and name
+
+[33mcommit 3a68ce12d6914621761831af8bfca9e74a674075[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Mar 15 20:23:20 2022 +1300
+
+    include description in event_date schema so the description can be
+    showed on eventdatecard hover in frontend
+
+[33mcommit 8ff2a9f7d4537e41da7243218e65ce2929621d7f[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Feb 15 23:45:05 2022 +1300
+
+    removed all pesky pycache shit
+    fixed background artist refresh task
+
+[33mcommit d6355c1d9133a2c0a183d48b94e2d4cb43836665[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Feb 15 15:22:18 2022 +1300
+
+    refresh artist info in the background
+
+[33mcommit ed3c0936734979c7df8f18c69f7b55afe0f9040d[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Feb 15 12:35:27 2022 +1300
+
+    updated artist schema with media and popularity
+
+[33mcommit 6cf6612a90d3311091a5b9bd063fdf3622affeb3[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Feb 15 12:29:32 2022 +1300
+
+    added popularity to artist
+
+[33mcommit a2f00f548a9b7e251af4074f86c8de4b3b921c5c[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Tue Feb 15 12:28:31 2022 +1300
+
+    remove unwanted files
+
+[33mcommit f9e0aa006c6f4b6ecb08108ef65389207e789156[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Fri Feb 11 16:24:44 2022 +1300
+
+    -add xxs image size
+
+[33mcommit b5e2c2fece7241419f6c958e77186ff6b00c27d7[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Wed Feb 9 21:55:38 2022 +1300
+
+    fetch artist image from spotify, fallback to deezer if not available
+
+[33mcommit 2bd9a7bca208dbedc0d0108f5ae227128cb25b80[m
+Author: Peter Steven <pjamessteven@gmail.com>
+Date:   Wed Feb 9 16:40:15 2022 +1300
+
+    -simplify get_event_locations to return only the event_id of a unique
+    location
+    -get artist image from deezer
+
+[33mcommit a8142fcbbe873f7ceb066cd32ba3c048ef162b54[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Mon Jan 17 12:33:25 2022 +1300
+
+    improved nearby search so that it only counts distinct events
+
+[33mcommit cc818fa1d75bec8517411596392f8c14a64e0943[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sun Jan 16 16:55:32 2022 +1300
+
+    fixed an issue with adding event dates
+
+[33mcommit 4e79c65b19f50fa1036d5ee0b062f2328ce856be[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sat Jan 15 11:40:35 2022 +1300
+
+    added endpoint for location lookup
+
+[33mcommit 21c225397b0ce0c4bfb9061a862dc776c9db9a42[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Jan 14 22:37:08 2022 +1300
+
+    fixed nearby search
+
+[33mcommit b1cd33b7d06252c3d4b944a8722013d33e4e6b47[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Jan 13 17:23:53 2022 +1300
+
+    -get_event_dates function updated to return only the next event date for
+    a given event
+    -there was a bug that caused an existing artist to be overridden by a
+    new artist with a similar name, fixed this
+    -probably other stuff I can't remember
+
+[33mcommit 5feefdc24874021532c4c4a233db62ce0b73f86b[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Dec 30 19:24:58 2021 +1300
+
+    -fixed relationship between rrule and event to be one-to-one
+
+[33mcommit 371085cc505a55c99d0f308cd28a3acdf7ba288e[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Dec 30 17:47:04 2021 +1300
+
+    fix error on updating rrule with suggestion
+
+[33mcommit 290d88704599c01af4d275a627bae05fb6fcbce6[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Dec 30 17:37:41 2021 +1300
+
+    -fixed artist count
+    -fixed rrule generation of dates
+
+[33mcommit 5e137d33b3e93bfebedc64d73379289bb34e7993[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 29 14:47:15 2021 +1300
+
+    fixed issues with activating account
+
+[33mcommit d5a565881a032de6039043b6b1ac45c8425af0cf[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 29 13:16:11 2021 +1300
+
+    fixed error creating user account
+
+[33mcommit 226974ffa6a9aa89e04505ffbf8e457b92992e32[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sun Dec 26 22:42:44 2021 +1300
+
+    -artist images now saved to disk and db
+    -artist description and tags are now fetched from last.fm
+
+[33mcommit c466e7875ea0153d3f421515a2980eafd71fe056[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Dec 24 19:22:43 2021 +1300
+
+    added flasktracker TRACK_USAGE_FREEGEOIP_ENDPOINT with api key
+
+[33mcommit 401421aeaea6a0079dee778dc9c70cd3696f0a8f[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Dec 24 12:23:45 2021 +1300
+
+    -added 1024 medium image files
+
+[33mcommit 4049c569dbe7c57c2567ecf46a5fab1d01a005a8[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Dec 24 10:59:55 2021 +1300
+
+    -Make people add an ‘attribution’ if they add a description and they are not the host. In the message say ‘If you didn’t write this yourself, please include the source (a link to the webpage where you found it).  If an attribution is provided, then the front end will show the description in quotations with an [source] link
+    -Add eventdateartist ‘stage’ field
+
+[33mcommit 18d037052eea12d45c4df88afc6011d238cf413a[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 13:34:38 2021 +1300
+
+    fix delete event
+
+[33mcommit c35b7a7c9476fdfc4f5a83aacec12a10b61992e3[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 13:27:08 2021 +1300
+
+    fixed an issue with artist
+
+[33mcommit 862e69b61ec0b1b0752a73ae51b69d5076701512[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 12:39:44 2021 +1300
+
+    size is not required
+
+[33mcommit bef262ad567bab72e6e5f2ff789fa29c6fd74037[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 11:55:57 2021 +1300
+
+    config update
+
+[33mcommit 9517cc8cc90be28b9755d5f3a88e639534ad6e68[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 11:54:28 2021 +1300
+
+    config update
+
+[33mcommit 853cee49e463ca2641925d8fe0a2bc960d425ab1[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 11:37:06 2021 +1300
+
+    removed user generation from application.py
+
+[33mcommit b75888fc963083e00e6b545593931a8e271d0626[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Dec 22 10:27:38 2021 +1300
+
+    updated add_event_artists to recognize mbid field
+
+[33mcommit 010c534e6300ceff6ecc72a3425755be8102f630[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Tue Dec 21 15:31:26 2021 +1300
+
+    release 2
+
+[33mcommit 5d06e4ebcf10825016f910ac8f1a33e1061d0196[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Mon Dec 6 11:51:07 2021 +1300
+
+    -removed old migration files
+    -added sugggestions
+    -added artists
+    -other things probably, its been a while
+
+[33mcommit abcdbc8d8ef0cd6efc36305ca889da17ad1be1e5[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 15 14:58:26 2021 +1200
+
+    fixed get event dates
+
+[33mcommit 959ad59bd3e1c4bb021349973b825f33e53feef8[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Tue Sep 14 15:42:11 2021 +1200
+
+    fixed recurring event bug
+
+[33mcommit 603fa8c7306d31241bcfc7597de242295b0caa0d[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Sep 10 13:41:45 2021 +1200
+
+    fixed problem with adding event
+
+[33mcommit d7fa821a5ca433fffeddc2c68ceeb58a7a5bd33a[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Sep 9 14:42:08 2021 +1200
+
+     .
+
+[33mcommit 349c5a11c9eb9c649b56236843544b06d5a2101d[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Sep 9 14:38:33 2021 +1200
+
+    addded absolute path for ffprobe
+
+[33mcommit 3f852c32bcb5d70bc9f1b8123ea7c27144a64691[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Sep 9 14:35:41 2021 +1200
+
+    added absolute paths for ffmpeg and ffprove
+
+[33mcommit d3c7748536661a17dc6363172c7175181e256ed5[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 17:20:49 2021 +1200
+
+    i
+
+[33mcommit ace744a3f7da8781811e635699bb3bd4b16005f9[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 16:31:20 2021 +1200
+
+     i
+
+[33mcommit 07e531787655abea35286d23667142892c7a4139[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 15:59:57 2021 +1200
+
+    changes to media upload
+
+[33mcommit cf4f0783ec814adb184609be36ae7f51acc0a015[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 15:20:50 2021 +1200
+
+    updated templates with new header image location
+
+[33mcommit 9adfb936651cdbbf5bb1a5956e624e92ce869271[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 13:45:07 2021 +1200
+
+    fixed delete account and update email bugs
+
+[33mcommit 65e287060280fdb8562af7e8bdfb66f7e3daec96[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 12:45:58 2021 +1200
+
+    updated fb redirect url
+
+[33mcommit 750dd5657ab6cff06f3232c1b55b6e4628842955[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Wed Sep 8 12:27:16 2021 +1200
+
+    -updated fb secret
+    -updated uploads url
+
+[33mcommit 4ece7f4b979cce145a71cd6f9eece258ff3b9eb6[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Tue Sep 7 15:22:06 2021 +1200
+
+    uwsgi mods
+
+[33mcommit fba2785f691a9d349044ea894a41b986519b4fa5[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Mon Sep 6 18:47:44 2021 +1200
+
+    added flask-track-usage
+
+[33mcommit 86e25728a347d8f742a4c60057a3098fe252e9d5[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Sep 3 19:23:25 2021 +1200
+
+    new commit
+
+[33mcommit 3e9535a8b67eb6aa7ff3b3f25d0dcc092683fe4f[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sat Aug 21 17:01:24 2021 +1200
+
+    lots of changes
+
+[33mcommit a282f7fa93aae62573e081cb924bd8587582f308[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Mon Jul 19 13:13:47 2021 +1200
+
+    lots of changes including video uploads
+
+[33mcommit 3e342bdcfed2c15ce5e4fba7a357c376f35a3850[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sun Jul 11 20:59:08 2021 +1200
+
+    re-added contributions and event images
+
+[33mcommit 643e5c0173461e3faa8a9ce4e0e3f0bd06332f80[m
+Author: Peter <pjamessteven@gmail.comm>
+Date:   Thu Jun 3 19:02:43 2021 +1200
+
+    .
+
+[33mcommit f72c5241b74042f20853519c47c4d6dc9a9e4fb3[m
+Author: Peter <pjamessteven@gmail.comm>
+Date:   Tue Jun 1 11:50:51 2021 +1200
+
+    commit from little macbook
+
+[33mcommit aaab7c90d40339996154920214a3ad5fb0e2a155[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Sat May 15 09:11:53 2021 +1200
+
+    added new tests
+
+[33mcommit a4a2f534c61fcd170e89dbf31e19a2e18a448189[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri May 7 14:49:34 2021 +1200
+
+     mostly adding tests
+
+[33mcommit e4e657775b59290b276c500aaaeeb65887f8044e[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Fri Apr 23 17:44:01 2021 +1200
+
+    finished implementing flask-apispec, swagger docs and new ResourceMethod
+    views. implemented permissions and updated tests.
+
+[33mcommit 2a0663525eedb9ad3c80d82d43b52fcbc084f985[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Mon Apr 19 17:09:44 2021 +1200
+
+    ;w
+
+[33mcommit 6c8f6ae16e87147248a87c6aada6bc0f39108046[m
+Author: Peter Steven <peter@source-elements.com>
+Date:   Thu Apr 8 20:51:58 2021 +1200
+
+    started adding unit tests
+
+[33mcommit b962328383914647a55a446e7d9e237a0e2c4ba6[m
+Author: pete <pete@trichosereus>
+Date:   Tue Apr 6 10:38:45 2021 +1200
+
+    - changed most int id fields to uuid type
+    - added account activation stuff
+    - added sendgrid
+    - disabled event contributions
+    - removed event artists
+
+[33mcommit 25cc79262f664aab9c076b959ddf5639f3140a8d[m
+Author: pete <pete@trichosereus>
+Date:   Tue Mar 30 19:04:33 2021 +1300
+
+    changes
+
+[33mcommit 8f67b634b56ee76d82acb10770f56818394ddf2e[m
+Author: pete <pete@trichosereus>
+Date:   Fri Dec 18 10:47:47 2020 +1300
+
+    .
+
+[33mcommit 6be4172d6bf493ee3c4f65fc4a8a7b3fc381976b[m
+Author: pete <pete@trichosereus>
+Date:   Fri Dec 18 10:46:14 2020 +1300
+
+    changes from thinkpad
+
+[33mcommit 1c63cfa25554cefa286e2fc5407640fc284b3440[m
+Author: Peter Steven <pete@Peters-MacBook-Pro.local>
+Date:   Sun Nov 29 11:35:59 2020 +1300
+
+    first commit

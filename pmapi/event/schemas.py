@@ -1,10 +1,11 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
+from typemallow2 import ts_interface
 
 # from pmapi.media_item.schemas import MediaItemSchema
 
-
+@ts_interface()
 class EventSchema(Schema):
     id = fields.Integer()
     name = fields.Str()
@@ -28,7 +29,7 @@ class EventSchema(Schema):
     is_favorited = fields.Boolean()
     page_views = fields.Int()
 
-
+@ts_interface()
 class EventVersionSchema(EventSchema):
     changeset = fields.Dict()
     # previous = fields.Nested("EventVersionSchema", exclude=["previous"])
@@ -46,7 +47,7 @@ class EventListSchema(PaginatedSchema):
 class EventVersionListSchema(PaginatedSchema):
     items = fields.Nested("EventVersionSchema", many=True)
 
-
+@ts_interface()
 class RruleSchema(Schema):
     recurring_type = fields.Integer()
     separation_count = fields.Integer()
@@ -59,7 +60,7 @@ class RruleSchema(Schema):
     start_date_time = fields.Str()
     end_date_time = fields.Str()
 
-
+@ts_interface()
 class RruleVersionSchema(RruleSchema):
     changeset = fields.Dict()
     # previous = fields.Nested("EventVersionSchema", exclude=["previous"])

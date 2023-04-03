@@ -1,10 +1,10 @@
 from marshmallow import fields
 from marshmallow import Schema
-
+from typemallow2 import ts_interface
 from pmapi.common.schemas import PaginatedSchema
 from pmapi.event_date.schemas import EventDateSchema
 
-
+@ts_interface()
 class LocationSchema(Schema):
     geohash = fields.Str()
     lat = fields.Float()
@@ -22,7 +22,7 @@ class LocationSchema(Schema):
 class LocationListSchema(PaginatedSchema):
     items = fields.Nested("LocationSchema", many=True)
 
-
+@ts_interface()
 class LocalitySchema(Schema):
     id = fields.Str()
     short_name = fields.Str()
@@ -31,6 +31,7 @@ class LocalitySchema(Schema):
     region = fields.Nested("RegionSchema", only=["short_name", "long_name", "id"])
 
 
+@ts_interface()
 class RegionSchema(Schema):
     id = fields.Str()
     short_name = fields.Str()
@@ -40,7 +41,7 @@ class RegionSchema(Schema):
         "LocalitySchema", many=True, only=["short_name", "long_name", "id"]
     )
 
-
+@ts_interface()
 class CountrySchema(Schema):
     short_name = fields.Str()
     long_name = fields.Str()
@@ -48,7 +49,7 @@ class CountrySchema(Schema):
         "RegionSchema", many=True, only=["short_name", "long_name", "id", "localities"]
     )
 
-
+@ts_interface()
 class PointSchema(Schema):
     place_id = fields.Str()
     lat = fields.Float()

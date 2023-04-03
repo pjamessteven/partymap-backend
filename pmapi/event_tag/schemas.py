@@ -1,8 +1,9 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
+from typemallow2 import ts_interface
 
-
+@ts_interface()
 class TagSchema(Schema):
     tag = fields.Str()
     count = fields.Integer()
@@ -12,6 +13,6 @@ class TagSchema(Schema):
 class TagListSchema(PaginatedSchema):
     items = fields.Nested(TagSchema, many=True)
 
-
+@ts_interface()
 class EventTagSchema(Schema):
     tag = fields.Str(attribute="tag_id")

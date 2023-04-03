@@ -1,5 +1,6 @@
 from marshmallow import fields
 from marshmallow import Schema
+from typemallow2 import ts_interface
 from pmapi.common.schemas import PaginatedSchema
 from marshmallow_polyfield import PolyField
 from pmapi.event.schemas import (
@@ -17,6 +18,7 @@ from pmapi.event_artist.model import EventDateArtist
 from pmapi.event_tag.model import EventTag
 from pmapi.media_item.model import MediaItem
 from pmapi.media_item.schemas import MediaItemSchema, MediaItemVersionSchema
+from pmapi.user.schemas import UserSchema
 
 # from pmapi.media_item.schemas import MediaItemSchema
 
@@ -43,16 +45,17 @@ def schema_serialization_disambiguation(base_object, parent_obj):
 
     raise TypeError("Could not detect type. ")
 
-
+@ts_interface()
 class TransactionSchema(Schema):
     id = fields.Integer()
     issued_at = fields.DateTime()
-    user = fields.Nested("UserSchema", only=["username"])
+    user = fields.Nested(UserSchema, only=["username"])
 
-
+@ts_interface()
+# marshmallow_polyfield not supported by typemallow2?
 class ActivitySchema(Schema):
     id = fields.Integer()
-    actor = fields.Nested("UserSchema", only=["username"])
+    actor = fields.Nested(UserSchema, only=["username"])
     transaction = fields.Nested(TransactionSchema, attribute="transaction")
     changeset = fields.Dict(attribute="object_version.changeset")
     verb = fields.Str()

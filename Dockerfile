@@ -12,6 +12,9 @@ WORKDIR /app
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
+# install flask-track-usage AFTER other dependancies have been installed (depends onsphinxcontrib-applehelp)
+RUN pip3 install git+https://github.com/ashcrow/flask-track-usage@baeec4d#egg=Flask-Track-Usage
+
 # copy project files to WORKDIR
 COPY . .
 

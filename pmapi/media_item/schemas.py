@@ -3,8 +3,9 @@ from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
 from flask import current_app
 import os
+from typemallow2 import ts_interface
 
-
+@ts_interface()
 class MediaItemSchema(Schema):
     id = fields.UUID()
     creator = fields.Nested("UserSchema", only=["username"])
@@ -60,7 +61,7 @@ class MediaItemSchema(Schema):
         else None
     )
 
-
+@ts_interface()
 class MediaItemVersionSchema(MediaItemSchema):
     changeset = fields.Dict()
     previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])

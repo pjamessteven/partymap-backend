@@ -43,7 +43,7 @@ _____________________________________________________________________________
 > docker compose pull
 
 4) Build images
-> docker compose build
+> docker compose build (--no-cache option can be useful sometimes)
 
 5) Run containers
 > docker compose up
@@ -92,6 +92,8 @@ Access bash within the main 'web' container:
 Send any command to a container:
 > docker compose exec [container name] [command]
 
+Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_types.ts)
+> docker compose exec web python3 manage.py generate_types
 
 Tips related to the production environment:
 _____________________________________________________________________________

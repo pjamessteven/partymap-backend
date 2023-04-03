@@ -1,8 +1,9 @@
 from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
+from typemallow2 import ts_interface
 
-
+@ts_interface()
 class ArtistSchema(Schema):
     id = fields.Int()
     name = fields.Str()
@@ -27,16 +28,16 @@ class ArtistListSchema(PaginatedSchema):
         ArtistSchema, many=True, exclude=["future_event_dates", "past_event_dates"]
     )
 
-
+@ts_interface()
 class ArtistUrlSchema(Schema):
     url = fields.Str()
     type = fields.Str()
 
-
+@ts_interface()
 class ArtistTagSchema(Schema):
     tag = fields.Str(attribute="tag_id")
 
-
+@ts_interface()
 class EventDateArtistSchema(Schema):
     description = fields.Pluck(
         "ArtistSchema", "description", attribute="artist", dump_only=True

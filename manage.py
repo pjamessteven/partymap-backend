@@ -16,6 +16,8 @@ from pmapi.extensions import db
 from pmapi.config import ProdConfig, DevConfig
 from pmapi.utils import ROLES
 from seed_db import SeedTestDb
+from typemallow2 import generate_ts
+
 # export FLASK_DEBUG=1 for dev
 CONFIG = DevConfig if get_debug_flag() else ProdConfig
 
@@ -71,12 +73,15 @@ class CreateUsers(Command):
 # so that we can have some real events, artists and tags 
 # to test with 
 
-   
+class GenerateTypes(Command):
+    def run(self):
+        generate_ts('./autogen_types.ts')
 
 
 manager.add_command("create_db", CreateDb)
 manager.add_command("create_users", CreateUsers)
 manager.add_command("seed_test_db", SeedTestDb)
+manager.add_command("generate_types", GenerateTypes)
 
 # enable python shell with application context
 @manager.shell
