@@ -1,35 +1,41 @@
 import math
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 from pmapi.extensions import db
 
 event_contribution_upvotes = db.Table(
     "event_contribution_upvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", UUID, db.ForeignKey("event_contributions.id")),
+    db.Column("event_contribution_id", UUID,
+              db.ForeignKey("event_contributions.id")),
 )
 
 event_contribution_downvotes = db.Table(
     "event_contribution_downvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", UUID, db.ForeignKey("event_contributions.id")),
+    db.Column("event_contribution_id", UUID,
+              db.ForeignKey("event_contributions.id")),
 )
 
 
 class EventContribution(db.Model):
     __tablename__ = "event_contributions"
 
-    id = db.Column(UUID, primary_key=True)
+    id = db.Column(UUID, primary_key=True,  default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)
     creator = db.relationship("User", back_populates="created_contributions")
 
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey(
+        "events.id"), nullable=False)
     event = db.relationship("Event", back_populates="event_contributions")
     event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", back_populates="contributions")
+
+    rating = db.Column(db.Integer)
 
     text = db.Column(db.Text)
     media_items = db.relationship("MediaItem", back_populates="contribution")

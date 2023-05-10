@@ -5,6 +5,7 @@ from typemallow2 import ts_interface
 
 # from pmapi.media_item.schemas import MediaItemSchema
 
+
 @ts_interface()
 class EventSchema(Schema):
     id = fields.Integer()
@@ -28,6 +29,9 @@ class EventSchema(Schema):
     last_transaction = fields.Nested("TransactionSchema")
     is_favorited = fields.Boolean()
     page_views = fields.Int()
+    event_contributions = fields.Nested("EventContributionSchema",
+                                        many=True)
+
 
 @ts_interface()
 class EventVersionSchema(EventSchema):
@@ -37,7 +41,8 @@ class EventVersionSchema(EventSchema):
     transaction = fields.Nested("TransactionSchema")
     transaction_id = fields.Integer()
     end_transaction_id = fields.Integer()
-    event_dates = fields.Nested("EventDateSchema", many=True, exclude=["event"])
+    event_dates = fields.Nested(
+        "EventDateSchema", many=True, exclude=["event"])
 
 
 class EventListSchema(PaginatedSchema):
@@ -46,6 +51,7 @@ class EventListSchema(PaginatedSchema):
 
 class EventVersionListSchema(PaginatedSchema):
     items = fields.Nested("EventVersionSchema", many=True)
+
 
 @ts_interface()
 class RruleSchema(Schema):
@@ -60,6 +66,7 @@ class RruleSchema(Schema):
     start_date_time = fields.Str()
     end_date_time = fields.Str()
 
+
 @ts_interface()
 class RruleVersionSchema(RruleSchema):
     changeset = fields.Dict()
@@ -71,4 +78,5 @@ class RruleVersionSchema(RruleSchema):
 
 
 class ContributorListSchema(Schema):
-    items = fields.List(fields.Tuple((fields.Nested("UserSchema"), fields.String())))
+    items = fields.List(fields.Tuple(
+        (fields.Nested("UserSchema"), fields.String())))

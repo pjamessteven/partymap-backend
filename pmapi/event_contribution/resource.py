@@ -4,7 +4,7 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_apispec import doc
 from marshmallow import fields
-
+from flask_login import login_required
 from . import controllers as event_contributions
 from .schemas import EventContributionSchema
 
@@ -13,10 +13,12 @@ event_contribution_blueprint = Blueprint("event_contribution", __name__)
 
 @doc(tags=["event_contributions"])
 class AddEventContributionResource(MethodResource):
+    @login_required
     @doc(summary="Add a contribution", description="Adds a contribution to an event")
     @use_kwargs(
         {
             "text": fields.Str(required=False),
+            "rating": fields.Integer(required=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "event_date_id": fields.Integer(required=False),
         }
@@ -27,8 +29,9 @@ class AddEventContributionResource(MethodResource):
 
 
 event_contribution_blueprint.add_url_rule(
-    "/<event_id>",
-    view_func=AddEventContributionResource.as_view("AddEventContributionResource"),
+    "/event/<event_id>/",
+    view_func=AddEventContributionResource.as_view(
+        "AddEventContributionResource"),
 )
 
 
