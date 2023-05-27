@@ -44,9 +44,8 @@ def get_artist(id):
 
 
 def get_artists(**kwargs):
-
     query = db.session.query(Artist)
-    print("test")
+
     if "date_min" in kwargs:
         query = query.join(EventDateArtist).join(EventDate)
         query = query.filter(EventDate.start_naive >= kwargs.pop("date_min"))
@@ -61,7 +60,6 @@ def get_artists(**kwargs):
                 EventDate.start_naive <= date_max,
             )
         )
-
     if "radius" and "location" in kwargs:
         radius = kwargs.get("radius")
         location = kwargs.get("location")
@@ -82,6 +80,10 @@ def get_artists(**kwargs):
                 radius,
             )
         )
+
+    if kwargs.get("query", None) is not None:
+        search = "%{}%".format(kwargs.pop("query"))
+        query = query.filter(Artist.name.ilike(search))
 
     elif "bounds" in kwargs:
         query = (
@@ -128,7 +130,11 @@ def get_artists(**kwargs):
         search = "%{}%".format(kwargs.pop("query"))
         query = query.filter(Artist.name.ilike(search))
 
-    # query = query.order_by(desc(Artist.event_count))
+    if kwargs.pop("sort") is "event_count":
+        # IDK why but if this order_by filter is passed to paginated_results it fucks up hard
+        # possibly doesn't exist on model because it's a dynamic field?
+        # ** all is well **
+        query = query.order_by(desc(Artist.event_count))
 
     return paginated_results(Artist, query=query, **kwargs)
 
