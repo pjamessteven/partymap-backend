@@ -3,6 +3,7 @@ from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
 from typemallow2 import ts_interface
 
+
 @ts_interface()
 class EventDateSchema(Schema):
     id = fields.Integer()
@@ -29,6 +30,9 @@ class EventDateSchema(Schema):
     duration = fields.Float()
     size = fields.Integer()
     artists = fields.Nested("EventDateArtistSchema", many=True)
+    user_going = fields.Boolean()
+    user_interested = fields.Boolean()
+
 
 @ts_interface()
 class MiniEventDateSchema(Schema):
@@ -39,6 +43,7 @@ class MiniEventDateSchema(Schema):
     start_naive = fields.Str(attribute="start_naive")
     end_naive = fields.Str(attribute="end_naive")
     tz = fields.Str()
+
 
 @ts_interface()
 class EventDateVersionSchema(EventDateSchema):
@@ -55,5 +60,6 @@ class EventDateListSchema(PaginatedSchema):
 
 
 class EventDateQueryListSchema(PaginatedSchema):
-    items = fields.List(fields.Tuple((fields.Nested("EventDateSchema"), fields.Str())))
+    items = fields.List(fields.Tuple(
+        (fields.Nested("EventDateSchema"), fields.Str())))
     radius = fields.Integer()

@@ -136,6 +136,42 @@ event_dates_blueprint.add_url_rule(
 )
 
 
+@doc(tags=["dates", "user"])
+class DateUserInterestedResource(MethodResource):
+    @doc(
+        summary="Mark as interested",
+        description="""Add or remove this date from the users list of interested event dates""",
+        params={"id": {"description": "event date ID"}},
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    @login_required
+    def post(self, id, **kwargs):
+        return event_dates.toggle_interested(id)
+
+
+event_dates_blueprint.add_url_rule(
+    "/<id>/interested", view_func=DateUserInterestedResource.as_view("DateUserInterestedResource")
+)
+
+
+@doc(tags=["dates", "user"])
+class DateUserGoingResource(MethodResource):
+    @doc(
+        summary="Mark as going",
+        description="""Add or remove this date from the users list of 'going' event dates""",
+        params={"id": {"description": "event date ID"}},
+    )
+    @marshal_with(EventDateSchema(), code=200)
+    @login_required
+    def post(self, id, **kwargs):
+        return event_dates.toggle_going(id)
+
+
+event_dates_blueprint.add_url_rule(
+    "/<id>/going", view_func=DateUserGoingResource.as_view("DateUserGoingResource")
+)
+
+
 @doc(tags=["dates"])
 class EventDatesResource(MethodResource):
     @doc(

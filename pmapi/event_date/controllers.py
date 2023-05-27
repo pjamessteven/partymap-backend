@@ -645,6 +645,28 @@ def query_event_dates(**kwargs):
 
     seconds_start = time.time()
 
+    going_expression = (
+        db.session.query(user_event_date_going_table)
+        .filter(
+            and_(
+                user_event_date_going_table.c.user_id == current_user.id,
+                user_event_date_going_table.c.event_date_id == EventDate.id,
+            )
+        )
+        .exists()
+    )
+
+    interested_expression = (
+        db.session.query(user_event_date_interested_table)
+        .filter(
+            and_(
+                user_event_date_interested_table.c.user_id == current_user.id,
+                user_event_date_interested_table.c.event_date_id == EventDate.id,
+            )
+        )
+        .exists()
+    )
+
     """
     if kwargs.get("distinct", False) is True:
         # use subquery to return only the next event_date of an event
@@ -712,6 +734,17 @@ def query_event_dates(**kwargs):
     else:
         query = db.session.query(EventDate)
         query = query.join(Event)
+
+    # apply interested/going expression if user logged in
+    if current_user.is_authenticated:
+        query = query.options(with_expression(
+            EventDate.user_interested,
+            interested_expression,
+        ),
+            with_expression(
+            EventDate.user_going,
+            going_expression,
+        ))
 
     joined_tables = [mapper.class_ for mapper in query._join_entities]
 
@@ -981,3 +1014,35 @@ def query_event_dates(**kwargs):
     results = paginated_results(EventDate, query, **kwargs)
     results.radius = radius
     return results
+
+
+def toggle_going(id):
+    event_date = get_event_date_or_404(id)
+    user = current_user
+
+    if not user.is_authenticated:
+        raise exc.NotAuthenticated()
+
+    if event_date not in user.going_event_dates:
+        user.going_event_dates.append(event_date)
+    else:
+        user.going_event_dates.remove(event_date)
+
+    db.session.commit()
+    return event_date
+
+
+def toggle_interested(id):
+    event_date = get_event_date_or_404(id)
+    user = current_user
+
+    if not user.is_authenticated:
+        raise exc.NotAuthenticated()
+
+    if event_date not in user.interested_event_dates:
+        user.interested_event_dates.append(event_date)
+    else:
+        user.interested_event_dates.remove(event_date)
+
+    db.session.commit()
+    return event_date
