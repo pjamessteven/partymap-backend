@@ -3,6 +3,10 @@ from pytz.exceptions import UnknownTimeZoneError
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
+from flask import Response
+
+from icalendar import Calendar as icalendarCalendar, Event as icalendarEvent, vCalAddress, vText
+
 from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_, asc, distinct
 from sqlalchemy.orm import with_expression, lazyload
@@ -28,6 +32,7 @@ from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 # from dateutil.relativedelta import *
 from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, WEEKLY
+from dateutil import tz
 
 import time
 
@@ -1090,3 +1095,64 @@ def toggle_interested(id):
 
     db.session.commit()
     return event_date
+
+
+def ics_download(id):
+    event_date = get_event_date_or_404(id)
+    timezone = tz.gettz(event_date.tz)
+
+    filename = event_date.event.name + \
+        ' | ' + event_date.start_naive.strftime("%B %d, %Y")
+
+    event_url = 'https://partymap.com/event/' + \
+        str(event_date.event.id) + "?name=" + \
+        event_date.event.name.replace(" ", "_")
+
+    iso_start = event_date.start.strftime("%Y%m%dT%H%M%SZ")
+    human_start_time = event_date.start_naive.strftime("%Y %I:%M%p %a %d %b")
+    human_end_time = ""
+    if event_date.end_naive:
+        human_end_time = event_date.end_naive.strftime("%I:%M%p %a %d %b %Y")
+
+    description = event_url + '\n\n' + 'Start: ' + human_start_time + '\n' + 'End: ' + human_end_time + \
+        '\n' + 'Timezone: ' + event_date.tz + '\n\n' + \
+        event_date.event.description + '\n\n'
+
+    if event_date.description:
+        description = description + ' ' + event_date.description
+
+    cal = icalendarCalendar()
+    cal.add('prodid', '-//Partymap//partymap.com//')
+    cal.add('version', '2.0')
+
+    organizer = vCalAddress('MAILTO:noreply@partymap.com')
+    organizer.params['cn'] = vText('partymap')
+
+    event = icalendarEvent()
+    event['organizer'] = organizer
+
+    event.add('uid', iso_start+'/'+str(event_date.id)+'@partymap.com')
+    event.add('summary', event_date.event.name)
+
+    event.add('description', description)
+    event.add('geo', (event_date.location.lat, event_date.location.lng))
+    event.add('location', event_date.location.description)
+
+    event.add('dtstart', event_date.start_naive.astimezone(timezone))
+    event.add('dtend', event_date.end_naive.astimezone(timezone))
+    event.add('dtstamp', datetime.utcnow())
+
+    cal.add_component(event)
+
+    # reference for below code: https://github.com/N-Coder/vtimezone-examples
+    from khal.khalendar.event import create_timezone
+    cal.add_component(create_timezone(pytz.timezone(event_date.tz)))
+
+    response = Response(cal.to_ical(), mimetype="text/calendar")
+
+    # add a filename
+    response.headers.set(
+        "Content-Disposition", "attachment", filename="{0}.ics".format(filename)
+    )
+
+    return response

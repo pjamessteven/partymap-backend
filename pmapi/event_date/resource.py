@@ -173,6 +173,22 @@ event_dates_blueprint.add_url_rule(
 
 
 @doc(tags=["dates"])
+class DateIcsDownloadResource(MethodResource):
+    @doc(
+        summary="Get an ics file for this date",
+        description="""Generates an ics (ical) format calendar file for this event date.""",
+        params={"id": {"description": "event date ID"}},
+    )
+    def get(self, id, **kwargs):
+        return event_dates.ics_download(id)
+
+
+event_dates_blueprint.add_url_rule(
+    "/<id>/ics", view_func=DateIcsDownloadResource.as_view("DateIcsDownloadResource")
+)
+
+
+@doc(tags=["dates"])
 class EventDatesResource(MethodResource):
     @doc(
         summary="Add an event date to an existing event.",
