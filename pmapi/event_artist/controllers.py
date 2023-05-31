@@ -134,7 +134,10 @@ def get_artists(**kwargs):
         # IDK why but if this order_by filter is passed to paginated_results it fucks up hard
         # possibly doesn't exist on model because it's a dynamic field?
         # ** all is well **
-        query = query.order_by(desc(Artist.event_count))
+        if kwargs.pop("desc") is True:
+            query = query.order_by(desc(Artist.event_count))
+        else:
+            query = query.order_by(Artist.event_count)
 
     return paginated_results(Artist, query=query, **kwargs)
 
