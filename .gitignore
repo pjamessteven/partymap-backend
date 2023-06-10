@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+**/__pycache__
+*.pyc
+uploaded_media.tar
+.pytest_cache
+chromedriver
+static.zip
+static/
+env/
