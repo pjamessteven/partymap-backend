@@ -4,8 +4,8 @@ __pycache__/
 **/__pycache__
 *.pyc
 uploaded_media.tar
-static/
-env/
 .pytest_cache
 chromedriver
 static.zip
+static/
+env/
