@@ -48,16 +48,40 @@ def get_event(id):
         .exists()
     )
 
-    event = (
-        db.session.query(Event)
-        .filter(Event.id == id)
-        .options(
-            with_expression(
-                Event.user_following,
-                following_expression,
+    going_expression = (
+        db.session.query(user_event_date_going_table)
+        .filter(
+            and_(
+                user_event_date_going_table.c.user_id == current_user.id,
+                user_event_date_going_table.c.event_date_id == EventDate.id,
             )
         )
-    ).first()
+        .exists()
+    )
+
+    interested_expression = (
+        db.session.query(user_event_date_interested_table)
+        .filter(
+            and_(
+                user_event_date_interested_table.c.user_id == current_user.id,
+                user_event_date_interested_table.c.event_date_id == EventDate.id,
+            )
+        )
+        .exists()
+    )
+
+    query = Event.query.join(EventDate)
+
+    event = (query
+             .options(
+                 with_expression(
+                     Event.user_following,
+                     following_expression,
+                 ),
+
+             )
+             )
+    event = query.get(id)
 
     if event:
         # increment page views
