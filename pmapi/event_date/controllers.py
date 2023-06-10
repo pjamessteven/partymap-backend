@@ -1109,10 +1109,10 @@ def ics_download(id):
         event_date.event.name.replace(" ", "_")
 
     iso_start = event_date.start.strftime("%Y%m%dT%H%M%SZ")
-    human_start_time = event_date.start_naive.strftime("%Y %I:%M%p %a %d %b")
+    human_start_time = event_date.start_naive.strftime("%a %d %b %I:%M%p ")
     human_end_time = ""
     if event_date.end_naive:
-        human_end_time = event_date.end_naive.strftime("%I:%M%p %a %d %b %Y")
+        human_end_time = event_date.end_naive.strftime("%a %d %b %I:%M%p ")
 
     description = event_url + '\n\n' + 'Start: ' + human_start_time + '\n' + 'End: ' + human_end_time + \
         '\n' + 'Timezone: ' + event_date.tz + '\n\n' + \

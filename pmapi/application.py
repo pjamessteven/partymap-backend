@@ -38,6 +38,7 @@ from .config import DevConfig
 from .config import ProdConfig
 import os
 import logging
+from pmapi.utils import ROLES
 
 # ONLY FOR TESTING !!
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -49,6 +50,7 @@ CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
 class AnonUser(AnonymousUserMixin):
     id = CONFIG.ANON_USER_ID
+    role = ROLES["UNPRIVILIGED_USER"]
 
     def get_id(self):
         return CONFIG.ANON_USER_ID
@@ -158,6 +160,7 @@ def register_extensions(app):
             print("Error initiating tracker, likely due to db problem.")
             pass
 
+
 def register_blueprints(app):
     from pmapi.auth.oauth_resource import oauth_blueprint
     from pmapi.auth.resource import auth_blueprint
@@ -187,12 +190,14 @@ def register_blueprints(app):
     app.register_blueprint(media_blueprint, url_prefix="/api/media")
     app.register_blueprint(locations_blueprint, url_prefix="/api/location")
     app.register_blueprint(users_blueprint, url_prefix="/api/user")
-    app.register_blueprint(event_contribution_blueprint, url_prefix="/api/contribution")
+    app.register_blueprint(event_contribution_blueprint,
+                           url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
     app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
-    app.register_blueprint(suggestions_blueprint, url_prefix="/api/suggestions")
+    app.register_blueprint(suggestions_blueprint,
+                           url_prefix="/api/suggestions")
     app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
     app.register_blueprint(services_blueprint, url_prefix="/api/services")
@@ -265,7 +270,8 @@ def register_docs(app):
     extensions.apidocs.register(TagsResource, "tags.TagsResource")
     extensions.apidocs.register(PointsResource, "locations.PointsResource")
     extensions.apidocs.register(LocationResource, "locations.LocationResource")
-    extensions.apidocs.register(LocationsResource, "locations.LocationsResource")
+    extensions.apidocs.register(
+        LocationsResource, "locations.LocationsResource")
     extensions.apidocs.register(DateResource, "dates.DateResource")
     extensions.apidocs.register(DatesResource, "dates.DatesResource")
     extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
@@ -297,7 +303,8 @@ def handle_internal_error(error, **kwargs):
 
 
 def handle_301(error):
-    response = jsonify(InvalidRoute(message={"new_url": error.new_url}).to_dict())
+    response = jsonify(InvalidRoute(
+        message={"new_url": error.new_url}).to_dict())
     return response
 
 
