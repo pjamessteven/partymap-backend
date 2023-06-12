@@ -72,7 +72,7 @@ def get_event(id):
 
     query = Event.query.join(EventDate)
 
-    event = (query
+    query = (query
              .options(
                  with_expression(
                      Event.user_following,
@@ -81,7 +81,8 @@ def get_event(id):
 
              )
              )
-    event = query.get(id)
+
+    event = query.filter(Event.id == id).first()
 
     if event:
         # increment page views
