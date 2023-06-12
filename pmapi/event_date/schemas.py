@@ -38,11 +38,20 @@ class EventDateSchema(Schema):
 class MiniEventDateSchema(Schema):
     id = fields.Integer()
     event_id = fields.Integer()
+    name = fields.Str(attribute="event.name")
+    event = fields.Nested(
+        "EventSchema",
+        only=["event_tags", "cover_items", "host", "rrule"],
+    )
     start = fields.Str(attribute="start")
     end = fields.Str(attribute="end")
     start_naive = fields.Str(attribute="start_naive")
     end_naive = fields.Str(attribute="end_naive")
     tz = fields.Str()
+    user_going = fields.Boolean()
+    user_interested = fields.Boolean()
+    location = fields.Nested("LocationSchema", exclude=["event_dates"])
+    location_id = fields.Str()
 
 
 @ts_interface()
@@ -61,5 +70,5 @@ class EventDateListSchema(PaginatedSchema):
 
 class EventDateQueryListSchema(PaginatedSchema):
     items = fields.List(fields.Tuple(
-        (fields.Nested("EventDateSchema"), fields.Str())))
+        (fields.Nested("MiniEventDateSchema"), fields.Str())))
     radius = fields.Integer()

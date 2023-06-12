@@ -112,7 +112,7 @@ class Event(db.Model):
     @property
     def cover_items(self):
         # return first three items for cover images
-        return self.media_items[0:3]
+        return self.media_items[0:1]
 
     def minified(self):
         return dict(
