@@ -339,7 +339,7 @@ def update_event_date(id, **kwargs):
         event_date.start_naive = start_naive
         event_date.end_naive = end_naive
         event_date.tz = tz
-        event_date.date_confirmed = true
+        event_date.date_confirmed = True
 
     if location:
         lat = location["geometry"]["location"]["lat"]
