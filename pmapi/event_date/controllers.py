@@ -111,7 +111,7 @@ def add_event_date_with_datetime(
         start_naive = start.replace(tzinfo=None)
 
         if date_time.get("end", None) is None:
-            raise exc.InvalidAPIRequest("End date required")
+            end = start
         end = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S").replace(
             second=0, microsecond=0
         )
@@ -157,6 +157,7 @@ def add_event_date(
     size=None,
     artists=None,
     activity=True,
+    date_confirmed=True,
 ):
     """accepts naive start and end dates and derives timezone from location
     if it not provided"""
@@ -177,11 +178,15 @@ def add_event_date(
         tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
         tz_obj = pytz.timezone(tz)
 
+    if not start_naive:
+        raise exc.InvalidAPIRequest("Start date/time required")
+
     if not end_naive:
-        raise exc.InvalidAPIRequest("End date required")
+        end_naive = start_naive
 
     if end_naive < start_naive:
-        raise exc.InvalidAPIRequest("End time can't be before the start time")
+        raise exc.InvalidAPIRequest(
+            "End date/time can't be before the start date/time")
 
     start_utc = tz_obj.localize(start_naive)
     start_utc = start_utc.astimezone(pytz.utc)
@@ -207,6 +212,7 @@ def add_event_date(
         size=size,
         url=url,
         ticket_url=ticket_url,
+        date_confirmed=date_confirmed
     )
     db.session.add(event_date)
 
@@ -297,7 +303,7 @@ def update_event_date(id, **kwargs):
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
-            raise exc.InvalidAPIRequest("End date required")
+            end_naive = start_naive
         end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
         end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
@@ -333,6 +339,7 @@ def update_event_date(id, **kwargs):
         event_date.start_naive = start_naive
         event_date.end_naive = end_naive
         event_date.tz = tz
+        event_date.date_confirmed = true
 
     if location:
         lat = location["geometry"]["location"]["lat"]
@@ -446,7 +453,7 @@ def generate_future_event_dates(
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
-            raise exc.InvalidAPIRequest("End date required")
+            end_naive = start_naive
         end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
         end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
@@ -536,6 +543,7 @@ def generate_future_event_dates(
                     size=next_event_date_size,
                     artists=next_event_date_artists,
                     activity=activity,
+                    date_confirmed=rrule.exact
                 )
                 # next_event_date_description and artists only used once
                 next_event_date_description = None
@@ -1121,7 +1129,7 @@ def ics_download(id):
     if event_date.description:
         description = description + ' ' + event_date.description
 
-    cal = icalendarCalendar()
+    cal = icalendarCaobilendar()
     cal.add('prodid', '-//Partymap//partymap.com//')
     cal.add('version', '2.0')
 

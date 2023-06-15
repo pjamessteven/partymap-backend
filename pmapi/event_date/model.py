@@ -42,6 +42,8 @@ class EventDate(db.Model):
     end = db.Column(db.DateTime, nullable=False)
     start_naive = db.Column(db.DateTime, nullable=False)
     end_naive = db.Column(db.DateTime, nullable=False)
+    date_confirmed = db.Column(db.Boolean, default=True)
+
     # info can change for each event
     location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
     location = db.relationship("EventLocation", back_populates="event_dates")

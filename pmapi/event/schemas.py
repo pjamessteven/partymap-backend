@@ -65,6 +65,7 @@ class RruleSchema(Schema):
     # default_location = fields.Nested("LocationSchema")
     start_date_time = fields.Str()
     end_date_time = fields.Str()
+    exact = fields.Boolean()
 
 
 @ts_interface()

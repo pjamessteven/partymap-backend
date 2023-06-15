@@ -305,6 +305,8 @@ class Rrule(db.Model):
     default_location_id = db.Column(
         db.Integer, db.ForeignKey("event_locations.id"))
     default_location = db.relationship("EventLocation")
+    # if exact is True, EventDate.date_confirmed will be true. If not, exact date will be confirmed later.
+    exact = db.Column(db.Boolean, default=False)
 
     def to_dict(self):
         return dict(
@@ -316,4 +318,5 @@ class Rrule(db.Model):
             week_of_month=self.week_of_month,
             day_of_month=self.day_of_month,
             month_of_year=self.month_of_year,
+            exact=self.exact
         )
