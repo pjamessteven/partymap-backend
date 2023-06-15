@@ -197,6 +197,7 @@ def add_event(**kwargs):
             default_url=url,
             default_ticket_url=ticket_url,
             default_location=loc,
+            exact=rrule["exact"]
         )
         db.session.add(rrule)
         db.session.flush()
@@ -353,6 +354,7 @@ def update_event(event_id, **kwargs):
             existing_rrule.week_of_month = rrule["weekOfMonth"]
             existing_rrule.start_date_time = date_time["start"]
             existing_rrule.end_date_time = date_time["end"]
+            existing_rrule.exact = rrule["exact"]
             existing_rrule.default_url = url
             existing_rrule.default_location = event_location
             db.session.flush()
@@ -373,6 +375,7 @@ def update_event(event_id, **kwargs):
                 end_date_time=date_time["end"],
                 default_url=url,
                 default_location=event_location,
+                exact=rrule["exact"]
             )
             db.session.add(rrule)
             # activity for creating rrule
