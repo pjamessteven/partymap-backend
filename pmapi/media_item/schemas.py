@@ -4,6 +4,8 @@ from pmapi.common.schemas import PaginatedSchema
 from flask import current_app
 import os
 from typemallow2 import ts_interface
+from pprint import pprint
+
 
 @ts_interface()
 class MediaItemSchema(Schema):
@@ -61,6 +63,7 @@ class MediaItemSchema(Schema):
         else None
     )
 
+
 @ts_interface()
 class MediaItemVersionSchema(MediaItemSchema):
     changeset = fields.Dict()
@@ -76,6 +79,7 @@ class MediaItemSchemaListSchema(PaginatedSchema):
 
 
 def generate_filepath(item, filename):
+    print(pprint(vars(item)))
     if item.event_id:
         return os.path.join(
             current_app.config["UPLOADS_URL"]
@@ -89,6 +93,15 @@ def generate_filepath(item, filename):
             current_app.config["UPLOADS_URL"]
             + "artist/"
             + str(item.artist_id)
+            + "/"
+            + str(filename)
+        )
+    elif item.is_user_avatar:
+        return os.path.join(
+            current_app.config["UPLOADS_URL"]
+            + "user_avatar/"
+            + str(item.is_user_avatar.username) +
+            '_' + str(item.is_user_avatar.id)
             + "/"
             + str(filename)
         )

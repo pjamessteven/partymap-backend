@@ -151,6 +151,53 @@ def add_media_to_artist(items, artist, creator=None):
     return artist.media_items
 
 
+def upload_user_avatar(item, user, creator=current_user):
+    file = item["base64File"]
+    path = os.path.join(
+        current_app.config["MEDIA_UPLOAD_FOLDER"] +
+        str("user_avatar/") + str(user.username) + '_' + str(user.id)
+    )
+
+    (
+        thumb_xxs_filename,
+        thumb_xs_filename,
+        thumb_filename,
+        image_med_filename,
+        image_filename,
+        video_low_filename,
+        video_med_filename,
+        video_high_filename,
+        video_poster_filename,
+        duration,
+        type,
+    ) = save_media_item(file, path)
+
+    if thumb_filename:
+        media_item = MediaItem(
+            caption=item.get("caption", None),
+            image_filename=image_filename,
+            image_med_filename=image_med_filename,
+            video_low_filename=video_low_filename,
+            video_med_filename=video_med_filename,
+            video_high_filename=video_high_filename,
+            video_poster_filename=video_poster_filename,
+            duration=duration,
+            thumb_filename=thumb_filename,
+            thumb_xs_filename=thumb_xs_filename,
+            thumb_xxs_filename=thumb_xxs_filename,
+            type=type,
+            creator_id=creator.id,
+        )
+        db.session.add(media_item)
+        db.session.flush()
+
+        return media_item
+
+    raise exc.InvalidAPIRequest("Error saving file :'(")
+
+    return None
+
+
 def add_media_to_event(items, event, event_date=None, creator=current_user):
 
     media_items = []

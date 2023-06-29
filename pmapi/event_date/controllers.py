@@ -423,6 +423,8 @@ def delete_future_event_dates(event, preserve_next=False, activity=True):
             activity = Activity(verb=u"delete", object=ed, target=event)
             db.session.add(activity)
 
+# DONT USE THIS METHOD FOR AUTOGENERATION (BECAUSE DATE_CONFIRMED WILL BE SET TO TRUE IN CASES WHERE IT SHOULD NOT BE)
+
 
 def generate_future_event_dates(
     event,
@@ -543,7 +545,8 @@ def generate_future_event_dates(
                     size=next_event_date_size,
                     artists=next_event_date_artists,
                     activity=activity,
-                    date_confirmed=rrule.exact
+                    # the first date should be confirmed
+                    date_confirmed=True if rrule.exact or index == 0 else False
                 )
                 # next_event_date_description and artists only used once
                 next_event_date_description = None

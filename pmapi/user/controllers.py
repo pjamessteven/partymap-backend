@@ -15,6 +15,7 @@ from pmapi.mail.controllers import (
 from pmapi.utils import ROLES
 from pmapi.extensions import db
 import pmapi.event.controllers as events
+import pmapi.media_item.controllers as media_items
 from flask_login import (
     login_user,
 )
@@ -40,7 +41,8 @@ def get_user(user_identifier):
     if "@" in user_identifier:
         search_property = "email"
 
-    user = User.query.filter(getattr(User, search_property) == user_identifier).first()
+    user = User.query.filter(
+        getattr(User, search_property) == user_identifier).first()
     return user, search_property
 
 
@@ -48,7 +50,8 @@ def get_user_or_404(user_identifier):
     """Return a user or raise 404 exception"""
     user, search_property = get_user(user_identifier)
     if not user:
-        msg = "No such user with {} {}".format(search_property, user_identifier)
+        msg = "No such user with {} {}".format(
+            search_property, user_identifier)
         raise exc.RecordNotFound(msg)
 
     return user
@@ -69,7 +72,8 @@ def get_users(**kwargs):
         # identifier is email?
         if "@" in query_string:
             search_property = "email"
-        query = User.query.filter(getattr(User, search_property).ilike(query_string))
+        query = User.query.filter(
+            getattr(User, search_property).ilike(query_string))
 
     if kwargs.get("status", None) is not None:
         status = kwargs.pop("status")
@@ -114,9 +118,11 @@ def create_user(**kwargs):
         # must be staff to add user without
         if not email_action:
             if not current_user or not current_user.is_authenticated:
-                raise exc.RecordNotFound("Invitation code is required to sign up.")
+                raise exc.RecordNotFound(
+                    "Invitation code is required to sign up.")
             elif current_user.is_authenticated and current_user.role < ROLES["STAFF"]:
-                raise exc.RecordNotFound("Invitation code is required to sign up.")
+                raise exc.RecordNotFound(
+                    "Invitation code is required to sign up.")
         else:
             if email_action.expired:
                 # token has expired (5 minutes passed)
@@ -208,6 +214,9 @@ def edit_user(user_id, **kwargs):
     password_confirm = kwargs.pop("password_confirm", None)
     role = kwargs.pop("role", None)
     status = kwargs.pop("status", None)
+    avatar = kwargs.pop("avatar", None)
+    alias = kwargs.pop("alias", None)
+    description = kwargs.pop("description", None)
 
     user = get_user_or_404(user_id)
 
@@ -218,6 +227,19 @@ def edit_user(user_id, **kwargs):
     if username:
         validate.username(username)
         user.username = username
+
+    if alias:
+        validate.user_alias(alias)
+        user.alias = alias
+
+    if description:
+        validate.user_description(description)
+        user.description = description
+
+    if avatar:
+        media_item = media_items.upload_user_avatar(
+            avatar,  user=user, creator=current_user)
+        user.avatar = media_item
 
     if password:
         validate.password(password)

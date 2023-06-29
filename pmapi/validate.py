@@ -17,13 +17,34 @@ def username(username):
     username can't start with "q_"
     """
     if len(username) > 25:
-        raise InvalidAPIRequest("Username must not be longer than 25 characters")
+        raise InvalidAPIRequest(
+            "Username must not be longer than 25 characters")
     if len(username) < 3:
         raise InvalidAPIRequest("Username must be 3 characters or more")
     if not re.match("[0-9a-z_-]+$", username):
         raise InvalidAPIRequest(
             "Username may only contain lower case alphanumeric, '-', or '_'"
         )
+
+    return True
+
+
+def user_description(username):
+    """Character limit: 1000 chars
+    """
+    if len(username) > 1000:
+        raise InvalidAPIRequest(
+            "User description must not be longer than 1000 characters")
+
+    return True
+
+
+def user_alias(username):
+    """Character limit: 1000 chars
+    """
+    if len(username) > 200:
+        raise InvalidAPIRequest(
+            "User alias must not be longer than 200 characters")
 
     return True
 
@@ -56,7 +77,8 @@ def uuid(uuid, err_msg=None):
         UUID(uuid)
         return True
     except (ValueError, TypeError):
-        raise InvalidAPIRequest(err_msg or '"{}" is not a valid UUID'.format(uuid))
+        raise InvalidAPIRequest(
+            err_msg or '"{}" is not a valid UUID'.format(uuid))
 
 
 def password(password):

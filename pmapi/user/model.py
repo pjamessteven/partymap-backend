@@ -17,6 +17,7 @@ from pmapi.extensions import db
 from pmapi.utils import ROLES
 import pmapi.exceptions as exc
 import pmapi.validate as validate
+from pmapi.media_item.model import MediaItem
 
 from pmapi.event.model import (
     Event,
@@ -48,6 +49,9 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=True)
+    alias = db.Column(db.String(200))
+    description = db.Column(db.String(1000))
+
     oauth = db.Column(db.Boolean, unique=False, default=False)
     status = db.Column(
         ENUM("active", "disabled", "pending", name="user_status"), default="pending"
@@ -56,6 +60,9 @@ class User(db.Model):
     notifications = db.relationship(
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
+    avatar_id = db.Column(db.Integer, db.ForeignKey(MediaItem.id))
+    avatar = db.relationship("MediaItem", uselist=False,
+                             foreign_keys=[avatar_id], back_populates="is_user_avatar", primaryjoin="User.avatar_id == MediaItem.id")
 
     following_events = db.relationship(
         "Event", back_populates="followers", secondary=user_event_following_table
@@ -95,7 +102,7 @@ class User(db.Model):
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
     created_media_items = db.relationship(
-        "MediaItem", back_populates="creator")
+        "MediaItem", back_populates="creator", primaryjoin="MediaItem.creator_id == User.id")
     created_event_locations = db.relationship(
         "EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")

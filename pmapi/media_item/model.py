@@ -25,16 +25,21 @@ class MediaItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
-    creator = db.relationship("User", back_populates="created_media_items")
+    creator = db.relationship(
+        "User", back_populates="created_media_items", foreign_keys=[creator_id])
 
     caption = db.Column(db.Text)
     type = db.Column(db.Enum("image", "video", name="media_type"))
     position = db.Column(db.Integer)
 
-    thumb_xxs_filename = db.Column(db.String, default=None, nullable=True)  # 64x64
-    thumb_xs_filename = db.Column(db.String, default=None, nullable=True)  # 256x256
-    thumb_filename = db.Column(db.String, default=None, nullable=False)  # 512x512
-    image_med_filename = db.Column(db.String, default=None, nullable=True)  # 1024x1024
+    thumb_xxs_filename = db.Column(
+        db.String, default=None, nullable=True)  # 64x64
+    thumb_xs_filename = db.Column(
+        db.String, default=None, nullable=True)  # 256x256
+    thumb_filename = db.Column(
+        db.String, default=None, nullable=False)  # 512x512
+    image_med_filename = db.Column(
+        db.String, default=None, nullable=True)  # 1024x1024
     image_filename = db.Column(db.String, default=None, nullable=True)
 
     video_low_filename = db.Column(db.String, default=None, nullable=True)
@@ -44,7 +49,8 @@ class MediaItem(db.Model):
     duration = db.Column(db.Integer)  # in seconds
 
     contribution_id = db.Column(UUID, db.ForeignKey("event_contributions.id"))
-    contribution = db.relationship("EventContribution", back_populates="media_items")
+    contribution = db.relationship(
+        "EventContribution", back_populates="media_items")
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
     event = db.relationship("Event", back_populates="media_items")
@@ -54,6 +60,10 @@ class MediaItem(db.Model):
 
     artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
     artist = db.relationship("Artist")
+
+    is_user_avatar = db.relationship(
+        "User", back_populates="avatar", uselist=False, primaryjoin="User.avatar_id == MediaItem.id"
+    )
 
     """
     status = db.Column(db.SmallInteger, default=1)

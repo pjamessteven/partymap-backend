@@ -81,11 +81,14 @@ class UserResource(MethodResource):
     @use_kwargs(
         {
             "username": fields.Str(required=False),
+            "alias": fields.Str(required=False),
+            "description": fields.Str(required=False),
             "email": fields.Email(required=False),
             "password": fields.Str(required=False),
             "password_confirm": fields.Str(required=False),
             "role": fields.Int(required=False),
-            "status": fields.Str(require=False),
+            "status": fields.Str(required=False),
+            "avatar": fields.Dict(required=False, allow_none=True)
         }
     )
     @marshal_with(PrivateUserSchema(), code=200)

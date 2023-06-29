@@ -33,7 +33,7 @@ def authenticate_user(**kwargs):
     if not check_password_hash(user.password, password):
         session["attempt"] = session["attempt"] - 1
         raise exc.InvalidAPIRequest(
-            "Invalid password. Or did you login with Facebook...?"
+            "Login failed, try again..."
         )
     # flask-login
     login_user(user, remember=remember)
