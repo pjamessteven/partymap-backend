@@ -62,7 +62,7 @@ def add_suggested_edit(
     **kwargs
 ):
     # check target object exists
-    if not event_id or not artist_id or not event_date_id:
+    if not event_id and not artist_id and not event_date_id:
         raise exc.InvalidAPIRequest("Suggestion must have a target")
     if event_id:
         events.get_event_or_404(event_id)
@@ -117,7 +117,8 @@ def update_suggested_edit(id, **kwargs):
         if suggestion.action == "create":
             if suggestion.object_type == "EventDate":
                 # create event date
-                event_dates.add_event_date_with_datetime(event, **suggestion.kwargs)
+                event_dates.add_event_date_with_datetime(
+                    event, **suggestion.kwargs)
 
         if suggestion.action == "update":
             if suggestion.object_type == "EventDate":
@@ -132,7 +133,8 @@ def update_suggested_edit(id, **kwargs):
                 )
 
             elif suggestion.object_type == "Artist":
-                artists.update_artist(suggestion.artist_id, **suggestion.kwargs)
+                artists.update_artist(
+                    suggestion.artist_id, **suggestion.kwargs)
 
         if suggestion.action == "delete":
             if suggestion.object_type == "EventDate":
@@ -140,7 +142,8 @@ def update_suggested_edit(id, **kwargs):
                 event_dates.delete_event_date(suggestion.event_date_id)
 
             elif suggestion.object_type == "Artist":
-                artists.delete_artist(suggestion.artist_id, **suggestion.kwargs)
+                artists.delete_artist(
+                    suggestion.artist_id, **suggestion.kwargs)
 
         suggestion.status = "approved"
         suggestion.approved_at = datetime.utcnow()
