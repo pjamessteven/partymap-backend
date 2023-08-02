@@ -74,8 +74,13 @@ class Event(db.Model):
     # deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     name = db.Column(db.Text, nullable=False)
+
+    # summary
     description = db.Column(db.Text)
     description_attribute = db.Column(db.Text)
+
+    full_description = db.Column(db.Text)
+    full_description_attribute = db.Column(db.Text)
 
     rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id"))
     rrule = db.relationship(

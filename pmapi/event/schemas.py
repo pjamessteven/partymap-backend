@@ -16,6 +16,8 @@ class EventSchema(Schema):
     updated_at = fields.DateTime()
     description = fields.Str()
     description_attribute = fields.Str()
+    full_description = fields.Str()
+    full_description_attribute = fields.Str()
     tz = fields.Str()
     event_dates = fields.Nested(
         "MiniEventDateSchema", many=True, attribute="event_dates"

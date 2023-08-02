@@ -153,6 +153,8 @@ def add_event(**kwargs):
     name = kwargs.pop("name")
     description = kwargs.pop("description")
     description_attribute = kwargs.pop("description_attribute", None)
+    full_description = kwargs.pop("full_description")
+    full_description_attribute = kwargs.pop("full_description_attribute", None)
     next_event_date_description = kwargs.pop("next_event_date_description")
     next_event_date_description_attribute = kwargs.pop(
         "next_event_date_description_attribute"
@@ -179,6 +181,8 @@ def add_event(**kwargs):
         host_id=creator.id if host is True else None,
         description=description,
         description_attribute=description_attribute,
+        full_description=full_description,
+        full_description_attribute=full_description_attribute,
     )
     db.session.add(event)
     db.session.flush()
@@ -275,13 +279,15 @@ def update_event(event_id, **kwargs):
     location = kwargs.get("location")
     date_time = kwargs.get("date_time")
     description = kwargs.get("description")
-    description_attribute = kwargs.get("description_attribute", None)
+    description_attribute = kwargs.get("description_attribute")
+    full_description = kwargs.get("full_description")
+    full_description_attribute = kwargs.get("full_description_attribute")
     name = kwargs.get("name")
-    add_tags = kwargs.get("add_tags", None)
-    remove_tags = kwargs.get("remove_tags", None)
-    media = kwargs.pop("media_items", None)
+    add_tags = kwargs.get("add_tags")
+    remove_tags = kwargs.get("remove_tags")
+    media = kwargs.pop("media_items")
     is_suggestion = kwargs.get("is_suggestion", False)
-    hidden = kwargs.get("hidden", None)
+    hidden = kwargs.get("hidden")
 
     event = get_event_or_404(event_id)
     existing_rrule = db.session.query(Rrule).filter(
@@ -294,15 +300,21 @@ def update_event(event_id, **kwargs):
     if hidden is not None:
         event.hidden = hidden
 
-    if name or description or description_attribute is not None:
+    if name or description or full_description:
         if name:
             event.name = name
 
         if description:
             event.description = description
 
-        if description_attribute is not None:
+        if description_attribute:
             event.description_attribute = description_attribute
+
+        if full_description:
+            event.full_description = full_description
+
+        if full_description_attribute:
+            event.full_description_attribute = full_description_attribute
 
         # add activity
         db.session.flush()
@@ -318,12 +330,12 @@ def update_event(event_id, **kwargs):
                 verb=u"delete", object=existing_rrule, target=event)
             db.session.add(activity)
 
-    if add_tags is not None and len(add_tags) > 0:
+    if add_tags and len(add_tags) > 0:
         event_tags.add_tags_to_event(
             add_tags, event
         )  # will remove tag if it already exists
 
-    if remove_tags is not None and len(remove_tags) > 0:
+    if remove_tags and len(remove_tags) > 0:
         event_tags.add_tags_to_event(
             remove_tags, event
         )  # will remove tag if it already exists
