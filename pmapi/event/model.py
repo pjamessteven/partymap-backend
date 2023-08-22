@@ -276,9 +276,7 @@ class Event(db.Model):
             }
             for version in self.versions
         ]
-        print(revisions)
         revisions = revisions[::-1]
-        print(revisions)
         return revisions
 
     def getUrl(self):

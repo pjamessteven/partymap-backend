@@ -79,7 +79,6 @@ class MediaItemSchemaListSchema(PaginatedSchema):
 
 
 def generate_filepath(item, filename):
-    print(pprint(vars(item)))
     if item.event_id:
         return os.path.join(
             current_app.config["UPLOADS_URL"]

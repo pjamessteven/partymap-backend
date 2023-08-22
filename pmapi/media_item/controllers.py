@@ -136,7 +136,6 @@ def add_media_to_artist(items, artist, creator=None):
                 type=type,
                 creator_id=creator_id,
             )
-            print(media_item)
             db.session.add(media_item)
             db.session.flush()
             artist.media_items.append(media_item)

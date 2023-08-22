@@ -1132,7 +1132,7 @@ def ics_download(id):
     if event_date.description:
         description = description + ' ' + event_date.description
 
-    cal = icalendarCaobilendar()
+    cal = icalendarCalendar()
     cal.add('prodid', '-//Partymap//partymap.com//')
     cal.add('version', '2.0')
 
@@ -1163,7 +1163,7 @@ def ics_download(id):
 
     # add a filename
     response.headers.set(
-        "Content-Disposition", "attachment", filename="{0}.ics".format(filename)
+        "Content-Disposition", "attachment", filename="{0}.ics".format(filename.encode('latin-1', 'ignore').decode('latin-1'))
     )
 
     return response

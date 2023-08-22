@@ -155,9 +155,10 @@ def add_event(**kwargs):
     description_attribute = kwargs.pop("description_attribute", None)
     full_description = kwargs.pop("full_description")
     full_description_attribute = kwargs.pop("full_description_attribute", None)
-    next_event_date_description = kwargs.pop("next_event_date_description")
+    next_event_date_description = kwargs.pop(
+        "next_event_date_description", None)
     next_event_date_description_attribute = kwargs.pop(
-        "next_event_date_description_attribute"
+        "next_event_date_description_attribute", None
     )
     next_event_date_size = kwargs.pop("next_event_date_size")
     next_event_date_artists = kwargs.pop("next_event_date_artists", None)
@@ -285,7 +286,7 @@ def update_event(event_id, **kwargs):
     name = kwargs.get("name")
     add_tags = kwargs.get("add_tags")
     remove_tags = kwargs.get("remove_tags")
-    media = kwargs.pop("media_items")
+    media = kwargs.pop("media_items", None)
     is_suggestion = kwargs.get("is_suggestion", False)
     hidden = kwargs.get("hidden")
 
