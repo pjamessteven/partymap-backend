@@ -98,7 +98,7 @@ def get_video_thumbnail(
 
 
 @celery.task(
-    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120
+    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="1/s"
 )
 def refresh_artist_info(artist_id):
     DEV_ENVIRON = get_debug_flag()
