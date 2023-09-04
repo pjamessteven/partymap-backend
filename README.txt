@@ -1,5 +1,10 @@
 How to run the PartyMap Flask backend (PMAPI) on Mac or Linux:
 
+PROD NOTES:
+- Currently not Dockerized, configured as a systemd service
+> sudo service start pmapi, etc.
+- Celery also implemented as a systemd service
+> sudo service start pmapi-tasks
 
 Overview:
 _____________________________________________________________________________
