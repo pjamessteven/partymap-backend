@@ -54,6 +54,7 @@ class MiniEventDateSchema(Schema):
     user_interested = fields.Boolean()
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     location_id = fields.Str()
+    distance = fields.Float()
 
 
 @ts_interface()
