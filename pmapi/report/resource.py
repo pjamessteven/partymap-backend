@@ -24,6 +24,7 @@ class ReportsResource(MethodResource):
     )
     @use_kwargs(
         {
+            "event_contribution_id": fields.String(),
             "event_id": fields.Integer(),
             "message": fields.String(),
             "email": fields.String(required=False, allow_none=True),

@@ -22,3 +22,8 @@ class Report(db.Model):
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="reports")
+
+    event_contribution_id = db.Column(
+        db.Integer, db.ForeignKey("event_contributions.id"))
+    event_contribution = db.relationship(
+        "EventContribution", back_populates="reports")

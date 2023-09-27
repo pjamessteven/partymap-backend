@@ -7,6 +7,10 @@ import pmapi.media_item.controllers as media_items
 import pmapi.exceptions as exc
 
 
+def get_contribution(id):
+    return EventContribution.query.get(id)
+
+
 def add_contribution(event_id, creator=current_user, **kwargs):
 
     text = kwargs.pop("text", None)

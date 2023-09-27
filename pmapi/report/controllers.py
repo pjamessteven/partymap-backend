@@ -47,9 +47,12 @@ def create_report(**kwargs):
     message = kwargs.pop("message", None)
     email = kwargs.pop("email", None)
     event_id = kwargs.pop("event_id", None)
+    event_contribution_id = kwargs.pop("event_contribution_id", None)
     token = kwargs.pop("hcaptcha_token", None)
 
-    event = events.get_event_or_404(event_id)
+    event = events.get_event(event_id)
+
+    contribution = event_contributions.get_contribution(event_contribution_id)
 
     if not current_user.is_authenticated and email is None:
         raise exc.InvalidAPIRequest("Email is required if not logged in")
@@ -63,10 +66,11 @@ def create_report(**kwargs):
         email = user.email
 
     report = Report(
-        creator_id=creator_id, message=message, email=email, event=event, open=True
+        creator_id=creator_id, message=message, email=email, event=event, event_contribution=contribution, open=True
     )
     db.session.add(report)
     db.session.commit()
+
     send_report_notification_email(report.id, message, email, user.username)
 
 
