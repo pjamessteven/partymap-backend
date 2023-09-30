@@ -9,7 +9,7 @@ DEV_ENVIRON = get_debug_flag()
 def get_location_from_ip():
 
     if DEV_ENVIRON:
-        ip = "172.217.167.110"
+        ip = "103.235.93.111"
     else:
         ip = request.remote_addr
 

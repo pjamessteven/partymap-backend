@@ -97,6 +97,8 @@ Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_typ
 Expose local Docker network to local network (useful for testing on mobile)
 > docker compose run --service-ports web
 
+Expose on local network when running flask dev server without Docker
+> pyton3 manage.py runserver --host=0.0.0.0
 _____________________________________________________________________________
 
 Alembic Postgres Database Management commands:

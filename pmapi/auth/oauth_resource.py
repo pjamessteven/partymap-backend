@@ -39,9 +39,9 @@ def facebook_logged_in(blueprint, token):
 
     if current_app.config["DEBUG"] is True:
         if session["next_url"]:
-            next_url = str("http://localhost:8080") + str(session["next_url"])
+            next_url = str("http://localhost:9000") + str(session["next_url"])
         else:
-            next_url = "http://localhost:8080"
+            next_url = "http://localhost:9000"
 
     else:
         if session["next_url"]:
