@@ -25,4 +25,4 @@ EXPOSE 5000
 ENTRYPOINT ["/app/alter_sqlalchemy_tables.sh"]
 
 # run server
-CMD [ "python3", "manage.py", "runserver", "--host=0.0.0.0"]
+CMD [ "python3", "manage.py", "runserver", "--host=test.partymap.com"]

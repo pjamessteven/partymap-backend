@@ -46,6 +46,14 @@ def get_user(user_identifier):
     return user, search_property
 
 
+def get_user_by_email(email):
+    """Query the db for a user. Identifier may be an email, or username."""
+
+    user = User.query.filter(
+        User.email == email).first()
+    return user
+
+
 def get_user_or_404(user_identifier):
     """Return a user or raise 404 exception"""
     user, search_property = get_user(user_identifier)
