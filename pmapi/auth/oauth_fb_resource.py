@@ -13,7 +13,9 @@ import pmapi.user.controllers as users
 
 oauth_fb_blueprint = make_facebook_blueprint(
     storage=SQLAlchemyStorage(
-        OAuth, db.session, cache=cache, user=current_user))
+        OAuth, db.session, cache=cache, user=current_user),
+    scope="email,public_profile",
+)
 
 # OAUTH HAS BEEN DISABLED IN application.py
 
@@ -37,7 +39,7 @@ def facebook_logged_in(blueprint, token):
         return False
 
     info = resp.json()
-
+    print('oauth info', info)
     if current_app.config["DEBUG"] is True:
         if session["next_url"]:
             next_url = str("http://localhost:9000") + str(session["next_url"])
