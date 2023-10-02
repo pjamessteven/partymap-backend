@@ -14,7 +14,7 @@ import pmapi.user.controllers as users
 oauth_fb_blueprint = make_facebook_blueprint(
     storage=SQLAlchemyStorage(
         OAuth, db.session, cache=cache, user=current_user),
-    scope="email,public_profile,user_events",
+    scope="email,public_profile",
 )
 
 # OAUTH HAS BEEN DISABLED IN application.py
