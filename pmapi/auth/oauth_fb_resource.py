@@ -9,6 +9,8 @@ from flask import request, session, redirect
 from pmapi.user.model import User, OAuth
 from pmapi.extensions import db, cache
 
+import pmapi.user.controllers as users
+
 oauth_fb_blueprint = make_facebook_blueprint(
     storage=SQLAlchemyStorage(
         OAuth, db.session, cache=cache, user=current_user),
@@ -61,14 +63,19 @@ def facebook_logged_in(blueprint, token):
         oauth = OAuth(provider=blueprint.name,
                       provider_user_id=user_id, token=token)
 
+    existingUser = users.get_user_by_email(info["email"])
+
     if oauth.user:
         login_user(oauth.user)
         flash("Successfully signed in.")
         print("Signed in as:")
         print(oauth.user)
     else:
-        # Create a new local user account for this user
-        user = User(email=info["email"])
+        if (existingUser == None):
+            # Create a new local user account for this user
+            user = User(email=info["email"])
+        else:
+            user = existingUser
         user.oauth = True
         # Associate the new local user account with the OAuth token
         oauth.user = user
