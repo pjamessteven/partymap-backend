@@ -39,7 +39,7 @@ def facebook_logged_in(blueprint, token):
         return False
 
     info = resp.json()
-    print('oauth info', info)
+
     if current_app.config["DEBUG"] is True:
         if session["next_url"]:
             next_url = str("http://localhost:9000") + str(session["next_url"])
@@ -51,6 +51,12 @@ def facebook_logged_in(blueprint, token):
             next_url = str("https://partymap.com") + str(session["next_url"])
         else:
             next_url = "https://partymap.com"
+
+    # for the mobile capacitor apps,
+    # the oauth webview ends up with a different session cookie
+    # so we need to pass this back to the app once auth is complete
+    session_cookie = request.cookies.get('session')
+    next_url = next_url + '?session' + session_cookie
 
     user_id = info["id"]
 

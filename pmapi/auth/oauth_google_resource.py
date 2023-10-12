@@ -54,6 +54,12 @@ def google_logged_in(blueprint, token):
         else:
             next_url = "https://partymap.com"
 
+    # for the mobile capacitor apps,
+    # the oauth webview ends up with a different session cookie
+    # so we need to pass this back to the app once auth is complete
+    session_cookie = request.cookies.get('session')
+    next_url = next_url + '?session' + session_cookie
+
     user_id = info["id"]
 
     # Find this OAuth token in the database, or create it
