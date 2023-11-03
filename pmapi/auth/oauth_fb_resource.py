@@ -23,6 +23,7 @@ oauth_fb_blueprint = make_facebook_blueprint(
 @oauth_before_login.connect_via(oauth_fb_blueprint)
 def before_login(blueprint, url):
     session["next_url"] = request.args.get("next_url")
+    session["mobile"] = request.args.get("mobile")
 
 
 # create/login local user on successful OAuth login
@@ -40,23 +41,26 @@ def facebook_logged_in(blueprint, token):
 
     info = resp.json()
 
+    # Set base_url
     if current_app.config["DEBUG"] is True:
-        if session["next_url"]:
-            next_url = str("http://localhost:9000") + str(session["next_url"])
-        else:
-            next_url = "http://localhost:9000"
-
+        base_url = "http://localhost:9000"
+    elif mobile:
+        base_url = "partymap:"
     else:
-        if session["next_url"]:
-            next_url = str("https://partymap.com") + str(session["next_url"])
-        else:
-            next_url = "https://partymap.com"
+        base_url = "https://partymap.com"
 
-    # for the mobile capacitor apps,
-    # the oauth webview ends up with a different session cookie
-    # so we need to pass this back to the app once auth is complete
-    session_cookie = request.cookies.get('session')
-    next_url = next_url + '?session' + session_cookie
+    # append next path
+    if session["next_url"]:
+        next_url = base_url + session["next_url"]
+    else:
+        next_url = base_url
+
+    # for native mobile auth we pass the session cookie
+    if mobile:
+        # the oauth webview ends up with a different session cookie
+        # so we need to pass this back to the app once auth is complete
+        session_cookie = request.cookies.get('session')
+        next_url = next_url + '?session' + session_cookie
 
     user_id = info["id"]
 
