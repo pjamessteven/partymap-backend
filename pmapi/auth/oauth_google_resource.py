@@ -43,6 +43,7 @@ def google_logged_in(blueprint, token):
 
     info = resp.json()
 
+    print(session["mobile"])
     # Set base_url
     if current_app.config["DEBUG"] is True:
         base_url = "http://localhost:9000"
