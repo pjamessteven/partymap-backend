@@ -44,7 +44,7 @@ def facebook_logged_in(blueprint, token):
     # Set base_url
     if current_app.config["DEBUG"] is True:
         base_url = "http://localhost:9000"
-    elif mobile:
+    elif session["mobile"]:
         base_url = "partymap:"
     else:
         base_url = "https://partymap.com"
@@ -56,7 +56,7 @@ def facebook_logged_in(blueprint, token):
         next_url = base_url
 
     # for native mobile auth we pass the session cookie
-    if mobile:
+    if session["mobile"]:
         # the oauth webview ends up with a different session cookie
         # so we need to pass this back to the app once auth is complete
         session_cookie = request.cookies.get('session')
