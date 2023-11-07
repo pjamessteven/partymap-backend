@@ -3,7 +3,7 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask, session
+from flask import Flask, session, render_template
 from flask_cors import cross_origin
 from flask.helpers import get_debug_flag
 import psycopg2
@@ -67,6 +67,10 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     register_errorhandlers(app)
     register_docs(app)
     print('MEDIA UPLOAD FOLDER', CONFIG.MEDIA_UPLOAD_FOLDER)
+
+    @app.route('/oauth_redirect/<path:path>')
+    def index(path):
+        return render_template('oauth_redirect.html', redirect_uri=path)
 
     """
     def Test2(rootDir): 
@@ -182,6 +186,7 @@ def register_blueprints(app):
 
     # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
+
     # auth endpoint is /api/oauth/google
     app.register_blueprint(oauth_google_blueprint, url_prefix="/api/oauth")
     # auth endpoint is /api/oauth/facebook
