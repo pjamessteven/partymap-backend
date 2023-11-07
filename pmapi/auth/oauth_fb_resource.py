@@ -42,10 +42,10 @@ def facebook_logged_in(blueprint, token):
     info = resp.json()
 
     # Set base_url
-    if current_app.config["DEBUG"] is True:
-        base_url = "http://localhost:9000"
-    elif session["mobile"]:
+    if session["mobile"]:
         base_url = "partymap:"
+    elif current_app.config["DEBUG"] is True:
+        base_url = "http://localhost:9000"
     else:
         base_url = "https://partymap.com"
 

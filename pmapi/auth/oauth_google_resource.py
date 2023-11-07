@@ -20,6 +20,7 @@ oauth_google_blueprint = make_google_blueprint(
 
 @oauth_before_login.connect_via(oauth_google_blueprint)
 def before_login(blueprint, url):
+    print(request.args)
     session["next_url"] = request.args.get("next_url")
     session["mobile"] = request.args.get("mobile")
 
@@ -45,10 +46,11 @@ def google_logged_in(blueprint, token):
 
     print(session["mobile"])
     # Set base_url
-    if current_app.config["DEBUG"] is True:
-        base_url = "http://localhost:9000"
-    elif session["mobile"]:
+
+    if session["mobile"]:
         base_url = "partymap:"
+    elif current_app.config["DEBUG"] is True:
+        base_url = "http://localhost:9000"
     else:
         base_url = "https://partymap.com"
 
@@ -65,6 +67,7 @@ def google_logged_in(blueprint, token):
         session_cookie = request.cookies.get('session')
         next_url = next_url + '?session' + session_cookie
 
+    print('next_url', next_url)
     user_id = info["id"]
 
     # Find this OAuth token in the database, or create it
