@@ -107,7 +107,7 @@ def google_logged_in(blueprint, token):
         login_user(user)
         flash("Successfully signed in.")
 
-    return redirect('/oauth_redirect?'+next_url)
+    return redirect('/oauth_redirect?redirect_uri='+next_url)
     # return redirect('next_url')
 
     # Disable Flask-Dance's default behavior for saving the OAuth token
