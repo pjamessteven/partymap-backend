@@ -3,7 +3,7 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask, session, render_template
+from flask import Flask, session, render_template, request
 from flask_cors import cross_origin
 from flask.helpers import get_debug_flag
 import psycopg2
@@ -68,9 +68,10 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     register_docs(app)
     print('MEDIA UPLOAD FOLDER', CONFIG.MEDIA_UPLOAD_FOLDER)
 
-    @app.route('/oauth_redirect/<path>')
-    def index(path=""):
-        return render_template('oauth_redirect.html', redirect_uri=path)
+    @app.route('/oauth_redirect')
+    def index():
+        redirect_uri = request.args.get('redirect_uri')
+        return render_template('oauth_redirect.html', redirect_uri=redirect_uri)
 
     """
     def Test2(rootDir): 
