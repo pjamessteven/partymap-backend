@@ -68,8 +68,8 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     register_docs(app)
     print('MEDIA UPLOAD FOLDER', CONFIG.MEDIA_UPLOAD_FOLDER)
 
-    @app.route('/oauth_redirect/<path:path>')
-    def index(path):
+    @app.route('/oauth_redirect/<path>')
+    def index(path=""):
         return render_template('oauth_redirect.html', redirect_uri=path)
 
     """
