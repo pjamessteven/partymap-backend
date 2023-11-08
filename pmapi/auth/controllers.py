@@ -38,4 +38,6 @@ def authenticate_user(**kwargs):
     # flask-login
     login_user(user, remember=remember)
 
+    session.permanent = True
+
     return user
