@@ -42,7 +42,7 @@ class MiniEventDateSchema(Schema):
     name = fields.Str(attribute="event.name")
     event = fields.Nested(
         "EventSchema",
-        only=["event_tags", "cover_items", "host", "rrule"],
+        only=["event_tags", "cover_items", "host", "rrule", "description"],
     )
     start = fields.Str(attribute="start")
     end = fields.Str(attribute="end")
