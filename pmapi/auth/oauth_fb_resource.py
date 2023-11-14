@@ -98,7 +98,10 @@ def facebook_logged_in(blueprint, token):
     db.session.add_all([user, oauth])
     db.session.commit()
 
-    return redirect(next_url)
+    if session["mobile"]:
+        return redirect('/oauth_redirect?redirect_uri='+next_url)
+    else:
+        return redirect(next_url)
 
     #    return redirect(next_url)
 
