@@ -11,14 +11,14 @@ def authenticate_user(**kwargs):
     identifier = kwargs.get("identifier")
     password = kwargs.get("password")
     remember = kwargs.get("remember", False)
-    one_off_token = kwargs.get("token")
+    one_off_token = kwargs.get("token", None)
 
     if session["attempt"] == 0:
         raise exc.InvalidAPIRequest(
             "Too many login attempts. Try again later or reset your password"
         )
 
-    if one_off_token:
+    if one_off_token is not None:
         user = users.get_user_by_token_or_404(identifier)
         if user:
             # delete one off token
