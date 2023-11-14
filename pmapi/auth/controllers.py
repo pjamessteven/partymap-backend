@@ -11,16 +11,25 @@ def authenticate_user(**kwargs):
     identifier = kwargs.get("identifier")
     password = kwargs.get("password")
     remember = kwargs.get("remember", False)
-
-    if not identifier or not password:
-        raise exc.LoginRequired()
+    one_off_token = kwargs.get("token")
 
     if session["attempt"] == 0:
         raise exc.InvalidAPIRequest(
             "Too many login attempts. Try again later or reset your password"
         )
 
-    user = users.get_user_or_404(identifier)
+    if one_off_token:
+        user = users.get_user_by_token_or_404(identifier)
+        if user:
+            # delete one off token
+            user.one_off_auth_token = None
+            db.session.add(user)
+            db.session.commit()
+    elif not identifier or not password:
+        raise exc.LoginRequired()
+    else:
+        user = users.get_user_or_404(identifier)
+
     # don't allow pending or disabled accounts to login
     if user.status == "disabled":
         raise exc.UserDisabled()

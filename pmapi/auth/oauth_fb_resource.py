@@ -53,13 +53,6 @@ def facebook_logged_in(blueprint, token):
     else:
         next_url = base_url
 
-    # for native mobile auth we pass the session cookie
-    if session["mobile"]:
-        # the oauth webview ends up with a different session cookie
-        # so we need to pass this back to the app once auth is complete
-        session_cookie = request.cookies.get('session')
-        next_url = next_url + '?session' + session_cookie
-
     user_id = info["id"]
 
     # Find this OAuth token in the database, or create it
@@ -71,7 +64,7 @@ def facebook_logged_in(blueprint, token):
         oauth = OAuth(provider=blueprint.name,
                       provider_user_id=user_id, token=token)
 
-    existingUser = users.get_user_by_email(info["email"])
+    user = None
 
     if oauth.user:
         login_user(oauth.user)
@@ -79,6 +72,7 @@ def facebook_logged_in(blueprint, token):
         print("Signed in as:")
         print(oauth.user)
     else:
+        existingUser = users.get_user_by_email(info["email"])
         if (existingUser == None):
             # Create a new local user account for this user
             user = User(email=info["email"])
@@ -89,15 +83,20 @@ def facebook_logged_in(blueprint, token):
         oauth.user = user
         # activate account
         user.activate()
-        # Save and commit our database models
-        db.session.add_all([user, oauth])
-        db.session.commit()
 
+    # for native mobile auth we pass a token that is used to authenticate with /login
+    if session["mobile"]:
+        user.one_off_auth_token = str(uuid.uuid4())
+        next_url = next_url + '&token=' + user.one_off_auth_token
+
+    else:
         # Log in the new local user account
         login_user(user)
         flash("Successfully signed in.")
 
-        session.permanent = True
+    # Save and commit our database models
+    db.session.add_all([user, oauth])
+    db.session.commit()
 
     return redirect('/oauth_redirect?redirect_uri='+next_url)
 

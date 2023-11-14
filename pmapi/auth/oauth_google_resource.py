@@ -5,6 +5,7 @@ from flask_dance.consumer import oauth_authorized, oauth_error, oauth_before_log
 from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 from sqlalchemy.orm.exc import NoResultFound
 from flask import request, session, redirect
+import uuid
 
 from pmapi.user.model import User, OAuth
 from pmapi.extensions import db, cache
@@ -34,7 +35,6 @@ def google_logged_in(blueprint, token):
         return False
 
     resp = blueprint.session.get("/oauth2/v1/userinfo")
-    resp = blueprint.session.get("/oauth2/v1/userinfo")
     print('resp', resp)
 
     if not resp.ok:
@@ -61,14 +61,6 @@ def google_logged_in(blueprint, token):
     else:
         next_url = base_url
 
-    # for native mobile auth we pass the session cookie
-    if session["mobile"]:
-        # the oauth webview ends up with a different session cookie
-        # so we need to pass this back to the app once auth is complete
-        session_cookie = request.cookies.get('session')
-        next_url = next_url + '?session' + session_cookie
-
-    print('next_url', next_url)
     user_id = info["id"]
 
     # Find this OAuth token in the database, or create it
@@ -80,7 +72,7 @@ def google_logged_in(blueprint, token):
         oauth = OAuth(provider=blueprint.name,
                       provider_user_id=user_id, token=token)
 
-    existingUser = users.get_user_by_email(info["email"])
+    user = None
 
     if oauth.user:
         # else this is an 'oauth only' account
@@ -88,7 +80,9 @@ def google_logged_in(blueprint, token):
         flash("Successfully signed in.")
         print("Signed in as:")
         print(oauth.user)
+        user = oauth.user
     else:
+        existingUser = users.get_user_by_email(info["email"])
         if (existingUser == None):
             # Create a new local user account for this user
             user = User(email=info["email"])
@@ -99,13 +93,20 @@ def google_logged_in(blueprint, token):
         oauth.user = user
         # activate account
         user.activate()
-        # Save and commit our database models
-        db.session.add_all([user, oauth])
-        db.session.commit()
 
+    # for native mobile auth we pass a token that is used to authenticate with /login
+    if session["mobile"]:
+        user.one_off_auth_token = str(uuid.uuid4())
+        next_url = next_url + '&token=' + user.one_off_auth_token
+
+    else:
         # Log in the new local user account
         login_user(user)
         flash("Successfully signed in.")
+
+    # Save and commit our database models
+    db.session.add_all([user, oauth])
+    db.session.commit()
 
     return redirect('/oauth_redirect?redirect_uri='+next_url)
     # return redirect('next_url')

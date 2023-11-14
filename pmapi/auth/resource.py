@@ -35,6 +35,7 @@ class LoginResource(MethodResource):
             "identifier": fields.String(required=True),
             "password": fields.String(required=True),
             "remember": fields.Boolean(required=False),
+            "token": fields.String(required=False),
         },
     )
     @marshal_with(PrivateUserSchema(), code=200)

@@ -54,12 +54,31 @@ def get_user_by_email(email):
     return user
 
 
+def get_user_by_one_off_token(token):
+    """Query the db for a user. Identifier may be an email, or username."""
+
+    user = User.query.filter(
+        User.one_off_auth_token == token).first()
+    return user
+
+
 def get_user_or_404(user_identifier):
     """Return a user or raise 404 exception"""
     user, search_property = get_user(user_identifier)
     if not user:
         msg = "No such user with {} {}".format(
             search_property, user_identifier)
+        raise exc.RecordNotFound(msg)
+
+    return user
+
+
+def get_user_by_token_or_404(user_identifier):
+    """Return a user or raise 404 exception"""
+    user = get_user_by_one_off_token(user_identifier)
+    if not user:
+        msg = "No such user with token {}".format(
+            user_identifier)
         raise exc.RecordNotFound(msg)
 
     return user
