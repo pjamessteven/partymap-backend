@@ -25,10 +25,17 @@ def authenticate_user(**kwargs):
             user.one_off_auth_token = None
             db.session.add(user)
             db.session.commit()
+            # flask-login
+            login_user(user, remember=remember)
+            session.permanent = True
+            return user
     elif not identifier or not password:
         raise exc.LoginRequired()
     else:
         user = users.get_user_or_404(identifier)
+
+    if not user:
+        raise exc.LoginRequired()
 
     # don't allow pending or disabled accounts to login
     if user.status == "disabled":
@@ -36,17 +43,13 @@ def authenticate_user(**kwargs):
     elif user.status == "pending":
         raise exc.UserPending()
 
-    if not user:
-        raise exc.LoginRequired()
-
     if not check_password_hash(user.password, password):
         session["attempt"] = session["attempt"] - 1
         raise exc.InvalidAPIRequest(
             "Login failed, try again..."
         )
+
     # flask-login
     login_user(user, remember=remember)
-
     session.permanent = True
-
     return user
