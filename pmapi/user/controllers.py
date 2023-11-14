@@ -57,8 +57,8 @@ def get_user_by_email(email):
 def get_user_by_one_off_token(token):
     """Query the db for a user. Identifier may be an email, or username."""
 
-    user = db.session.query(User).get(
-        {"one_off_auth_token": token})
+    user = User.query.filter(
+        User.one_off_auth_token == token).first()
 
     return user
 
