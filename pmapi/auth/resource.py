@@ -32,8 +32,8 @@ class LoginResource(MethodResource):
     )
     @use_kwargs(
         {
-            "identifier": fields.String(required=True),
-            "password": fields.String(required=True),
+            "identifier": fields.String(required=False),
+            "password": fields.String(required=False),
             "remember": fields.Boolean(required=False),
             "token": fields.String(required=False),
         },
