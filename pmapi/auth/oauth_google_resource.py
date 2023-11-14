@@ -97,7 +97,7 @@ def google_logged_in(blueprint, token):
     # for native mobile auth we pass a token that is used to authenticate with /login
     if session["mobile"]:
         user.one_off_auth_token = str(uuid.uuid4())
-        next_url = next_url + '&token=' + user.one_off_auth_token
+        next_url = next_url + '?token=' + user.one_off_auth_token
 
     else:
         # Log in the new local user account
@@ -108,7 +108,7 @@ def google_logged_in(blueprint, token):
     db.session.add_all([user, oauth])
     db.session.commit()
 
-    return redirect('/oauth_redirect?redirect_uri='+next_url)
+    return redirect(next_url)
     # return redirect('next_url')
 
     # Disable Flask-Dance's default behavior for saving the OAuth token
