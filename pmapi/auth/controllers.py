@@ -5,6 +5,7 @@ from flask_login import (
 from flask import session
 import pmapi.exceptions as exc
 import pmapi.user.controllers as users
+from pmapi.extensions import db
 
 
 def authenticate_user(**kwargs):
