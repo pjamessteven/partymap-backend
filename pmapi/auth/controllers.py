@@ -20,7 +20,7 @@ def authenticate_user(**kwargs):
         )
 
     if one_off_token is not None:
-        user = users.get_user_by_token_or_404(identifier)
+        user = users.get_user_by_token_or_404(one_off_token)
         if user:
             # delete one off token
             user.one_off_auth_token = None
