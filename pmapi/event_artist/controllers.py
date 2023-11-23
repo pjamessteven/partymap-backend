@@ -397,8 +397,8 @@ def save_artist_image_from_wikimedia_url(url, artist):
     except RequestException as e:
         logging.error(
             "event_artist.save_artist_image_from_wikimedia_url.request_error",
-            status_code=r.status_code,
-            error_body=r.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -441,8 +441,8 @@ def get_artist_details_from_music_brainz(mbid):
     except RequestException as e:
         logging.error(
             "event_artist.get_artist_details_from_music_brainz.request_error",
-            status_code=response.status_code,
-            error_body=response.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -468,8 +468,8 @@ def get_artist_details_from_last_fm(mbid):
     except RequestException as e:
         logging.error(
             "event_artist.get_artist_details_from_last_fm.request_error",
-            status_code=response.status_code,
-            error_body=response.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -502,8 +502,8 @@ def refresh_spotify_data_for_artist(artist):
     except RequestException as e:
         logging.error(
             "event_artist.refresh_spotify_data_for_artist.auth_token_request_error",
-            status_code=auth_response.status_code,
-            error_body=auth_response.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -522,8 +522,8 @@ def refresh_spotify_data_for_artist(artist):
     except RequestException as e:
         logging.error(
             "event_artist.refresh_spotify_data_for_artist.main_request_error",
-            status_code=response.status_code,
-            error_body=response.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -585,8 +585,8 @@ def refresh_spotify_data_for_artist(artist):
                 except RequestException as e:
                     logging.error(
                         "event_artist.refresh_spotify_data_for_artist.image_request_error",
-                        status_code=r.status_code,
-                        error_body=r.body,
+                        status_code="",
+                        error_body="",  # TODO: proper status code here
                         exception=e,
                     )
                     print("error getting artist image from spotify")
@@ -635,8 +635,8 @@ def get_artist_image_from_deezer(artist):
     except RequestException as e:
         logging.error(
             "event_artist.get_artist_image_from_deezer.search_request_error",
-            status_code=response.status_code,
-            error_body=response.body,
+            status_code="",
+            error_body="",  # TODO: proper status code here
             exception=e,
         )
 
@@ -678,8 +678,8 @@ def get_artist_image_from_deezer(artist):
         except RequestException as e:
             logging.error(
                 "event_artist.get_artist_image_from_deezer.artist_request_error",
-                status_code=r.status_code,
-                error_body=r.body,
+                status_code="",
+                error_body="",  # TODO: proper status code here
                 exception=e,
             )
             print("error getting artist image from deezer")
