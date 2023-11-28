@@ -70,6 +70,7 @@ def facebook_logged_in(blueprint, token):
         flash("Successfully signed in.")
         print("Signed in as:")
         print(oauth.user)
+        user = oauth.user
     else:
         existingUser = users.get_user_by_email(info["email"])
         if (existingUser == None):
