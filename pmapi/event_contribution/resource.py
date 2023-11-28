@@ -18,7 +18,7 @@ class AddEventContributionResource(MethodResource):
     @use_kwargs(
         {
             "text": fields.Str(required=False),
-            "rating": fields.Integer(required=True),
+            "rating": fields.Integer(required=False),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "event_date_id": fields.Integer(required=False),
         }

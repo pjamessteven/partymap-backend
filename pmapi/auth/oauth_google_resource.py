@@ -44,12 +44,6 @@ def google_logged_in(blueprint, token):
 
     info = resp.json()
 
-    print(session["mobile"])
-    # Set base_url
-
-    #    if session["mobile"] and False:
-    #    base_url = "partymap:/"
-
     if current_app.config["DEBUG"] is True:
         base_url = "http://localhost:9000"
     else:
@@ -112,7 +106,6 @@ def google_logged_in(blueprint, token):
         return redirect('/oauth_redirect?redirect_uri='+next_url)
     else:
         return redirect(next_url)
-    # return redirect('next_url')
 
     # Disable Flask-Dance's default behavior for saving the OAuth token
     # return False

@@ -5,6 +5,7 @@ from flask_dance.consumer import oauth_authorized, oauth_error, oauth_before_log
 from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 from sqlalchemy.orm.exc import NoResultFound
 from flask import request, session, redirect
+import uuid
 
 from pmapi.user.model import User, OAuth
 from pmapi.extensions import db, cache
@@ -16,8 +17,6 @@ oauth_fb_blueprint = make_facebook_blueprint(
         OAuth, db.session, cache=cache, user=current_user),
     scope="email,public_profile",
 )
-
-# OAUTH HAS BEEN DISABLED IN application.py
 
 
 @oauth_before_login.connect_via(oauth_fb_blueprint)
@@ -102,8 +101,6 @@ def facebook_logged_in(blueprint, token):
         return redirect('/oauth_redirect?redirect_uri='+next_url)
     else:
         return redirect(next_url)
-
-    #    return redirect(next_url)
 
     # Disable Flask-Dance's default behavior for saving the OAuth token
     # return False

@@ -22,11 +22,6 @@ def add_contribution(event_id, creator=current_user, **kwargs):
 
     event_date = None
 
-    if not rating:
-        raise exc.InvalidAPIRequest(
-            "Rating required"
-        )
-
     if event_date_id:
         event_date = event_dates.get_event_date_or_404(event_date_id)
 
