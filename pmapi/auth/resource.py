@@ -91,4 +91,4 @@ class AppleLoginResource(MethodResource):
 
 
 auth_blueprint.add_url_rule(
-    "/login/apple", view_func=AppleLoginResource.as_view("AppleLoginResource"))
+    "/login/apple/", view_func=AppleLoginResource.as_view("AppleLoginResource"))
