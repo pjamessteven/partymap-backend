@@ -35,6 +35,15 @@ def authenticate_apple_user(**kwargs):
     email = token.payload.email
     user_id = token.payload.unique_apple_user_id
 
+    token_json = {
+        "email": email,
+        "user_id": user_id,
+        "email_is_private": token.payload.email_is_private,
+        "real_person": token.payload.real_person,
+        "expires_utc_seconds_since_epoch": token.payload.expires_utc_seconds_since_epoch,
+        "issued_utc_seconds_since_epoch": token.payload.issued_utc_seconds_since_epoch
+    }
+
     # Find this OAuth token in the database, or create it
     query = OAuth.query.filter_by(
         provider="apple", provider_user_id=user_id)
@@ -42,7 +51,7 @@ def authenticate_apple_user(**kwargs):
         oauth = query.one()
     except NoResultFound:
         oauth = OAuth(provider="apple",
-                      provider_user_id=user_id, token=token.payload)
+                      provider_user_id=user_id, token=token_json)
 
     user = None
 
