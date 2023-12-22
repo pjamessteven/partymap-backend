@@ -7,6 +7,7 @@ import pmapi.exceptions as exc
 import pmapi.user.controllers as users
 from pmapi.extensions import db
 from siwa import IdentityToken, KeyCache
+from pmapi.user.model import User, OAuth
 
 
 def authenticate_apple_user(**kwargs):
