@@ -130,7 +130,7 @@ def get_artists(**kwargs):
         search = "%{}%".format(kwargs.pop("query"))
         query = query.filter(Artist.name.ilike(search))
 
-    if kwargs.pop("sort") is "event_count":
+    if kwargs.pop("sort") == "event_count":
         # IDK why but if this order_by filter is passed to paginated_results it fucks up hard
         # possibly doesn't exist on model because it's a dynamic field?
         # ** all is well **

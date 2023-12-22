@@ -6,6 +6,69 @@ from flask import session
 import pmapi.exceptions as exc
 import pmapi.user.controllers as users
 from pmapi.extensions import db
+from siwa import IdentityToken, KeyCache
+
+
+def authenticate_apple_user(**kwargs):
+    id_token = kwargs.get("id_token")
+
+    # siwa library validates the JWT against Apple's public key
+
+    # The cache is optional but will reduce the time taken
+    # to validate tokens using the same public key
+
+    cache = KeyCache()
+    token = IdentityToken.parse(data=id_token)
+    token_is_valid = token.is_validly_signed(key_cache=cache)
+
+    if not token_is_valid:
+        raise exc.InvalidAPIRequest("Token is invalid")
+
+    email = token.payload.email
+    user_id = token.payload.unique_apple_user_id
+
+    # Find this OAuth token in the database, or create it
+    query = OAuth.query.filter_by(
+        provider="apple", provider_user_id=user_id)
+    try:
+        oauth = query.one()
+    except NoResultFound:
+        oauth = OAuth(provider="apple",
+                      provider_user_id=user_id, token=token)
+
+    user = None
+
+    if oauth.user:
+        # apple user has authenticated with oauth before
+        login_user(oauth.user)
+        flash("Successfully signed in.")
+        print("Signed in as:")
+        print(oauth.user)
+        user = oauth.user
+    else:
+        # first time logging in
+        # with apple sign in, email is only returned the first time
+        existing_user = users.get_user_by_email(email)
+        if (existing_user == None):
+            # Create a new local user account for this user
+            user = User(email=email)
+        else:
+            user = existing_user
+        user.oauth = True
+        # Associate the new local user account with the OAuth token
+        oauth.user = user
+        # activate account
+        user.activate()
+
+        # Log in the new account
+        login_user(user)
+        flash("Successfully signed in.")
+
+        # Save and commit our database models
+        db.session.add_all([user, oauth])
+        db.session.commit()
+
+    return user
 
 
 def authenticate_user(**kwargs):

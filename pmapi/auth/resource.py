@@ -73,3 +73,22 @@ class LogoutResource(MethodResource):
 auth_blueprint.add_url_rule(
     "/logout/", view_func=LogoutResource.as_view("LogoutResource")
 )
+
+
+@doc(tags=["auth"])
+class AppleLoginResource(MethodResource):
+    @doc(
+        summary="Validate Sign in with Apple token and login or create user",
+    )
+    @use_kwargs(
+        {
+            "id_token": fields.String(required=True),
+        },
+    )
+    @marshal_with(PrivateUserSchema(), code=200)
+    def post(self, **kwargs):
+        return auth.authenticate_apple_user(**kwargs)
+
+
+auth_blueprint.add_url_rule(
+    "/login/apple", view_func=AppleLoginResource.as_view("AppleLoginResource"))
