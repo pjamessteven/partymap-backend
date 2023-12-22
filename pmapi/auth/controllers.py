@@ -19,7 +19,13 @@ def authenticate_apple_user(**kwargs):
 
     cache = KeyCache()
     token = IdentityToken.parse(data=id_token)
-    token_is_valid = token.is_validly_signed(key_cache=cache)
+    token_is_valid = token.is_validly_signed(
+        key_cache=cache, audience='com.partymap.quasar')
+
+    if not token_is_valid:
+        # might be web user, try again with web client_id/audience
+        token_is_valid = token.is_validly_signed(
+            key_cache=cache, audience='com.partymap.web')
 
     if not token_is_valid:
         raise exc.InvalidAPIRequest("Token is invalid")
