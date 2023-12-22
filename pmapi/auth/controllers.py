@@ -42,7 +42,7 @@ def authenticate_apple_user(**kwargs):
         oauth = query.one()
     except NoResultFound:
         oauth = OAuth(provider="apple",
-                      provider_user_id=user_id, token=token)
+                      provider_user_id=user_id, token=token.payload)
 
     user = None
 
