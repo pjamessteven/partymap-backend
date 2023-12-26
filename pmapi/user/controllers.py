@@ -1,7 +1,7 @@
 from sqlalchemy import or_
 from flask_login import current_user
 from werkzeug.security import generate_password_hash
-
+from sqlalchemy_continuum import versioning_manager
 from .model import User, OAuth
 from pmapi import validate
 import pmapi.exceptions as exc
@@ -332,9 +332,6 @@ def delete_user(user_id):
         for media_item in user.created_media_items:
             db.session.delete(media_item)
 
-    delete_page_views = event_page_views_table.delete().where(
-        event_page_views_table.c.user_id == user.id)
-
     delete_following = user_event_following_table.delete().where(
         user_event_following_table.c.user_id == user.id)
 
@@ -344,10 +341,25 @@ def delete_user(user_id):
     delete_interested = user_event_date_interested_table.delete().where(
         user_event_following_table.c.user_id == user.id)
 
+    delete_page_views = event_page_views_table.delete().where(
+        event_page_views_table.c.user_id == user.id)
+
+    Transaction = versioning_manager.transaction_cls
+
+    delete_transactions = Transaction.delete().where(
+        Transaction.user_id == user.id
+    )
+
+    db.session.execute(delete_following)
+    db.session.execute(delete_going)
+    db.session.execute(delete_interested)
     db.session.execute(delete_page_views)
+    db.session.execute(delete_transactions)
+
     db.session.commit()
 
     db.session.delete(user)
+
     db.session.commit()
     return
 
