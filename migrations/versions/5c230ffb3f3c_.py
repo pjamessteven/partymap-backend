@@ -235,18 +235,26 @@ def upgrade():
     op.create_table(
         "event_dates_version",
         sa.Column("id", sa.Integer(), autoincrement=False, nullable=False),
-        sa.Column("created_at", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("event_id", sa.Integer(), autoincrement=False, nullable=True),
+        sa.Column("created_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("event_id", sa.Integer(),
+                  autoincrement=False, nullable=True),
         sa.Column("tz", sa.String(), autoincrement=False, nullable=True),
         sa.Column("start", sa.DateTime(), autoincrement=False, nullable=True),
         sa.Column("end", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("start_naive", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("end_naive", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("location_id", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("description", sa.Text(), autoincrement=False, nullable=True),
+        sa.Column("start_naive", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("end_naive", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("location_id", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("description", sa.Text(),
+                  autoincrement=False, nullable=True),
         sa.Column("url", sa.String(), autoincrement=False, nullable=True),
-        sa.Column("ticket_url", sa.String(), autoincrement=False, nullable=True),
-        sa.Column("cancelled", sa.Boolean(), autoincrement=False, nullable=True),
+        sa.Column("ticket_url", sa.String(),
+                  autoincrement=False, nullable=True),
+        sa.Column("cancelled", sa.Boolean(),
+                  autoincrement=False, nullable=True),
         sa.Column("size", sa.Integer(), autoincrement=False, nullable=True),
         sa.Column(
             "transaction_id", sa.BigInteger(), autoincrement=False, nullable=False
@@ -369,10 +377,12 @@ def upgrade():
             nullable=True,
         ),
         sa.Column("name", sa.String(), autoincrement=False, nullable=True),
-        sa.Column("description", sa.String(), autoincrement=False, nullable=True),
+        sa.Column("description", sa.String(),
+                  autoincrement=False, nullable=True),
         sa.Column("lat", sa.Float(), autoincrement=False, nullable=True),
         sa.Column("lng", sa.Float(), autoincrement=False, nullable=True),
-        sa.Column("country_code", sa.String(), autoincrement=False, nullable=True),
+        sa.Column("country_code", sa.String(),
+                  autoincrement=False, nullable=True),
         sa.Column("country", sa.String(), autoincrement=False, nullable=True),
         sa.Column("city", sa.String(), autoincrement=False, nullable=True),
         sa.Column(
@@ -381,8 +391,10 @@ def upgrade():
             autoincrement=False,
             nullable=True,
         ),
-        sa.Column("created_at", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("creator_id", postgresql.UUID(), autoincrement=False, nullable=True),
+        sa.Column("created_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("creator_id", postgresql.UUID(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "cluster_zoom_2_id", sa.Integer(), autoincrement=False, nullable=True
         ),
@@ -456,10 +468,14 @@ def upgrade():
     op.create_table(
         "event_tags_version",
         sa.Column("id", sa.Integer(), autoincrement=False, nullable=False),
-        sa.Column("tag_id", sa.String(length=20), autoincrement=False, nullable=True),
-        sa.Column("event_id", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("creator_id", postgresql.UUID(), autoincrement=False, nullable=True),
-        sa.Column("created_at", sa.DateTime(), autoincrement=False, nullable=True),
+        sa.Column("tag_id", sa.String(length=20),
+                  autoincrement=False, nullable=True),
+        sa.Column("event_id", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("creator_id", postgresql.UUID(),
+                  autoincrement=False, nullable=True),
+        sa.Column("created_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "transaction_id", sa.BigInteger(), autoincrement=False, nullable=False
         ),
@@ -488,12 +504,17 @@ def upgrade():
     op.create_table(
         "events_version",
         sa.Column("id", sa.Integer(), autoincrement=False, nullable=False),
-        sa.Column("created_at", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("updated_at", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("creator_id", postgresql.UUID(), autoincrement=False, nullable=True),
+        sa.Column("created_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("updated_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("creator_id", postgresql.UUID(),
+                  autoincrement=False, nullable=True),
         sa.Column("name", sa.Text(), autoincrement=False, nullable=True),
-        sa.Column("description", sa.Text(), autoincrement=False, nullable=True),
-        sa.Column("default_url", sa.String(), autoincrement=False, nullable=True),
+        sa.Column("description", sa.Text(),
+                  autoincrement=False, nullable=True),
+        sa.Column("default_url", sa.String(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "default_ticket_url", sa.String(), autoincrement=False, nullable=True
         ),
@@ -535,8 +556,10 @@ def upgrade():
     op.create_table(
         "media_items_version",
         sa.Column("id", sa.Integer(), autoincrement=False, nullable=False),
-        sa.Column("created_at", sa.DateTime(), autoincrement=False, nullable=True),
-        sa.Column("creator_id", postgresql.UUID(), autoincrement=False, nullable=True),
+        sa.Column("created_at", sa.DateTime(),
+                  autoincrement=False, nullable=True),
+        sa.Column("creator_id", postgresql.UUID(),
+                  autoincrement=False, nullable=True),
         sa.Column("caption", sa.Text(), autoincrement=False, nullable=True),
         sa.Column(
             "type",
@@ -544,9 +567,12 @@ def upgrade():
             autoincrement=False,
             nullable=True,
         ),
-        sa.Column("position", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("thumb_filename", sa.String(), autoincrement=False, nullable=True),
-        sa.Column("image_filename", sa.String(), autoincrement=False, nullable=True),
+        sa.Column("position", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("thumb_filename", sa.String(),
+                  autoincrement=False, nullable=True),
+        sa.Column("image_filename", sa.String(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "video_low_filename", sa.String(), autoincrement=False, nullable=True
         ),
@@ -559,12 +585,15 @@ def upgrade():
         sa.Column(
             "video_poster_filename", sa.String(), autoincrement=False, nullable=True
         ),
-        sa.Column("duration", sa.Integer(), autoincrement=False, nullable=True),
+        sa.Column("duration", sa.Integer(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "contribution_id", postgresql.UUID(), autoincrement=False, nullable=True
         ),
-        sa.Column("event_id", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("event_date_id", sa.Integer(), autoincrement=False, nullable=True),
+        sa.Column("event_id", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("event_date_id", sa.Integer(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "transaction_id", sa.BigInteger(), autoincrement=False, nullable=False
         ),
@@ -600,13 +629,20 @@ def upgrade():
     )
     op.create_table(
         "rrules_version",
-        sa.Column("event_id", sa.Integer(), autoincrement=False, nullable=False),
-        sa.Column("recurring_type", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("separation_count", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("day_of_week", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("week_of_month", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("day_of_month", sa.Integer(), autoincrement=False, nullable=True),
-        sa.Column("month_of_year", sa.Integer(), autoincrement=False, nullable=True),
+        sa.Column("event_id", sa.Integer(),
+                  autoincrement=False, nullable=False),
+        sa.Column("recurring_type", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("separation_count", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("day_of_week", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("week_of_month", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("day_of_month", sa.Integer(),
+                  autoincrement=False, nullable=True),
+        sa.Column("month_of_year", sa.Integer(),
+                  autoincrement=False, nullable=True),
         sa.Column(
             "transaction_id", sa.BigInteger(), autoincrement=False, nullable=False
         ),
@@ -645,12 +681,13 @@ def upgrade():
         sa.Column("role", sa.Integer(), nullable=False),
         sa.Column("last_active", sa.DateTime(), nullable=True),
         sa.Column("username", sa.String(length=80), nullable=True),
-        sa.Column("email", sa.String(length=120), nullable=False),
+        sa.Column("email", sa.String(length=120), nullable=True),
         sa.Column("password", sa.String(length=255), nullable=True),
         sa.Column("oauth", sa.Boolean(), nullable=True),
         sa.Column(
             "status",
-            postgresql.ENUM("active", "disabled", "pending", name="user_status"),
+            postgresql.ENUM("active", "disabled",
+                            "pending", name="user_status"),
             nullable=True,
         ),
         sa.Column("karma", sa.Integer(), nullable=True),
@@ -803,7 +840,8 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("provider", sa.String(length=50), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("token", sqlalchemy_utils.types.json.JSONType(), nullable=False),
+        sa.Column("token", sqlalchemy_utils.types.json.JSONType(),
+                  nullable=False),
         sa.Column("provider_user_id", sa.String(length=256), nullable=False),
         sa.Column("user_id", postgresql.UUID(), nullable=True),
         sa.ForeignKeyConstraint(
@@ -834,7 +872,8 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("user_id", postgresql.UUID(), nullable=False),
         sa.Column("read", sa.Boolean(), nullable=True),
-        sa.ForeignKeyConstraint(["id"], ["notifications.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["id"], ["notifications.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id", "user_id"),
     )
@@ -875,7 +914,8 @@ def upgrade():
         sa.Column("default_url", sa.String(), nullable=True),
         sa.Column("default_ticket_url", sa.String(), nullable=True),
         sa.Column("default_location_id", sa.Integer(), nullable=True),
-        sa.Column("settings", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("settings", postgresql.JSONB(
+            astext_type=sa.Text()), nullable=True),
         sa.Column("hidden", sa.Boolean(), nullable=True),
         sa.ForeignKeyConstraint(
             ["creator_id"],
@@ -977,7 +1017,8 @@ def upgrade():
         sa.Column("text", sa.Text(), nullable=True),
         sa.Column("status", sa.SmallInteger(), nullable=True),
         sa.Column("score", sa.Integer(), nullable=True),
-        sa.Column("hotness", sa.Float(precision=15, asdecimal=6), nullable=True),
+        sa.Column("hotness", sa.Float(
+            precision=15, asdecimal=6), nullable=True),
         sa.ForeignKeyConstraint(
             ["creator_id"],
             ["users.id"],
@@ -1024,7 +1065,8 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("creator_id", postgresql.UUID(), nullable=True),
         sa.Column("caption", sa.Text(), nullable=True),
-        sa.Column("type", sa.Enum("image", "video", name="media_type"), nullable=True),
+        sa.Column("type", sa.Enum("image", "video",
+                  name="media_type"), nullable=True),
         sa.Column("position", sa.Integer(), nullable=True),
         sa.Column("thumb_filename", sa.String(), nullable=False),
         sa.Column("image_filename", sa.String(), nullable=True),
@@ -1086,8 +1128,10 @@ def downgrade():
     op.drop_table("email_actions")
     op.drop_table("users")
     op.drop_table("tags")
-    op.drop_index(op.f("ix_rrules_version_transaction_id"), table_name="rrules_version")
-    op.drop_index(op.f("ix_rrules_version_operation_type"), table_name="rrules_version")
+    op.drop_index(op.f("ix_rrules_version_transaction_id"),
+                  table_name="rrules_version")
+    op.drop_index(op.f("ix_rrules_version_operation_type"),
+                  table_name="rrules_version")
     op.drop_index(
         op.f("ix_rrules_version_end_transaction_id"), table_name="rrules_version"
     )
@@ -1104,8 +1148,10 @@ def downgrade():
         table_name="media_items_version",
     )
     op.drop_table("media_items_version")
-    op.drop_index(op.f("ix_events_version_transaction_id"), table_name="events_version")
-    op.drop_index(op.f("ix_events_version_operation_type"), table_name="events_version")
+    op.drop_index(op.f("ix_events_version_transaction_id"),
+                  table_name="events_version")
+    op.drop_index(op.f("ix_events_version_operation_type"),
+                  table_name="events_version")
     op.drop_index(
         op.f("ix_events_version_end_transaction_id"), table_name="events_version"
     )
