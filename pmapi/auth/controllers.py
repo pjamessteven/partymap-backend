@@ -69,11 +69,13 @@ def authenticate_apple_user(**kwargs):
         if (existing_user == None):
             # Create a new local user account for this user
             user = User(email=email)
+            db.session.add(user)
+            db.session.flush()
         else:
             user = existing_user
         user.oauth = True
         # Associate the new local user account with the OAuth token
-        oauth.user = user
+        oauth.user_id = user.id
         # activate account
         user.activate()
 
