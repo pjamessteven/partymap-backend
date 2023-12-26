@@ -127,7 +127,7 @@ def check_user_does_not_exist(username, email):
             raise exc.RecordAlreadyExists(code="EMAIL_ALREADY_REGISTERED")
 
 
-def check_username_not_taken(username, email):
+def check_username_not_taken(username):
     existing_user = User.query.filter(
         User.username == username
     ).first()
