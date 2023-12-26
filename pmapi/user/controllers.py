@@ -250,11 +250,9 @@ def edit_user(user_id, **kwargs):
 
     user = get_user_or_404(user_id)
 
-    if username or password:
+    if username:
         # check username doesn't exist
         check_user_does_not_exist(username, email)
-
-    if username:
         validate.username(username)
         user.username = username
 
