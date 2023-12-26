@@ -52,7 +52,11 @@ def create_report(**kwargs):
 
     event = events.get_event(event_id)
 
-    contribution = event_contributions.get_contribution(event_contribution_id)
+    contribution = None
+
+    if event_contribution_id:
+        contribution = event_contributions.get_contribution(
+            event_contribution_id)
 
     if not current_user.is_authenticated and email is None:
         raise exc.InvalidAPIRequest("Email is required if not logged in")
