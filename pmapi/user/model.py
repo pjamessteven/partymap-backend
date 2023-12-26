@@ -47,11 +47,10 @@ class User(db.Model):
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     # Username can be null before social user has chosen a username
     username = db.Column(db.String(80), unique=True, nullable=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
     password = db.Column(db.String(255), nullable=True)
     alias = db.Column(db.String(200))
     description = db.Column(db.String(1000))
-
     oauth = db.Column(db.Boolean, unique=False, default=False)
     one_off_auth_token = db.Column(UUID)
 

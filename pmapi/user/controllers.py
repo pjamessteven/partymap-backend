@@ -326,6 +326,10 @@ def delete_user(user_id):
         for contribution in user.created_contributions:
             db.session.delete(contribution)
 
+    user.avatar = None
+
+    db.session.flush()
+
     if user.created_media_items:
         for media_item in user.created_media_items:
             db.session.delete(media_item)
@@ -347,15 +351,17 @@ def delete_user(user_id):
     db.session.execute(delete_interested)
     db.session.execute(delete_page_views)
 
-    Transaction = versioning_manager.transaction_cls
-    transactions = db.session.query(Transaction).filter(
-        Transaction.user_id == user.id)
-    for transaction in transactions:
-        db.session.delete(transaction)
+    #Transaction = versioning_manager.transaction_cls
+    # transactions = db.session.query(Transaction).filter(
+    #    Transaction.user_id == user.id)
+    # for transaction in transactions:
+    #    db.session.delete(transaction)
 
-    db.session.commit()
-
-    db.session.delete(user)
+    # can't fully delete user without deleting transactions which
+    # we shouldnt do as we lose track of what is an important changelog
+    user.username = None
+    user.email = None
+    user.password = None
 
     db.session.commit()
 
