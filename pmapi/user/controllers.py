@@ -15,6 +15,8 @@ from pmapi.mail.controllers import (
 from pmapi.utils import ROLES
 from pmapi.extensions import db
 import pmapi.event.controllers as events
+from pmapi.event.model import event_page_views_table, user_event_following_table
+from pmapi.event_date import user_event_date_going_table, user_event_date_interested_table
 import pmapi.media_item.controllers as media_items
 from flask_login import (
     login_user,
@@ -317,6 +319,33 @@ def delete_user(user_id):
     if user.created_events:
         for event in user.created_events:
             events.delete_event(event.id)
+
+    if user.created_suggestions:
+        for suggestion in user.created_suggestions:
+            db.session.delete(suggestion)
+
+    if user.created_contributions:
+        for contribution in user.created_contributions:
+            db.session.delete(contribution)
+
+    if user.created_media_items:
+        for media_item in user.created_media_items:
+            db.session.delete(media_item)
+
+    delete_page_views = event_page_views_table.delete().where(
+        event_page_views_table.c.user_id == user.id)
+
+    delete_following = user_event_following_table.delete().where(
+        user_event_following_table.c.user_id == user.id)
+
+    delete_going = user_event_date_going_table.delete().where(
+        user_event_following_table.c.user_id == user.id)
+
+    delete_interested = user_event_date_interested_table.delete().where(
+        user_event_following_table.c.user_id == user.id)
+
+    db.session.execute(delete_page_views)
+    db.session.commit()
 
     db.session.delete(user)
     db.session.commit()
