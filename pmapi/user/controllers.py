@@ -346,7 +346,6 @@ def delete_user(user_id):
     db.session.execute(delete_going)
     db.session.execute(delete_interested)
     db.session.execute(delete_page_views)
-    db.session.execute(delete_transactions)
 
     Transaction = versioning_manager.transaction_cls
     transactions = db.session.query(Transaction).filter(
@@ -359,6 +358,7 @@ def delete_user(user_id):
     db.session.delete(user)
 
     db.session.commit()
+
     return
 
 
