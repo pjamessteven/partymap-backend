@@ -16,7 +16,7 @@ from pmapi.utils import ROLES
 from pmapi.extensions import db
 import pmapi.event.controllers as events
 from pmapi.event.model import event_page_views_table, user_event_following_table
-from pmapi.event_date import user_event_date_going_table, user_event_date_interested_table
+from pmapi.event_date.model import user_event_date_going_table, user_event_date_interested_table
 import pmapi.media_item.controllers as media_items
 from flask_login import (
     login_user,
