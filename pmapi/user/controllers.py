@@ -312,7 +312,8 @@ def delete_user(user_id):
     # delete oauth token
     if user.oauth:
         token = OAuth.query.filter(OAuth.user_id == user_id).first()
-        db.session.delete(token)
+        if token:
+            db.session.delete(token)
 
     if user.created_events:
         for event in user.created_events:
