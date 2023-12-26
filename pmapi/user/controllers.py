@@ -1,5 +1,5 @@
 from sqlalchemy import or_
-from flask_login import current_user
+from flask_login import current_user, logout_user
 from werkzeug.security import generate_password_hash
 from sqlalchemy_continuum import versioning_manager
 from .model import User, OAuth
@@ -364,6 +364,8 @@ def delete_user(user_id):
     user.password = None
 
     db.session.commit()
+
+    logout_user()
 
     return
 
