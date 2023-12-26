@@ -344,17 +344,17 @@ def delete_user(user_id):
     delete_page_views = event_page_views_table.delete().where(
         event_page_views_table.c.user_id == user.id)
 
-    Transaction = versioning_manager.transaction_cls
-
-    delete_transactions = Transaction.delete().where(
-        Transaction.user_id == user.id
-    )
-
     db.session.execute(delete_following)
     db.session.execute(delete_going)
     db.session.execute(delete_interested)
     db.session.execute(delete_page_views)
     db.session.execute(delete_transactions)
+
+    Transaction = versioning_manager.transaction_cls
+    transactions = db.session.query(Transaction).filter(
+        Transaction.user_id == user.id)
+    for transaction in transactions:
+        db.session.delete(transaction)
 
     db.session.commit()
 
