@@ -127,6 +127,14 @@ def check_user_does_not_exist(username, email):
             raise exc.RecordAlreadyExists(code="EMAIL_ALREADY_REGISTERED")
 
 
+def check_username_not_taken(username, email):
+    existing_user = User.query.filter(
+        User.username == username
+    ).first()
+    if existing_user:
+        raise exc.RecordAlreadyExists(code="USERNAME_TAKEN")
+
+
 def check_email_not_registered(email):
     existing_user = User.query.filter(User.email == email).first()
     if existing_user:
@@ -252,7 +260,7 @@ def edit_user(user_id, **kwargs):
 
     if username:
         # check username doesn't exist
-        check_user_does_not_exist(username, email)
+        check_username_not_taken(username)
         validate.username(username)
         user.username = username
 
