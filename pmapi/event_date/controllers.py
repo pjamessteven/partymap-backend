@@ -581,8 +581,24 @@ def generateRecurringDates(rp, start, end=None):
     startdates = []
     enddates = []
 
-    two_years_away = start.replace(year=start.year + 2)
-    ten_years_away = start.replace(year=start.year + 10)
+    # on leap years, the 29th of March exists
+    try:
+        two_years_away = start.replace(year=start.year + 2)
+    except ValueError:
+        if (start.month == 2 and start.day == 29 and  # leap day
+                isleap(start.year)):
+            two_years_away = start.replace(year=start.year + 2, day=28)
+        else:
+            raise
+
+    try:
+        ten_years_away = start.replace(year=start.year + 10)
+    except ValueError:
+        if (start.month == 2 and start.day == 29 and  # leap day
+                isleap(start.year)):
+            ten_years_away = start.replace(year=start.year + 10, day=28)
+        else:
+            raise
 
     start_weekday = start.weekday()
     start_day = start.day
