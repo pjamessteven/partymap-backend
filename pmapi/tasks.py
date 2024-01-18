@@ -9,6 +9,7 @@ from flask.helpers import get_debug_flag
 from .config import DevConfig
 from .config import ProdConfig
 from requests.exceptions import RequestException
+from pmapi.extensions import db
 
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
@@ -109,3 +110,4 @@ def refresh_artist_info(artist_id):
 
     with app.app_context():
         artists.refresh_info(artist_id)
+        db.session.close()  # close session so we don't have issues with celery workers
