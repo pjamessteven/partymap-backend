@@ -91,7 +91,7 @@ def add_new_event_location(creator=None, **kwargs):
                 db.session.add(locality)
                 db.session.flush()
 
-    if region is None or country is None:
+    if (region is None and locality is None) or country is None:
         raise exc.InvalidAPIRequest(
             "A more specific location is required. Please try again."
         )
