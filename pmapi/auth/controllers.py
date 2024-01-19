@@ -39,7 +39,6 @@ def authenticate_apple_user(**kwargs):
         "email": email,
         "user_id": user_id,
         "email_is_private": token.payload.email_is_private,
-        "real_person": token.payload.real_person,
         "expires_utc_seconds_since_epoch": token.payload.expires_utc_seconds_since_epoch,
         "issued_utc_seconds_since_epoch": token.payload.issued_utc_seconds_since_epoch
     }
