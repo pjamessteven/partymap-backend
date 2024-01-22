@@ -88,6 +88,10 @@ def google_logged_in(blueprint, token):
         # activate account
         user.activate()
 
+    # Save and commit our database models
+    db.session.add_all([user, oauth])
+    db.session.commit()
+
     # for native mobile auth we pass a token that is used to authenticate with /login
     if session["mobile"]:
         user.one_off_auth_token = str(uuid.uuid4())
@@ -97,10 +101,6 @@ def google_logged_in(blueprint, token):
         # Log in the new local user account
         login_user(user)
         flash("Successfully signed in.")
-
-    # Save and commit our database models
-    db.session.add_all([user, oauth])
-    db.session.commit()
 
     if session["mobile"]:
         return redirect('/oauth_redirect?redirect_uri='+next_url)

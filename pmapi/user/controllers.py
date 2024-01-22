@@ -1,7 +1,7 @@
 from sqlalchemy import or_
 from flask_login import current_user, logout_user
 from werkzeug.security import generate_password_hash
-from sqlalchemy_continuum import versioning_manager
+from sqlalchemy_continuum import transaction_class
 from .model import User, OAuth
 from pmapi import validate
 import pmapi.exceptions as exc
@@ -22,7 +22,8 @@ from flask_login import (
     login_user,
 )
 from flask import session
-
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import MetaData, Table, Column
 import logging
 
 
@@ -317,9 +318,10 @@ def edit_user(user_id, **kwargs):
 
 def delete_user(user_id):
     user = get_user_or_404(user_id)
+
     # delete oauth token
     if user.oauth:
-        token = OAuth.query.filter(OAuth.user_id == user_id).first()
+        token = OAuth.query.filter(OAuth.user_id == user.id).first()
         if token:
             db.session.delete(token)
 
@@ -341,10 +343,6 @@ def delete_user(user_id):
         for contribution in user.created_contributions:
             db.session.delete(contribution)
 
-    user.avatar = None
-
-    db.session.flush()
-
     if user.created_media_items:
         for media_item in user.created_media_items:
             if media_item.event:
@@ -352,42 +350,43 @@ def delete_user(user_id):
                     db.session.delete(media_item)
                 else:
                     # don't delete media for events where user is not the host
-                    media_item.creator_id == None
+                    media_item.creator_id = None
             else:
                 db.session.delete(media_item)
 
-    delete_following = user_event_following_table.delete().where(
-        user_event_following_table.c.user_id == user.id)
-
-    delete_going = user_event_date_going_table.delete().where(
-        user_event_date_going_table.c.user_id == user.id)
-
-    delete_interested = user_event_date_interested_table.delete().where(
-        user_event_date_interested_table.c.user_id == user.id)
-
-    delete_page_views = event_page_views_table.delete().where(
-        event_page_views_table.c.user_id == user.id)
-
-    db.session.execute(delete_following)
-    db.session.execute(delete_going)
-    db.session.execute(delete_interested)
-    db.session.execute(delete_page_views)
-
-    Transaction = versioning_manager.transaction_cls
-    transactions = db.session.query(Transaction).filter(
-        Transaction.user_id == user.id)
-    for transaction in transactions:
-        db.session.delete(transaction)
-
     db.session.flush()
-
-    db.session.delete(user)
-
-    db.session.commit()
 
     logout_user()
 
-    return
+    user.avatar = None
+    user.username = None
+    user.email = None
+    user.password = None
+    user.alias = None
+    user.description = None
+
+    """
+    need to fix this but for now, whatever
+    delete_following = user_event_following_table.delete().where(
+        user_event_following_table.c.user_id == str(user.id))
+    db.session.execute(delete_following)
+
+    delete_going = user_event_date_going_table.delete().where(
+        user_event_date_going_table.c.user_id == str(user.id))
+    db.session.execute(delete_going)
+
+    delete_interested = user_event_date_interested_table.delete().where(
+        user_event_date_interested_table.c.user_id == str(user.id))
+    db.session.execute(delete_interested)
+
+    delete_page_views = event_page_views_table.delete().where(
+        event_page_views_table.c.user_id == str(user.id))
+    db.session.execute(delete_page_views)
+    """
+
+    db.session.commit()
+
+    return ("", 201)
 
 
 def request_password_reset(identifier):
