@@ -325,7 +325,13 @@ def delete_user(user_id):
 
     if user.created_events:
         for event in user.created_events:
-            events.delete_event(event.id)
+            if event.host_id == user.id:
+                # only delete events that the user is the host of
+                events.delete_event(event.id)
+            else:
+                # for general events ('an event I know about')
+                # dont delete them
+                event.creator_id = None
 
     if user.created_suggestions:
         for suggestion in user.created_suggestions:
@@ -341,16 +347,23 @@ def delete_user(user_id):
 
     if user.created_media_items:
         for media_item in user.created_media_items:
-            db.session.delete(media_item)
+            if media_item.event:
+                if media_item.event.host_id == user.id:
+                    db.session.delete(media_item)
+                else:
+                    # don't delete media for events where user is not the host
+                    media_item.creator_id == None
+            else:
+                db.session.delete(media_item)
 
     delete_following = user_event_following_table.delete().where(
         user_event_following_table.c.user_id == user.id)
 
     delete_going = user_event_date_going_table.delete().where(
-        user_event_following_table.c.user_id == user.id)
+        user_event_date_going_table.c.user_id == user.id)
 
     delete_interested = user_event_date_interested_table.delete().where(
-        user_event_following_table.c.user_id == user.id)
+        user_event_date_interested_table.c.user_id == user.id)
 
     delete_page_views = event_page_views_table.delete().where(
         event_page_views_table.c.user_id == user.id)
@@ -360,17 +373,15 @@ def delete_user(user_id):
     db.session.execute(delete_interested)
     db.session.execute(delete_page_views)
 
-    #Transaction = versioning_manager.transaction_cls
-    # transactions = db.session.query(Transaction).filter(
-    #    Transaction.user_id == user.id)
-    # for transaction in transactions:
-    #    db.session.delete(transaction)
+    Transaction = versioning_manager.transaction_cls
+    transactions = db.session.query(Transaction).filter(
+        Transaction.user_id == user.id)
+    for transaction in transactions:
+        db.session.delete(transaction)
 
-    # can't fully delete user without deleting transactions which
-    # we shouldnt do as we lose track of what is an important changelog
-    user.username = None
-    user.email = None
-    user.password = None
+    db.session.flush()
+
+    db.session.delete(user)
 
     db.session.commit()
 
