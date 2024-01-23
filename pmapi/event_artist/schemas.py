@@ -74,6 +74,11 @@ class EventDateArtistSchema(Schema):
 class MinimalEventDateArtistSchema(Schema):
     name = fields.Pluck("ArtistSchema", "name",
                         attribute="artist", dump_only=True)
+    disambiguation = fields.Pluck(
+        "ArtistSchema", "disambiguation", attribute="artist", dump_only=True
+    )
+    area = fields.Pluck("ArtistSchema", "area",
+                        attribute="artist", dump_only=True)
     id = fields.Pluck("ArtistSchema", "id",
                       attribute="artist", dump_only=True)
     media_items = fields.Pluck(

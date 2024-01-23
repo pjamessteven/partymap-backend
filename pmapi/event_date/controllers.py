@@ -1078,11 +1078,15 @@ def query_event_dates(**kwargs):
     seconds_end = time.time()
     print("query time in seconds: ", seconds_end - seconds_start)
 
-    artists = []
-    tags = []
+    results = paginated_results(EventDate, query, **kwargs)
+    results.radius = radius
 
     # return top artists and tags with the first page of results
     if kwargs.get('page') == 1:
+
+        artists = []
+        tags = []
+
         for ed in query.slice(0, 50).all():  # avoid perfromance issues
             for artist in ed[0].artists:
                 artists.append(artist)
@@ -1119,10 +1123,9 @@ def query_event_dates(**kwargs):
         seconds_end_2 = time.time()
         print("tag/artist time in seconds: ", seconds_end_2 - seconds_start)
 
-    results = paginated_results(EventDate, query, **kwargs)
-    results.radius = radius
-    results.top_artists = ordered_artists[0: 10]
-    results.top_tags = ordered_tags[0: 20]
+        results.top_artists = ordered_artists[0: 10]
+        results.top_tags = ordered_tags[0: 20]
+
     return results
 
 
