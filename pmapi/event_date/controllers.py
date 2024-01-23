@@ -10,7 +10,7 @@ from icalendar import Calendar as icalendarCalendar, Event as icalendarEvent, vC
 from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_, asc, distinct
 from sqlalchemy.orm import with_expression, lazyload
-
+from collections import Counter
 from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
 import pmapi.event_artist.controllers as event_artists
@@ -1078,8 +1078,51 @@ def query_event_dates(**kwargs):
     seconds_end = time.time()
     print("query time in seconds: ", seconds_end - seconds_start)
 
+    artists = []
+    tags = []
+
+    # return top artists and tags with the first page of results
+    if kwargs.get('page') == 1:
+        for ed in query.slice(0, 50).all():  # avoid perfromance issues
+            for artist in ed[0].artists:
+                artists.append(artist)
+            for tag in ed[0].event.event_tags:
+                tags.append(tag)
+
+        # Count the occurrences of each item in the lists
+        artist_counter = Counter(artist.artist_id for artist in artists)
+        tag_counter = Counter(tag.tag_id for tag in tags)
+
+        # Create a set to keep track of artists already added to the result
+        artists_set = set()
+        tags_set = set()
+
+        # Create a new list ordered by the frequency of each artist without duplicates
+        ordered_artists = [
+            artist
+            for artist in artists
+            if artist.artist_id not in artists_set and not artists_set.add(artist.artist_id)
+        ]
+
+        ordered_tags = [
+            tag
+            for tag in tags
+            if tag.tag_id not in tags_set and not tags_set.add(tag.tag_id)
+        ]
+
+        # Sort the new lists by the frequency of each item
+        ordered_artists.sort(
+            key=lambda artist: artist_counter[artist.artist_id], reverse=True)
+        ordered_tags.sort(
+            key=lambda artist: artist_counter[tag.tag_id], reverse=True)
+
+        seconds_end_2 = time.time()
+        print("tag/artist time in seconds: ", seconds_end_2 - seconds_start)
+
     results = paginated_results(EventDate, query, **kwargs)
     results.radius = radius
+    results.top_artists = ordered_artists[0: 10]
+    results.top_tags = ordered_tags[0: 20]
     return results
 
 
