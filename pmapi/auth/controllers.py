@@ -9,6 +9,7 @@ import pmapi.user.controllers as users
 from pmapi.extensions import db
 from siwa import IdentityToken, KeyCache
 from pmapi.user.model import User, OAuth
+from flask import request
 
 
 def authenticate_apple_user(**kwargs):
@@ -85,6 +86,13 @@ def authenticate_apple_user(**kwargs):
         # Save and commit our database models
         db.session.add_all([user, oauth])
         db.session.commit()
+
+    # have to do a custom redirect flow for android  capacitor app
+    if request.args.get("android_capacitor"):
+        user.one_off_auth_token = str(uuid.uuid4())
+        next_url = "https://partymap.com" + '?token=' + user.one_off_auth_token
+        db.session.commit()
+        return redirect('/oauth_redirect?redirect_uri='+next_url)
 
     return user
 
