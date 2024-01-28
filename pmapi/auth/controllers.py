@@ -10,6 +10,7 @@ from pmapi.extensions import db
 from siwa import IdentityToken, KeyCache
 from pmapi.user.model import User, OAuth
 from flask import request
+import uuid
 
 
 def authenticate_apple_user(id_token):
