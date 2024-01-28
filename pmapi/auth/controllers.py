@@ -2,7 +2,7 @@ from werkzeug.security import check_password_hash
 from flask_login import (
     login_user,
 )
-from flask import flash, session
+from flask import flash, session, redirect
 import pmapi.exceptions as exc
 from sqlalchemy.orm.exc import NoResultFound
 import pmapi.user.controllers as users
