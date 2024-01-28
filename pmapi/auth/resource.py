@@ -1,10 +1,11 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_login import logout_user, current_user, AnonymousUserMixin
 from flask_apispec import doc
 from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from marshmallow import fields
+import pmapi.exceptions as exc
 
 import pmapi.exceptions as exc
 from pmapi.user.model import User
@@ -82,12 +83,20 @@ class AppleLoginResource(MethodResource):
     )
     @use_kwargs(
         {
-            "id_token": fields.String(required=True),
+            "id_token": fields.String(required=False),
         },
     )
     @marshal_with(PrivateUserSchema(), code=200)
     def post(self, **kwargs):
-        return auth.authenticate_apple_user(**kwargs)
+        id_token = kwargs.get("id_token")
+        # if we're receiving a post request directly from apple
+        # id_token will be in form
+        if id_token is None:
+            id_token = request.form.get('id_token')
+        if id_token is None:
+            raise exc.InvalidAPIRequest("Token is required")
+
+        return auth.authenticate_apple_user(id_token)
 
 
 auth_blueprint.add_url_rule(

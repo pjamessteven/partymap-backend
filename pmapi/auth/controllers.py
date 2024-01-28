@@ -12,8 +12,7 @@ from pmapi.user.model import User, OAuth
 from flask import request
 
 
-def authenticate_apple_user(**kwargs):
-    id_token = kwargs.get("id_token")
+def authenticate_apple_user(id_token):
 
     # siwa library validates the JWT against Apple's public key
 
