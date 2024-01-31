@@ -304,7 +304,7 @@ def update_event(event_id, **kwargs):
     if hidden is not None:
         event.hidden = hidden
 
-    if name or description or full_description or youtube_url:
+    if name is not None or description is not None or full_description is not None or youtube_url is not None:
         if name:
             event.name = name
 
