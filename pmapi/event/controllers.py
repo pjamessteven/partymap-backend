@@ -155,6 +155,7 @@ def add_event(**kwargs):
     description_attribute = kwargs.pop("description_attribute", None)
     full_description = kwargs.pop("full_description")
     full_description_attribute = kwargs.pop("full_description_attribute", None)
+    youtube_url = kwargs.pop("youtube_url", None)
     next_event_date_description = kwargs.pop(
         "next_event_date_description", None)
     next_event_date_description_attribute = kwargs.pop(
@@ -184,6 +185,7 @@ def add_event(**kwargs):
         description_attribute=description_attribute,
         full_description=full_description,
         full_description_attribute=full_description_attribute,
+        youtube_url=youtube_url
     )
     db.session.add(event)
     db.session.flush()
@@ -283,6 +285,7 @@ def update_event(event_id, **kwargs):
     description_attribute = kwargs.get("description_attribute")
     full_description = kwargs.get("full_description")
     full_description_attribute = kwargs.get("full_description_attribute")
+    youtube_url = kwargs.get("youtube_url")
     name = kwargs.get("name")
     add_tags = kwargs.get("add_tags")
     remove_tags = kwargs.get("remove_tags")
@@ -301,7 +304,7 @@ def update_event(event_id, **kwargs):
     if hidden is not None:
         event.hidden = hidden
 
-    if name or description or full_description:
+    if name or description or full_description or youtube_url:
         if name:
             event.name = name
 
@@ -316,6 +319,9 @@ def update_event(event_id, **kwargs):
 
         if full_description_attribute:
             event.full_description_attribute = full_description_attribute
+
+        if youtube_url:
+            event.youtube_url = youtube_url
 
         # add activity
         db.session.flush()

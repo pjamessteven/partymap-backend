@@ -18,6 +18,7 @@ class EventSchema(Schema):
     description_attribute = fields.Str()
     full_description = fields.Str()
     full_description_attribute = fields.Str()
+    youtube_url = fields.Str()
     tz = fields.Str()
     event_dates = fields.Nested(
         "MiniEventDateSchema", many=True, attribute="event_dates"

@@ -82,6 +82,8 @@ class Event(db.Model):
     full_description = db.Column(db.Text)
     full_description_attribute = db.Column(db.Text)
 
+    youtube_url = db.Column(db.String)
+
     rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id"))
     rrule = db.relationship(
         "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"

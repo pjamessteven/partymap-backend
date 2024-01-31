@@ -60,6 +60,7 @@ class EventsResource(MethodResource):
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
             "full_description_attribute": fields.String(required=False, allow_none=True),
+            "youtube_url": fields.String(required=False, allow_none=True),
             "next_event_date_description": fields.String(
                 required=False, allow_none=True
             ),
@@ -107,6 +108,7 @@ class EventResource(MethodResource):
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
             "full_description_attribute": fields.String(required=False, allow_none=True),
+            "youtube_url": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
             "remove_tags": fields.List(
@@ -160,6 +162,7 @@ class EventSuggestEditResource(MethodResource):
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
             "full_description_attribute": fields.String(required=False, allow_none=True),
+            "youtube_url": fields.String(required=False, allow_none=True),
             "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
