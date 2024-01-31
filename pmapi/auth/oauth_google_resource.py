@@ -96,6 +96,7 @@ def google_logged_in(blueprint, token):
     if session["mobile"]:
         user.one_off_auth_token = str(uuid.uuid4())
         next_url = next_url + '?token=' + user.one_off_auth_token
+        db.session.commit()
 
     else:
         # Log in the new local user account
