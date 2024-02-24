@@ -23,6 +23,9 @@ class Report(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     event = db.relationship("Event", back_populates="reports")
 
+    media_item_id = db.Column(db.Integer, db.ForeignKey("media_items.id"))
+    media_item = db.relationship("MediaItem", back_populates="reports")
+
     event_contribution_id = db.Column(
         UUID, db.ForeignKey("event_contributions.id"))
     event_contribution = db.relationship(

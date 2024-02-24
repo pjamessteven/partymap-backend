@@ -197,53 +197,118 @@ def upload_user_avatar(item, user, creator=current_user):
     return None
 
 
+def add_media_item(file, path):
+    (
+        thumb_xxs_filename,
+        thumb_xs_filename,
+        thumb_filename,
+        image_med_filename,
+        image_filename,
+        video_low_filename,
+        video_med_filename,
+        video_high_filename,
+        video_poster_filename,
+        duration,
+        type,
+    ) = save_media_item(file, path)
+    media_item = MediaItem(
+        image_filename=image_filename,
+        image_med_filename=image_med_filename,
+        video_low_filename=video_low_filename,
+        video_med_filename=video_med_filename,
+        video_high_filename=video_high_filename,
+        video_poster_filename=video_poster_filename,
+        duration=duration,
+        thumb_filename=thumb_filename,
+        thumb_xs_filename=thumb_xs_filename,
+        thumb_xxs_filename=thumb_xxs_filename,
+        type=type,
+    )
+    db.session.add(media_item)
+    db.session.flush()
+    return media_item
+
+
+def add_lineup_images_to_event_date(images, event, event_date, creator=current_user):
+    for i in images:
+        file = i["base64File"]
+        path = os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"] +
+            str("event/") + str(event.id)
+        )
+        media_item = add_media_item(
+            file, path)
+
+        media_item.creator_id = creator.id
+        media_item.attributes = {'isLineupImage': True}
+        media_item.event = event
+        media_item.event_date = event_date
+        db.session.flush()
+
+        event_date.media_items.insert(0, media_item)
+
+        # activity
+        db.session.flush()
+        activity = Activity(
+            verb=u"create", object=media_item, target=event_date)
+        db.session.add(activity)
+
+    return event_date.media_items
+
+
+def add_logo_to_event(image, event, creator=current_user):
+    file = image["base64File"]
+    path = os.path.join(
+        current_app.config["MEDIA_UPLOAD_FOLDER"] +
+        str("event/") + str(event.id)
+    )
+
+    # delete any previous logo
+    for item in event.media_items:
+        if item.attributes is not None and "isEventLogo" in item.attributes:
+            delete_item(item.id)
+
+    media_item = add_media_item(
+        file, path)
+
+    media_item.creator_id = creator.id
+    media_item.attributes = {'isEventLogo': True}
+
+    db.session.flush()
+    # add to position 0
+    event.media_items.insert(0, media_item)
+
+    # activity
+    db.session.flush()
+    activity = Activity(
+        verb=u"create", object=media_item, target=event)
+    db.session.add(activity)
+
+    return media_item
+
+
 def add_media_to_event(items, event, event_date=None, creator=current_user):
 
     media_items = []
 
     for i in items:
         file = i["base64File"]
+
         path = os.path.join(
             current_app.config["MEDIA_UPLOAD_FOLDER"] +
             str("event/") + str(event.id)
         )
 
-        (
-            thumb_xxs_filename,
-            thumb_xs_filename,
-            thumb_filename,
-            image_med_filename,
-            image_filename,
-            video_low_filename,
-            video_med_filename,
-            video_high_filename,
-            video_poster_filename,
-            duration,
-            type,
-        ) = save_media_item(file, path)
+        media_item = add_media_item(file, path)
+        media_item.event = event
+        media_item.event_date = event_date
+        media_item.creator_id = creator.id
+        media_item.caption = i.get("caption", None)
 
-        if thumb_filename:
-            media_item = MediaItem(
-                event=event,
-                event_date=event_date,
-                caption=i.get("caption", None),
-                image_filename=image_filename,
-                image_med_filename=image_med_filename,
-                video_low_filename=video_low_filename,
-                video_med_filename=video_med_filename,
-                video_high_filename=video_high_filename,
-                video_poster_filename=video_poster_filename,
-                duration=duration,
-                thumb_filename=thumb_filename,
-                thumb_xs_filename=thumb_xs_filename,
-                thumb_xxs_filename=thumb_xxs_filename,
-                type=type,
-                creator_id=creator.id,
-            )
-            db.session.add(media_item)
-            db.session.flush()
+        if media_item:
             event.media_items.append(media_item)
-            media_items.append(media_item)
+            if event_date:
+                event_date.media_items.append(media_item)
             # activity
             db.session.flush()
             activity = Activity(

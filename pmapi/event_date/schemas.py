@@ -21,6 +21,7 @@ class EventDateSchema(Schema):
         "EventSchema",
         only=["event_tags", "cover_items", "host", "rrule", "description"],
     )
+    media_items = fields.Nested("MediaItemSchema", many=True)
     description = fields.Str()
     description_attribute = fields.Str()
     url = fields.Str()

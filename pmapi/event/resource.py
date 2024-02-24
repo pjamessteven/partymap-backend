@@ -76,6 +76,7 @@ class EventsResource(MethodResource):
             "ticket_url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
+            "logo": fields.Dict(required=False, allow_none=True),
             "rrule": fields.Dict(),
             "host": fields.Boolean(),
         },
@@ -118,6 +119,7 @@ class EventResource(MethodResource):
             "rrule": fields.Dict(required=False, allow_none=True),
             "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
+            "logo": fields.Dict(required=False, allow_none=True),
         },
     )
     @marshal_with(EventSchema(), code=200)
@@ -174,6 +176,7 @@ class EventSuggestEditResource(MethodResource):
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "message": fields.Str(required=False, allow_none=True),
             "hcaptcha_token": fields.Str(required=False, allow_none=True),
+            "logo": fields.Dict(required=False, allow_none=True),
         },
     )
     def put(self, event_id, **kwargs):

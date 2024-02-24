@@ -107,6 +107,8 @@ class DateResource(MethodResource):
     )
     @use_kwargs(
         {
+            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
+            "lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
             "description": fields.Str(),
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(),
@@ -199,6 +201,7 @@ class EventDatesResource(MethodResource):
     @event_date_permissions.add
     @use_kwargs(
         {
+            "lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
             "description": fields.Str(required=False, allow_none=True),
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(required=False, allow_none=True),
@@ -254,6 +257,8 @@ class EventDateSuggestAddResource(MethodResource):
             "artists": fields.List(fields.Dict(), required=False, allow_none=True),
             "message": fields.Str(required=False, allow_none=True),
             "hcaptcha_token": fields.Str(required=False, allow_none=True),
+            "lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
+
         }
     )
     @marshal_with(EventDateSchema(), code=200)
@@ -295,6 +300,7 @@ class EventDateSuggestResource(MethodResource):
             "date_time": fields.Dict(),
             "location": fields.Dict(),
             "cancelled": fields.Boolean(),
+            "lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
             "add_artists": fields.List(fields.Dict(), required=False, allow_none=True),
             "remove_artists": fields.List(
                 fields.Dict(), required=False, allow_none=True

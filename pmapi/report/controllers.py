@@ -7,6 +7,7 @@ from pmapi.extensions import db
 import pmapi.exceptions as exc
 from pmapi import validate
 import pmapi.event.controllers as events
+import pmapi.media_item.controllers as media_items
 import pmapi.user.controllers as users
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
@@ -47,6 +48,7 @@ def create_report(**kwargs):
     message = kwargs.pop("message", None)
     email = kwargs.pop("email", None)
     event_id = kwargs.pop("event_id", None)
+    media_item_id = kwargs.pop("media_item_id", None)
     event_contribution_id = kwargs.pop("event_contribution_id", None)
     token = kwargs.pop("hcaptcha_token", None)
 
@@ -57,6 +59,10 @@ def create_report(**kwargs):
     if event_contribution_id:
         contribution = event_contributions.get_contribution(
             event_contribution_id)
+
+    if media_item_id:
+        media_item = media_items.get_media_item_or_404(
+            media_item_id)
 
     if not current_user.is_authenticated and email is None:
         raise exc.InvalidAPIRequest("Email is required if not logged in")
@@ -70,7 +76,7 @@ def create_report(**kwargs):
         email = user.email
 
     report = Report(
-        creator_id=creator_id, message=message, email=email, event=event, event_contribution=contribution, open=True
+        creator_id=creator_id, message=message, media_item=media_item, email=email, event=event, event_contribution=contribution, open=True
     )
     db.session.add(report)
     db.session.commit()

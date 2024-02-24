@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+
 import uuid
 from pmapi.extensions import db
 
@@ -21,8 +22,9 @@ media_item_downvotes = db.Table(
 class MediaItem(db.Model):
     __versioned__ = {}
     __tablename__ = "media_items"
-
     id = db.Column(db.Integer, primary_key=True)
+    # can hold flags such as isLineupImage or isEventLogo
+    attributes = db.Column(JSONB)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     creator_id = db.Column(UUID, db.ForeignKey("users.id"))
     creator = db.relationship(
@@ -53,7 +55,8 @@ class MediaItem(db.Model):
         "EventContribution", back_populates="media_items")
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
-    event = db.relationship("Event", back_populates="media_items")
+    event = db.relationship(
+        "Event", back_populates="media_items", foreign_keys=[event_id])
 
     event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     event_date = db.relationship("EventDate", uselist=False)
@@ -64,6 +67,8 @@ class MediaItem(db.Model):
     is_user_avatar = db.relationship(
         "User", back_populates="avatar", uselist=False, primaryjoin="User.avatar_id == MediaItem.id"
     )
+
+    reports = db.relationship("Report", back_populates="media_item")
 
     """
     status = db.Column(db.SmallInteger, default=1)

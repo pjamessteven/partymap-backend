@@ -10,6 +10,7 @@ from pprint import pprint
 @ts_interface()
 class MediaItemSchema(Schema):
     id = fields.UUID()
+    attributes = fields.Dict()
     creator = fields.Nested("UserSchema", only=["username"])
     created_at = fields.DateTime()
     filename = fields.Str()

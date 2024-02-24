@@ -28,6 +28,7 @@ from .model import EventDate, user_event_date_interested_table, user_event_date_
 from pmapi import exceptions as exc
 
 import pmapi.suggestions.controllers as suggestions
+import pmapi.media_item.controllers as media_items
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 # from dateutil.relativedelta import *
@@ -156,6 +157,7 @@ def add_event_date(
     description_attribute=None,
     size=None,
     artists=None,
+    lineup_images=None,
     activity=True,
     date_confirmed=True,
 ):
@@ -225,6 +227,10 @@ def add_event_date(
 
     if artists is not None:
         event_artists.add_artists_to_date(event_date, artists)
+
+    if lineup_images is not None:
+        media_items.add_lineup_images_to_event_date(
+            lineup_images, event, event_date)
 
     #    db.session.commit()
     return event_date
@@ -396,6 +402,14 @@ def update_event_date(id, **kwargs):
         event_artists.update_artists_of_date(
             event_date, kwargs.pop("update_artists"))
 
+    if "lineup_images" in kwargs:
+        media_items.add_lineup_images_to_event_date(kwargs.pop(
+            "lineup_images"), event_date.event, event_date, creator=current_user)
+
+    if "media_items" in kwargs:
+        media_items.add_media_to_event(kwargs.pop(
+            "media_items"), event_date.event, event_date, creator=current_user)
+
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event_date.event.updated_at = datetime.utcnow()
@@ -437,6 +451,7 @@ def generate_future_event_dates(
     next_event_date_description_attribute=None,
     next_event_date_size=None,
     next_event_date_artists=None,
+    next_event_date_lineup_images=None,
     activity=True,
 ):
 
@@ -490,6 +505,7 @@ def generate_future_event_dates(
             description_attribute=next_event_date_description_attribute,
             size=next_event_date_size,
             artists=next_event_date_artists,
+            lineup_images=next_event_date_lineup_images,
             activity=activity,
         )
 
@@ -544,6 +560,7 @@ def generate_future_event_dates(
                     description_attribute=next_event_date_description_attribute,
                     size=next_event_date_size,
                     artists=next_event_date_artists,
+                    lineup_images=next_event_date_lineup_images,
                     activity=activity,
                     # the first date should be confirmed
                     date_confirmed=True if rrule.exact or index == 0 else False
@@ -552,7 +569,7 @@ def generate_future_event_dates(
                 next_event_date_description = None
                 next_event_date_artists = None
                 next_event_date_description_attribute = None
-
+                next_event_date_lineup_images = None
     return event
 
 

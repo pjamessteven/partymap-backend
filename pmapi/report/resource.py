@@ -26,6 +26,7 @@ class ReportsResource(MethodResource):
         {
             "event_contribution_id": fields.String(),
             "event_id": fields.Integer(),
+            "media_item_id": fields.Integer(),
             "message": fields.String(),
             "email": fields.String(required=False, allow_none=True),
             "hcaptcha_token": fields.Str(required=False, allow_none=True),

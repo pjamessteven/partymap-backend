@@ -163,6 +163,7 @@ def add_event(**kwargs):
     )
     next_event_date_size = kwargs.pop("next_event_date_size")
     next_event_date_artists = kwargs.pop("next_event_date_artists", None)
+    next_event_date_lineup_images = kwargs.pop("next_event_date_lineup_images")
     location = kwargs.pop("location")
     date_time = kwargs.pop("date_time")
     rrule = kwargs.pop("rrule", None)
@@ -170,6 +171,7 @@ def add_event(**kwargs):
     ticket_url = kwargs.pop("ticket_url", None)
     tags = kwargs.pop("tags", None)
     media = kwargs.pop("media_items", None)
+    logo = kwargs.pop("logo", None)
 
     # Check if location already exists
     loc = event_locations.get_location(location["place_id"])
@@ -218,6 +220,9 @@ def add_event(**kwargs):
     if media:
         media_items.add_media_to_event(media, event, creator=creator)
 
+    if logo:
+        media_items.add_logo_to_event(logo, event, creator=current_user)
+
     # add activity
     activity = Activity(verb=u"create", object=event, target=event)
     db.session.add(activity)
@@ -234,6 +239,7 @@ def add_event(**kwargs):
         next_event_date_description_attribute,
         next_event_date_size,
         next_event_date_artists,
+        next_event_date_lineup_images
     )
 
     db.session.commit()
@@ -292,6 +298,7 @@ def update_event(event_id, **kwargs):
     media = kwargs.pop("media_items", None)
     is_suggestion = kwargs.get("is_suggestion", False)
     hidden = kwargs.get("hidden")
+    logo = kwargs.pop("logo", None)
 
     event = get_event_or_404(event_id)
     existing_rrule = db.session.query(Rrule).filter(
@@ -348,12 +355,16 @@ def update_event(event_id, **kwargs):
         )  # will remove tag if it already exists
 
     if media:
-        if is_suggestion:
-            # delete previous media
-            # as community events can only have one image
-            media_items.remove_all_media_from_event(event)
+        # if is_suggestion:
+        # delete previous media
+        # as community events can only have one image
+        # media_items.remove_all_media_from_event(event)
 
         media_items.add_media_to_event(media, event, creator=current_user)
+
+    if logo:
+        print('logo', logo)
+        media_items.add_logo_to_event(logo, event, creator=current_user)
 
     # require these three fields to update
     # separtion count of 0 means no recurrance
