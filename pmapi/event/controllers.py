@@ -364,7 +364,6 @@ def update_event(event_id, **kwargs):
         media_items.add_media_to_event(media, event, creator=current_user)
 
     if logo:
-        print('logo', logo)
         media_items.add_logo_to_event(logo, event, creator=current_user)
 
     # require these three fields to update
