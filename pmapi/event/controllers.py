@@ -161,9 +161,10 @@ def add_event(**kwargs):
     next_event_date_description_attribute = kwargs.pop(
         "next_event_date_description_attribute", None
     )
-    next_event_date_size = kwargs.pop("next_event_date_size")
+    next_event_date_size = kwargs.pop("next_event_date_size", None)
     next_event_date_artists = kwargs.pop("next_event_date_artists", None)
-    next_event_date_lineup_images = kwargs.pop("next_event_date_lineup_images")
+    next_event_date_lineup_images = kwargs.pop(
+        "next_event_date_lineup_images", None)
     location = kwargs.pop("location")
     date_time = kwargs.pop("date_time")
     rrule = kwargs.pop("rrule", None)
