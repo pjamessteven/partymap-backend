@@ -31,7 +31,7 @@ def search(query):
 
     tags = db.session.query(Tag).filter(Tag.tag.ilike(search)).all()[:3]
     artists = db.session.query(Artist).filter(Artist.name.ilike(search)).all()[:3]
-    events = db.session.query(Event).filter(Event.name.ilike(search)).all()[:3]
+    events = db.session.query(Event).filter(Event.name.ilike(search)).filter(Event.hidden == False).all()[:3]
     countries = (
         db.session.query(Country).filter(Country.long_name.ilike(search)).all()[:1]
     )
