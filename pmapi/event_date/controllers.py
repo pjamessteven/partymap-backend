@@ -20,6 +20,7 @@ from pmapi.extensions import db, activity_plugin
 from pmapi.event_location.model import EventLocation
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
+from pmapi.event_date.model import EventDateTicket
 
 from pmapi.event.model import Event, user_event_following_table
 
@@ -384,8 +385,17 @@ def update_event_date(id, **kwargs):
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
 
-    if "ticket_url" in kwargs:
-        event_date.ticket_url = kwargs.pop("ticket_url")
+    if "tickets" in kwargs:
+        # delete all previous tickets
+        for ticket in event_date.tickets:
+            db.session.delete(ticket)
+
+        # set new ticket urls
+        tickets = kwargs.pop("tickets")
+        for ticket in tickets:
+            ed_ticket = EventDateTicket(
+                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=event_date)
+            db.session.add(ed_ticket)
 
     if "size" in kwargs:
         event_date.size = kwargs.pop("size")

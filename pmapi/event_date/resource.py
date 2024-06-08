@@ -112,7 +112,7 @@ class DateResource(MethodResource):
             "description": fields.Str(),
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(),
-            "ticket_url": fields.Str(),
+            "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
             "size": fields.Integer(),
             "date_time": fields.Dict(),
             "location": fields.Dict(),

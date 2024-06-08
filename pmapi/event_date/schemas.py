@@ -5,6 +5,16 @@ from typemallow2 import ts_interface
 
 
 @ts_interface()
+class EventDateTicketSchema(Schema):
+    id = fields.Integer()
+    url = fields.Str()
+    description = fields.Str()
+    price_min = fields.Integer()
+    price_max = fields.Integer()
+    price_currency_code = fields.Str()
+
+
+@ts_interface()
 class EventDateSchema(Schema):
     id = fields.Integer()
     event_id = fields.Integer()
@@ -25,7 +35,7 @@ class EventDateSchema(Schema):
     description = fields.Str()
     description_attribute = fields.Str()
     url = fields.Str()
-    ticket_url = fields.Str()
+    tickets = fields.Nested("EventDateTicketSchema", many=True)
     tz = fields.Str()
     cancelled = fields.Boolean()
     distance = fields.Float()

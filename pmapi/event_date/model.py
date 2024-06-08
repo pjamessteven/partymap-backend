@@ -21,6 +21,17 @@ user_event_date_interested_table = db.Table(
 )
 
 
+class EventDateTicket(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_date = db.relationship("EventDate", back_populates="tickets")
+    url = db.Column(db.String)
+    description = db.Column(db.String)
+    price_min = db.Column(db.Integer)
+    price_max = db.Column(db.Integer)
+    price_currency_code = db.Column(db.String)
+
+
 class EventDate(db.Model):
     __versioned__ = {}
     __tablename__ = "event_dates"
@@ -43,7 +54,6 @@ class EventDate(db.Model):
     start_naive = db.Column(db.DateTime, nullable=False)
     end_naive = db.Column(db.DateTime, nullable=False)
     date_confirmed = db.Column(db.Boolean, default=True)
-
     # info can change for each event
     location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
     location = db.relationship("EventLocation", back_populates="event_dates")
@@ -54,6 +64,7 @@ class EventDate(db.Model):
     description_attribute = db.Column(db.Text)
     url = db.Column(db.String)
     ticket_url = db.Column(db.String)
+    tickets = db.relationship("EventDateTicket", back_populates="event_date")
     cancelled = db.Column(db.Boolean, default=False)
     size = db.Column(db.Integer)
 
