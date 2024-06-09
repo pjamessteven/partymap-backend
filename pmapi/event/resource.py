@@ -74,12 +74,12 @@ class EventsResource(MethodResource):
             "next_event_date_lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
-            "ticket_url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "logo": fields.Dict(required=False, allow_none=True),
             "rrule": fields.Dict(),
             "host": fields.Boolean(),
+            "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
         },
     )
     @marshal_with(EventSchema(), code=200)

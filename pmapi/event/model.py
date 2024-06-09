@@ -88,7 +88,8 @@ class Event(db.Model):
     rrule = db.relationship(
         "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"
     )
-
+    event_tickets = db.relationship(
+        "EventDateTicket", back_populates="event")
     event_dates = db.relationship(
         "EventDate", back_populates="event", order_by="EventDate.start"
     )
@@ -306,7 +307,6 @@ class Rrule(db.Model):
     start_date_time = db.Column(db.String)  # naive datetime string
     end_date_time = db.Column(db.String)  # naive datetime string
     default_url = db.Column(db.String)
-    default_ticket_url = db.Column(db.String)
     default_location_id = db.Column(
         db.Integer, db.ForeignKey("event_locations.id"))
     default_location = db.relationship("EventLocation")

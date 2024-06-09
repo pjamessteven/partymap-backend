@@ -22,9 +22,13 @@ user_event_date_interested_table = db.Table(
 
 
 class EventDateTicket(db.Model):
+    __versioned__ = {}
+    __tablename__ = "event_date_tickets"
     id = db.Column(db.Integer, primary_key=True)
-    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+    event = db.relationship("Event", back_populates="event_tickets")
     event_date = db.relationship("EventDate", back_populates="tickets")
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
     url = db.Column(db.String)
     description = db.Column(db.String)
     price_min = db.Column(db.Integer)
@@ -63,7 +67,6 @@ class EventDate(db.Model):
     description = db.Column(db.Text)
     description_attribute = db.Column(db.Text)
     url = db.Column(db.String)
-    ticket_url = db.Column(db.String)
     tickets = db.relationship("EventDateTicket", back_populates="event_date")
     cancelled = db.Column(db.Boolean, default=False)
     size = db.Column(db.Integer)

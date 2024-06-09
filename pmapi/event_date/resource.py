@@ -205,7 +205,6 @@ class EventDatesResource(MethodResource):
             "description": fields.Str(required=False, allow_none=True),
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(required=False, allow_none=True),
-            "ticket_url": fields.Str(required=False, allow_none=True),
             "size": fields.Integer(required=False, allow_none=True),
             "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),

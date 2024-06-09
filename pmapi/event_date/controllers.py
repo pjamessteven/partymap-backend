@@ -96,7 +96,6 @@ def add_event_date_with_datetime(
     description=None,
     description_attribute=None,
     url=None,
-    ticket_url=None,
     size=None,
     artists=None,
     creator=None,
@@ -131,7 +130,6 @@ def add_event_date_with_datetime(
             description_attribute=description_attribute,
             size=size,
             url=url,
-            ticket_url=ticket_url,
             artists=artists,
         )
         db.session.commit()
@@ -153,7 +151,6 @@ def add_event_date(
     creator=None,
     tz=None,
     url=None,
-    ticket_url=None,
     description=None,
     description_attribute=None,
     size=None,
@@ -214,7 +211,6 @@ def add_event_date(
         description_attribute=description_attribute,
         size=size,
         url=url,
-        ticket_url=ticket_url,
         date_confirmed=date_confirmed
     )
     db.session.add(event_date)
@@ -394,7 +390,7 @@ def update_event_date(id, **kwargs):
         tickets = kwargs.pop("tickets")
         for ticket in tickets:
             ed_ticket = EventDateTicket(
-                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=event_date)
+                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=event_date, event=event_date.event)
             db.session.add(ed_ticket)
 
     if "size" in kwargs:
@@ -456,7 +452,6 @@ def generate_future_event_dates(
     event_location=None,
     rrule=None,
     url=None,
-    ticket_url=None,
     next_event_date_description=None,
     next_event_date_description_attribute=None,
     next_event_date_size=None,
@@ -510,7 +505,6 @@ def generate_future_event_dates(
             event_location=event_location,
             tz=tz,
             url=url,
-            ticket_url=ticket_url,
             description=next_event_date_description,
             description_attribute=next_event_date_description_attribute,
             size=next_event_date_size,
@@ -565,7 +559,6 @@ def generate_future_event_dates(
                     event_location=event_location,
                     tz=tz,
                     url=url,
-                    ticket_url=ticket_url,
                     description=next_event_date_description,
                     description_attribute=next_event_date_description_attribute,
                     size=next_event_date_size,

@@ -6,7 +6,7 @@ from flask_login import current_user
 from sqlalchemy_continuum import version_class, transaction_class
 from sqlalchemy import cast, or_, and_, func, select, join
 from sqlalchemy.orm import with_expression
-from pmapi.event_date.model import EventDate, user_event_date_going_table, user_event_date_interested_table
+from pmapi.event_date.model import EventDate, EventDateTicket, user_event_date_going_table, user_event_date_interested_table
 from pmapi.user.model import User
 import pmapi.user.controllers as users
 import pmapi.event_tag.controllers as event_tags
@@ -169,10 +169,10 @@ def add_event(**kwargs):
     date_time = kwargs.pop("date_time")
     rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
-    ticket_url = kwargs.pop("ticket_url", None)
     tags = kwargs.pop("tags", None)
     media = kwargs.pop("media_items", None)
     logo = kwargs.pop("logo", None)
+    tickets = kwargs.pop("tickets", None)
 
     # Check if location already exists
     loc = event_locations.get_location(location["place_id"])
@@ -205,7 +205,6 @@ def add_event(**kwargs):
             start_date_time=date_time["start"],
             end_date_time=date_time["end"],
             default_url=url,
-            default_ticket_url=ticket_url,
             default_location=loc,
             exact=rrule["exact"]
         )
@@ -235,7 +234,6 @@ def add_event(**kwargs):
         loc,
         rrule,
         url,
-        ticket_url,
         next_event_date_description,
         next_event_date_description_attribute,
         next_event_date_size,
@@ -243,14 +241,23 @@ def add_event(**kwargs):
         next_event_date_lineup_images
     )
 
+    db.session.flush()
+
+    if tickets: 
+        next_event_date = event.event_dates[0]
+        for ticket in tickets:
+            ed_ticket = EventDateTicket(
+                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=next_event_date, event=event)
+            db.session.add(ed_ticket) 
+            
     db.session.commit()
 
     # send notification
-    """
+    
     send_new_event_notification(
         event, creator.username if creator is not None else None
     )
-    """
+    
     return event
 
 
@@ -436,7 +443,7 @@ def update_event(event_id, **kwargs):
             # delete future event dates (not including the next one)
             # login as bot user for following action
             event_dates.delete_future_event_dates(
-                event, preserve_next=True, activity=False
+                event, preserve_next=False, activity=False
             )
 
         if date_time and location and rrule:
