@@ -113,6 +113,7 @@ class DateResource(MethodResource):
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(),
             "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
+            "ticket_url": fields.Str(required=False, allow_none=True),
             "size": fields.Integer(),
             "date_time": fields.Dict(),
             "location": fields.Dict(),
@@ -205,6 +206,7 @@ class EventDatesResource(MethodResource):
             "description": fields.Str(required=False, allow_none=True),
             "description_attribute": fields.Str(required=False, allow_none=True),
             "url": fields.Str(required=False, allow_none=True),
+            "ticket_url": fields.Str(required=False, allow_none=True),
             "size": fields.Integer(required=False, allow_none=True),
             "date_time": fields.Dict(required=True),
             "location": fields.Dict(required=True),
@@ -257,7 +259,7 @@ class EventDateSuggestAddResource(MethodResource):
             "message": fields.Str(required=False, allow_none=True),
             "hcaptcha_token": fields.Str(required=False, allow_none=True),
             "lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
-
+            
         }
     )
     @marshal_with(EventDateSchema(), code=200)

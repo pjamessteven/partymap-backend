@@ -96,6 +96,7 @@ def add_event_date_with_datetime(
     description=None,
     description_attribute=None,
     url=None,
+    ticket_url=None,
     size=None,
     artists=None,
     creator=None,
@@ -130,6 +131,7 @@ def add_event_date_with_datetime(
             description_attribute=description_attribute,
             size=size,
             url=url,
+            ticket_url=ticket_url,
             artists=artists,
         )
         db.session.commit()
@@ -151,6 +153,7 @@ def add_event_date(
     creator=None,
     tz=None,
     url=None,
+    ticket_url=None,
     description=None,
     description_attribute=None,
     size=None,
@@ -199,6 +202,7 @@ def add_event_date(
         tzinfo=None
     )  # strip tz info before adding to db. very important!
 
+
     event_date = EventDate(
         event=event,
         start_naive=start_naive,
@@ -216,6 +220,10 @@ def add_event_date(
     db.session.add(event_date)
 
     db.session.flush()
+
+    if ticket_url:
+        ed_ticket = EventDateTicket(url=ticket_url, event_date=event_date, event=event_date.event)
+        db.session.add(ed_ticket)
 
     if activity:
         activity = Activity(verb=u"create", object=event_date,
@@ -392,6 +400,10 @@ def update_event_date(id, **kwargs):
             ed_ticket = EventDateTicket(
                 url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=event_date, event=event_date.event)
             db.session.add(ed_ticket)
+    
+    if "ticket_url" in kwargs:
+        ed_ticket = EventDateTicket(url=kwargs.pop("ticket_url"), event_date=event_date, event=event_date.event)
+        db.session.add(ed_ticket)
 
     if "size" in kwargs:
         event_date.size = kwargs.pop("size")
