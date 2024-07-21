@@ -221,7 +221,7 @@ def add_event(**kwargs):
         media_items.add_media_to_event(media, event, creator=creator)
 
     if logo:
-        media_items.add_logo_to_event(logo, event, creator=current_user)
+        media_items.add_logo_to_event(logo, event, creator=creator)
 
     # add activity
     activity = Activity(verb=u"create", object=event, target=event)
@@ -253,10 +253,10 @@ def add_event(**kwargs):
     db.session.commit()
 
     # send notification
-    
-    send_new_event_notification(
-        event, creator.username if creator is not None else None
-    )
+    if creator.role < 30:
+        send_new_event_notification(
+            event, creator.username if creator is not None else None
+        )
     
     return event
 

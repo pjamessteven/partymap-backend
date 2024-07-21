@@ -116,7 +116,7 @@ def send_new_event_notification(event, username="anon"):
     subject = "New event submitted by " + username
 
     context = {
-        "event_id": event.event_id,
+        "event_id": event.id,
         "event_name": event.name,
         "creator_username": username,
         "year": datetime.now().year,
