@@ -80,6 +80,7 @@ class EventsResource(MethodResource):
             "rrule": fields.Dict(),
             "host": fields.Boolean(),
             "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
+            "ticket_url": fields.String(required=False, allow_none=True),
         },
     )
     @marshal_with(EventSchema(), code=200)

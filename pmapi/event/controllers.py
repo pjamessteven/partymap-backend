@@ -173,6 +173,7 @@ def add_event(**kwargs):
     media = kwargs.pop("media_items", None)
     logo = kwargs.pop("logo", None)
     tickets = kwargs.pop("tickets", None)
+    ticket_url = kwargs.pop("ticket_url", None)
 
     # Check if location already exists
     loc = event_locations.get_location(location["place_id"])
@@ -243,11 +244,16 @@ def add_event(**kwargs):
 
     db.session.flush()
 
+    if ticket_url:
+        next_event_date = event.event_dates[0]
+        ed_ticket = EventDateTicket(url=ticket_url, event_date=next_event_date, event=event)
+        db.session.add(ed_ticket)  
+
     if tickets: 
         next_event_date = event.event_dates[0]
         for ticket in tickets:
             ed_ticket = EventDateTicket(
-                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=next_event_date, event=event)
+                url=ticket.get("url"), description=ticket.get("description"), price_min=ticket.get("price_min"), price_max=ticket.get("price_max"), price_currency_code=ticket.get("price_currency_code"), event_date=next_event_date, event=event)
             db.session.add(ed_ticket) 
             
     db.session.commit()
