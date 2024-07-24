@@ -22,6 +22,7 @@ event_contribution_downvotes = db.Table(
 
 class EventContribution(db.Model):
     __tablename__ = "event_contributions"
+    __versioned__ = {}
 
     id = db.Column(UUID, primary_key=True,  default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -1,11 +1,12 @@
 from flask_login import current_user
 from .model import EventContribution
-from pmapi.extensions import db
+from pmapi.extensions import db, activity_plugin
 import pmapi.event.controllers as events
 import pmapi.event_date.controllers as event_dates
 import pmapi.media_item.controllers as media_items
 import pmapi.exceptions as exc
 
+Activity = activity_plugin.activity_cls
 
 def get_contribution(id):
     return EventContribution.query.get(id)
@@ -41,6 +42,13 @@ def add_contribution(event_id, creator=current_user, **kwargs):
     )
 
     db.session.add(contribution)
+
+    db.session.flush()
+
+    # add activity
+    activity = Activity(verb=u"create", object=contribution, target=event)
+    db.session.add(activity)
+
     db.session.commit()
 
     return contribution
