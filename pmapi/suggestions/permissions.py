@@ -5,11 +5,11 @@ from flask_login import current_user
 
 
 class get(permissions.Permission):
-    """Can only get suggestions if staff or higher"""
+    """Can only get suggestions if admin or higher"""
 
     def can(self, **kwargs):
 
-        if not permissions.current_user_role_is_at_least("STAFF"):
+        if not permissions.current_user_role_is_at_least("ADMIN"):
             raise exc.InvalidPermissions(
                 "You don't have permission to delete this event date."
             )
@@ -18,14 +18,14 @@ class get(permissions.Permission):
 
 
 class delete(permissions.Permission):
-    """Can delete if staff or event owner"""
+    """Can delete if admin or event owner"""
 
     def can(self, **kwargs):
         event = events.get_event_or_404(kwargs.get("event_id"))
 
         if (
             event.creator_id != current_user.id
-            and not permissions.current_user_role_is_at_least("STAFF")
+            and not permissions.current_user_role_is_at_least("ADMIN")
         ):
             raise exc.InvalidPermissions(
                 "You don't have permission to delete this event date."
@@ -38,7 +38,7 @@ class update(permissions.Permission):
     """Can update if staff or event owner"""
 
     def can(self, **kwargs):
-        if permissions.current_user_role_is_at_least("STAFF"):
+        if permissions.current_user_role_is_at_least("ADMIN"):
             return True
 
         else:

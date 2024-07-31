@@ -122,7 +122,7 @@ class EventLocationType(db.Model):
 
 
 class EventLocation(db.Model):
-    __versioned__ = {}
+    __versioned__ = {'versioning_relations': ['event_dates']}
     __tablename__ = "event_locations"
     id = db.Column(db.Integer, primary_key=True)
     place_id = db.Column(db.String)

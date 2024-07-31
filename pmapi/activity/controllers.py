@@ -1,43 +1,91 @@
+from pmapi.event.model import Event
+from pmapi.event_date.model import EventDate
 from pmapi.extensions import db, activity_plugin
-from sqlalchemy_continuum import versioning_manager
-from sqlalchemy import or_
+from pmapi.user.model import User
+from sqlalchemy_continuum import versioning_manager, version_class
+from sqlalchemy import or_, desc
 from sqlalchemy import inspect
-from pmapi.common.controllers import paginated_results
+from sqlalchemy.orm import contains_eager, aliased
+from collections import defaultdict
+from pmapi.common.controllers import CustomPagination, paginate_json, paginated_results
 import pprint
+from pmapi.exceptions import InvalidAPIRequest
+
+from sqlalchemy.orm import joinedload
+from sqlalchemy import desc, func
 
 
-def get_activities_for_actor(user):
-    Activity = activity_plugin.activity_cls
+def get_activities(user_id=None, **kwargs):
     Transaction = versioning_manager.transaction_cls
+    Activity = activity_plugin.activity_cls
 
-    mapper = inspect(Activity)
+    # Step 1: Create a base query to join Transaction and User tables
+    transactions_query = db.session.query(
+        Transaction.id.label('transaction_id'),
+        Transaction.issued_at,
+        User.username
+    ).join(
+        User, User.id == Transaction.user_id  # Assuming Transaction.user_id is the foreign key to User
+    ).join(
+        Activity, Activity.transaction_id == Transaction.id
+    ).distinct(
+        Transaction.id
+    )    # only return transactions that have activities
 
-    for column in mapper.attrs:
-        print(column.key)
-    mapper = inspect(Transaction)
+    # Apply user_id filter if provided
+    if user_id:
+        transactions_query = transactions_query.filter(Transaction.user_id == user_id)
 
-    for column in mapper.attrs:
-        print(column.key)
+    transactions_query = transactions_query.order_by(desc(Transaction.id))
 
-    activities = (
-        db.session.query(Activity)
-        .join(Transaction, Activity.transaction_id == Transaction.id)
-        .filter(Transaction.user_id == user.id)
-        .order_by(Activity.id.desc())
-    )
+    # Manual pagination
+    page = kwargs.get('page', 1)
+    per_page = kwargs.get('per_page', 10)
+    total = transactions_query.count()
 
-    """
-    j = join(Activity, Transaction, Activity.transaction_id == Transaction.id)
+    if page > 0:
+        transactions_query = transactions_query.offset((page - 1) * per_page).limit(per_page)
 
-    stmt = select([Activity]).where(Transaction.user_id == user.id).select_from(j)
-    activities = db.engine.execute(stmt)
-    print(activities)
-    activities = activities.fetchall()
-    print(activities)
-    for row in result:
-        print(row)
-     """
-    return activities
+    transactions = transactions_query.all()
+
+    # Fetch all activity details for the transaction ids
+    transaction_ids = [transaction.transaction_id for transaction in transactions]
+    print('transids', transaction_ids)
+    activities_query = db.session.query(Activity).filter(Activity.transaction_id.in_(transaction_ids)).order_by(desc(Activity.id))
+    activities = activities_query.all()
+
+    # Group activities by transaction_id
+    activities_by_transaction = defaultdict(list)
+    for activity in activities:
+        activities_by_transaction[activity.transaction_id].append(activity)
+
+    # Step 2: Organize results into desired JSON format
+    json_result = []
+    for transaction in transactions:
+        activities = activities_by_transaction[transaction.transaction_id]
+        json_result.append({
+            "transaction_id": transaction.transaction_id,
+            "issued_at": transaction.issued_at,
+            "username": transaction.username,
+            "activities": activities,
+            "target_version": activities[0].target_version,
+            "target_type": activities[0].target_type,
+            "target_id": activities[0].target_id,
+        })
+    return CustomPagination(json_result, page, per_page, total)
+
+def get_activities_unique(user_id=None, **kwargs):
+    Activity = activity_plugin.activity_cls
+    query = db.session.query(Activity)
+    if user_id:
+        Transaction = versioning_manager.transaction_cls
+        user_transactions = db.session.query(Transaction).filter_by(user_id=user_id).all()
+        transaction_ids = [transaction.id for transaction in user_transactions]
+
+        query = query.filter(Activity.transaction_id.in_(transaction_ids))
+
+    return paginated_results(Activity, query, **kwargs)
+
 
 
 def get_activities_associated_with_target_transaction(transaction_id, **kwargs):

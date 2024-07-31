@@ -246,8 +246,8 @@ def suggest_delete(id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     event_date = get_event_date_or_404(id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
+            
     return suggestions.add_suggested_edit(
         event_id=event_date.event_id,
         event_date_id=id,
@@ -263,8 +263,8 @@ def suggest_update(id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     event_date = get_event_date_or_404(id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
+
     return suggestions.add_suggested_edit(
         event_id=event_date.event_id,
         event_date_id=id,
@@ -280,8 +280,7 @@ def suggest_add(event_id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     events.get_event_or_404(event_id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
 
     return suggestions.add_suggested_edit(
         event_id=event_id,
@@ -373,6 +372,10 @@ def update_event_date(id, **kwargs):
         )
         event_date.location = event_location
         event_date.tz = tz
+        db.session.flush()
+        activity = Activity(verb=u"update", object=event_date.location,
+                            target=event_date)
+        db.session.add(activity)
         # date settings not touched
         # update location of all future eventdates
 
@@ -860,7 +863,11 @@ def query_event_dates(**kwargs):
     query = query.add_column(row_number_column)
 
     # filter hidden events out
-    query = query.filter(Event.hidden == False)  # ignore linter warning here
+    query = query.filter(
+        or_(
+                    Event.hidden == False,
+                    Event.hidden == True and Event.creator_id == user.id,
+                ))
 
     if kwargs.get("creator_user", None) is not None:
         user = users.get_user_or_404(kwargs.pop("creator_user"))

@@ -16,3 +16,9 @@ class TagListSchema(PaginatedSchema):
 @ts_interface()
 class EventTagSchema(Schema):
     tag = fields.Str(attribute="tag_id")
+
+class EventTagVersionSchema(EventTagSchema):
+    changeset = fields.Dict()
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()

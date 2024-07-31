@@ -8,23 +8,23 @@ from pmapi.extensions import db
 event_contribution_upvotes = db.Table(
     "event_contribution_upvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", UUID,
+    db.Column("event_contribution_id", db.Integer,
               db.ForeignKey("event_contributions.id")),
 )
 
 event_contribution_downvotes = db.Table(
     "event_contribution_downvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", UUID,
+    db.Column("event_contribution_id", db.Integer,
               db.ForeignKey("event_contributions.id")),
 )
 
 
 class EventContribution(db.Model):
     __tablename__ = "event_contributions"
-    __versioned__ = {}
+    __versioned__ = {'versioning_relations': ['event', 'event_date']}
+    id = db.Column(db.Integer, primary_key=True)
 
-    id = db.Column(UUID, primary_key=True,  default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)

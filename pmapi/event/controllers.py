@@ -1,3 +1,5 @@
+from pmapi.common.permissions import current_user_role_is_at_least, user_role_is_at_least
+from pmapi.utils import ROLES
 from .model import Event, Rrule, user_event_following_table, event_page_views_table
 from pmapi import exceptions as exc
 from pmapi.extensions import db, Session, activity_plugin
@@ -19,11 +21,18 @@ from pmapi.hcaptcha.controllers import validate_hcaptcha
 from pmapi.exceptions import InvalidAPIRequest
 from flask_login import current_user, login_user
 from pmapi.config import BaseConfig
+from pmapi.config import DevConfig
+from pmapi.config import ProdConfig
 from sqlalchemy_continuum import versioning_manager
 import pprint
 from pmapi.mail.controllers import (
     send_new_event_notification,
 )
+from flask.helpers import get_debug_flag
+
+DEV_ENVIRON = get_debug_flag()
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+
 
 Activity = activity_plugin.activity_cls
 
@@ -261,7 +270,7 @@ def add_event(**kwargs):
     # send notification
     if creator.role < 30:
         send_new_event_notification(
-            event, creator.username if creator is not None else None
+            event, creator.username if creator is not None and creator.id != CONFIG.ANON_USER_ID else None
         )
     
     return event
@@ -271,8 +280,8 @@ def suggest_delete(event_id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     get_event_or_404(event_id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
+
     return suggestions.add_suggested_edit(
         event_id=event_id, action="delete", object_type="Event", **kwargs
     )
@@ -283,8 +292,8 @@ def suggest_update(event_id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     get_event_or_404(event_id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
+
     return suggestions.add_suggested_edit(
         event_id=event_id,
         action="update",
@@ -322,8 +331,11 @@ def update_event(event_id, **kwargs):
     # a new version of this object in continuum
     event.updated_at = datetime.utcnow()
 
-    if hidden is not None:
-        event.hidden = hidden
+    if hidden is not None: 
+        if current_user_role_is_at_least("ADMIN"):
+            event.hidden = hidden
+        else:
+            raise exc.InvalidPermissions('Only admin can approve events')
 
     if name is not None or description is not None or full_description is not None or youtube_url is not None:
         if name:
@@ -344,10 +356,6 @@ def update_event(event_id, **kwargs):
         if youtube_url:
             event.youtube_url = youtube_url
 
-        # add activity
-        db.session.flush()
-        activity = Activity(verb=u"update", object=event, target=event)
-        db.session.add(activity)
 
     if remove_rrule is True:
         if existing_rrule is not None:
@@ -460,6 +468,12 @@ def update_event(event_id, **kwargs):
             event_dates.generate_future_event_dates(
                 event, date_time, rrule.default_location, rrule, activity=False
             )
+
+    # add activity
+    db.session.flush()
+    activity = Activity(verb=u"update", object=event, target=event)
+    db.session.add(activity)
+
 
     db.session.commit()
     # login_user(requesting_user, force=True, remember=True)

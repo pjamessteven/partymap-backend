@@ -170,10 +170,11 @@ def remove_artists_from_date(event_date, ed_artists):
             .filter(EventDateArtist.id == artist.get("id"))
             .first()
         )
-        db.session.delete(artist)
-        # db.session.flush()
-        # activity = Activity(verb=u"delete", object=artist, target=event_date.event)
-        # db.session.add(activity)
+        if artist:
+            db.session.delete(artist)
+            db.session.flush()  
+            activity = Activity(verb=u"delete", object=artist, target=event_date)
+            db.session.add(activity)
     return
 
 
@@ -222,8 +223,7 @@ def suggest_update(id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     artist = get_artist_or_404(id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
 
     return suggestions.add_suggested_edit(
         action="update",
@@ -239,8 +239,7 @@ def suggest_delete(id, **kwargs):
     token = kwargs.pop("hcaptcha_token", None)
     artist = get_artist_or_404(id)
     if not current_user.is_authenticated:
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
+        validate_hcaptcha(token)
 
     return suggestions.add_suggested_edit(
         action="delete",
@@ -308,7 +307,7 @@ def add_artist(name, mbid=None):
         mbid=mbid,
     )
     db.session.add(artist)
-    db.session.commit()
+    db.session.flush()
     tasks.refresh_artist_info.delay(artist.id)
 
     return artist
@@ -377,12 +376,12 @@ def add_artist_to_date(
         start_naive=start_naive,
     )
 
-    # db.session.add(event_date_artist)
-    # db.session.flush()
-    # activity = Activity(
-    #     verb=u"create", object=event_date_artist, target=event_date.event
-    # )
-    # db.session.add(activity)
+    db.session.add(event_date_artist)
+    db.session.flush()
+    activity = Activity(
+         verb=u"create", object=event_date_artist, target=event_date
+    )
+    db.session.add(activity)
 
     return event_date_artist
 
@@ -552,7 +551,7 @@ def refresh_spotify_data_for_artist(artist):
         if spotify_artist:
             # get tags too, why not
             if len(spotify_artist.get("genres", [])) > 0:
-                add_tags_to_artist(spotify_artist.get("genres"), artist)
+                add_tags_to_artist(spotify_artist.get("genres"), artist, False)
 
             # delete existing spotify url
             for url in artist.urls:
@@ -711,7 +710,7 @@ def get_artist_image_from_deezer(artist):
             )
 
 
-def add_tags_to_artist(tags, artist):
+def add_tags_to_artist(tags, artist, activity=True):
     for t in tags:
         # check if tag is already in db
         if db.session.query(Tag).filter(Tag.tag == t.lower()).count():
@@ -728,15 +727,16 @@ def add_tags_to_artist(tags, artist):
         if existing_tag is None:
             at = ArtistTag(tag=tag, artist=artist)
             db.session.add(at)
-            # add activity
-            db.session.flush()
-            activity = Activity(verb=u"create", object=at, target=artist)
-            db.session.add(activity)
+            if activity:
+                # add activity
+                db.session.flush()
+                activity = Activity(verb=u"create", object=at, target=artist)
+                db.session.add(activity)
 
     return tags
 
 
-def remove_tags_from_artist(tags, artist):
+def remove_tags_from_artist(tags, artist, activity=True):
     for t in tags:
         existing_tag = (
             db.session.query(ArtistTag)
@@ -748,9 +748,10 @@ def remove_tags_from_artist(tags, artist):
             db.session.delete(existing_tag)
             # add activity
             db.session.flush()
-            activity = Activity(
-                verb=u"delete", object=existing_tag, target=artist)
-            db.session.add(activity)
+            if activity:
+                activity = Activity(
+                    verb=u"delete", object=existing_tag, target=artist)
+                db.session.add(activity)
 
     return
 
@@ -788,7 +789,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
                         save_artist_image_from_wikimedia_url(url, artist)
 
             if artist_url is None:
-                add_artist_url(url, type, artist)
+                add_artist_url(url, type, artist, False)
         else:
             artist_url.artist = artist
 
@@ -796,7 +797,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
     return artist
 
 
-def add_artist_url(url, type, artist):
+def add_artist_url(url, type, artist, activity=True):
     # need to check twice because of artist image url
     artist_url = ArtistUrl(
         artist=artist,
@@ -804,23 +805,25 @@ def add_artist_url(url, type, artist):
         type=type,
     )
     db.session.add(artist_url)
-    # activity
-    activity = Activity(verb=u"create", object=artist_url, target=artist)
-    db.session.add(activity)
+    if activity:
+        # activity
+        activity = Activity(verb=u"create", object=artist_url, target=artist)
+        db.session.add(activity)
 
     db.session.flush()
     return artist_url
 
 
-def delete_artist_url(id):
+def delete_artist_url(id, activity=True):
     url = ArtistUrl.query.get(id)
     artist = get_artist_by_id(url.artist_id)
     if url is not None:
         db.session.delete(url)
         db.session.flush()
-        # activity
-        activity = Activity(verb=u"delete", object=url, target=artist)
-        db.session.add(activity)
+        if activity:
+            # activity
+            activity = Activity(verb=u"delete", object=url, target=artist)
+            db.session.add(activity)
 
     db.session.flush()
 
@@ -867,7 +870,7 @@ def refresh_info(id):
         artist.description = lastfm_bio
         artist.area = area
         if lastfm_tags and len(lastfm_tags) > 0:
-            add_tags_to_artist(lastfm_tags, artist)
+            add_tags_to_artist(lastfm_tags, artist, False)
 
         if musicbrainz_response["relations"]:
             add_musicbrainz_urls_to_artist(

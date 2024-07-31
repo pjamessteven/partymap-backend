@@ -68,9 +68,7 @@ def create_report(**kwargs):
         raise exc.InvalidAPIRequest("Email is required if not logged in")
     elif not current_user.is_authenticated:
         validate.email(email)
-        if not validate_hcaptcha(token):
-            raise exc.InvalidAPIRequest("HCaptcha not valid")
-        # hcaptcha required if not logged in
+        validate_hcaptcha(token)
     else:
         # user is not anonymous
         email = user.email

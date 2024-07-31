@@ -5,11 +5,13 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
+from marshmallow import fields
+
 from pmapi.common.controllers import paginated_view_args
 from pmapi.event.model import Event
 from pmapi.extensions import db, activity_plugin
-from pmapi.activity.schemas import ActivityListSchema
-
+from pmapi.activity.schemas import ActivityListSchema, PaginatedTransactionActivitiesSchema, TransactionActivitiesSchema
+import pmapi.user.controllers as users
 from sqlalchemy.orm import make_transient
 from . import controllers as activities
 
@@ -65,6 +67,30 @@ activity_blueprint.add_url_rule(
         "ActivitiesOfTransactionResource"
     ),
 )
+
+@doc(tags=["activity"])
+class ActivityResource(MethodResource):
+    @doc(
+        summary="Return all activities grouped by transaction",
+    )
+    @marshal_with(PaginatedTransactionActivitiesSchema(), code=200)
+    @use_kwargs(
+        {
+            "username": fields.String(required=False),
+            **paginated_view_args(sort_options=["id"]),
+        },
+        location="query")
+    def get(self, **kwargs):
+        user_id = None
+        if kwargs.get("username"):
+            user = users.get_user_or_404(kwargs.pop('username'))
+            user_id = user.id
+        return activities.get_activities(user_id, **kwargs)
+
+activity_blueprint.add_url_rule(
+    "", view_func=ActivityResource.as_view("ActivityResource")
+)
+
 
 """
 @activity_blueprint.route("/<int:id>/revert/", methods=("GET",))

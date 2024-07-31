@@ -8,6 +8,7 @@ from flask_login import login_required
 from marshmallow import fields
 from marshmallow.validate import OneOf
 
+from pmapi.activity.schemas import ActivityListSchema, ActivitySchema
 from pmapi.utils import ROLES
 from pmapi.common.controllers import paginated_view_args
 from pmapi.exceptions import InvalidUsage
@@ -192,14 +193,7 @@ class ConfirmEmailResource(MethodResource):
     def post(self, token):
         return users.confirm_update_email(token)
 
-
 users_blueprint.add_url_rule(
     "/confirm_email/<string:token>",
     view_func=ConfirmEmailResource.as_view("ConfirmEmailResource"),
 )
-
-
-@users_blueprint.route("/<string:username>/activity", methods=("GET",))
-def user_activities(username):
-    user = users.get_user_or_404(username)
-    return jsonify(activities.get_activities_for_actor(user))

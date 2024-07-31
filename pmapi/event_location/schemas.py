@@ -1,5 +1,6 @@
 from marshmallow import fields
 from marshmallow import Schema
+from pmapi.common.schemas import BlacklistedDict
 from typemallow2 import ts_interface
 from pmapi.common.schemas import PaginatedSchema
 from pmapi.event_date.schemas import EventDateSchema
@@ -18,6 +19,11 @@ class LocationSchema(Schema):
     place_id = fields.Str()
     event_dates = fields.Nested(EventDateSchema, many=True)
 
+class LocationVersionSchema(LocationSchema):
+    changeset = BlacklistedDict(blacklist="geo", attribute="object_version.changeset")
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()
 
 class LocationListSchema(PaginatedSchema):
     items = fields.Nested("LocationSchema", many=True)

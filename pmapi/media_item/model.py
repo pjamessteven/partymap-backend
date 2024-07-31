@@ -20,7 +20,7 @@ media_item_downvotes = db.Table(
 
 
 class MediaItem(db.Model):
-    __versioned__ = {}
+    __versioned__ = {'versioning_relations': ['event', 'event_date', 'artist']}
     __tablename__ = "media_items"
     id = db.Column(db.Integer, primary_key=True)
     # can hold flags such as isLineupImage or isEventLogo

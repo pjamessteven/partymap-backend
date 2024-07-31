@@ -146,7 +146,6 @@ def add_media_to_artist(items, artist, creator=None):
                     verb=u"create", object=media_item, target=artist)
                 db.session.add(activity)
 
-    db.session.commit()
     return artist.media_items
 
 
@@ -315,7 +314,6 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
                 verb=u"create", object=media_item, target=event)
             db.session.add(activity)
 
-    db.session.commit()
     return media_items
 
 

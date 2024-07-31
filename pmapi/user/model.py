@@ -30,8 +30,6 @@ from pmapi.event_date.model import (
 )
 
 
-import pmapi.activity.controllers as activities
-
 import uuid
 
 app = Flask(__name__)
@@ -121,10 +119,6 @@ class User(db.Model):
     @property
     def active(self):
         return self.status == "active"
-
-    @property
-    def activities(self):
-        return activities.get_activities_for_actor(self)
 
     @property
     def is_authenticated(self):

@@ -22,7 +22,7 @@ user_event_date_interested_table = db.Table(
 
 
 class EventDateTicket(db.Model):
-    __versioned__ = {}
+    __versioned__ = {'versioning_relations': ['event_date']}
     __tablename__ = "event_date_tickets"
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
@@ -37,7 +37,7 @@ class EventDateTicket(db.Model):
 
 
 class EventDate(db.Model):
-    __versioned__ = {}
+    __versioned__ = {'versioning_relations': ['artists', 'location', 'tickets', 'media_items', 'contributions']}
     __tablename__ = "event_dates"
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

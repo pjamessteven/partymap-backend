@@ -46,7 +46,6 @@ def add_tags_to_event(tags, event):
             activity = Activity(verb=u"create", object=et, target=event)
             db.session.add(activity)
 
-    db.session.commit()
     return tags
 
 

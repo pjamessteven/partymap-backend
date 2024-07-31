@@ -1,6 +1,6 @@
 from marshmallow import fields
 from marshmallow.validate import OneOf
-
+from math import ceil
 # kwargs params common to paginated views
 common_pagination_args = {
     "per_page": fields.Int(missing=10, description="Items per page"),
@@ -49,3 +49,32 @@ def paginated_results(
     if page == 0:
         return {"items": query.all()}
     return query.paginate(page=page, per_page=per_page)
+
+class CustomPagination:
+    def __init__(self, items, page, per_page, total):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+
+    @property
+    def pages(self):
+        return int(ceil(self.total / float(self.per_page)))
+
+    @property
+    def has_prev(self):
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        return self.page < self.pages
+
+def paginate_json(json_data, page=0, per_page=10, **kwargs):
+    total = len(json_data)
+    offset = (page - 1) * per_page
+    if page > 0:
+        items = json_data[offset: offset + per_page]
+    else: 
+        items = json_data
+        per_page = total
+    return CustomPagination(items, page, per_page, total)

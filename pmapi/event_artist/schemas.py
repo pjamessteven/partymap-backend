@@ -25,6 +25,7 @@ class ArtistSchema(Schema):
     media_items = fields.Nested("MediaItemSchema", many=True)
 
 
+
 class ArtistListSchema(PaginatedSchema):
     items = fields.Nested(
         ArtistSchema, many=True, exclude=["future_event_dates", "past_event_dates"]
@@ -69,6 +70,15 @@ class EventDateArtistSchema(Schema):
     id = fields.Int()
     start_naive = fields.Str()
     stage = fields.Str()
+
+@ts_interface()
+class EventDateArtistVersionSchema(EventDateArtistSchema):
+    changeset = fields.Dict()
+    # previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()
+    # end_transaction_id = fields.Integer()
 
 
 class MinimalEventDateArtistSchema(Schema):

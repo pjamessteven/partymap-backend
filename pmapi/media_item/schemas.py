@@ -68,11 +68,11 @@ class MediaItemSchema(Schema):
 @ts_interface()
 class MediaItemVersionSchema(MediaItemSchema):
     changeset = fields.Dict()
-    previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
+    # previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")
     transaction_id = fields.Integer()
-    end_transaction_id = fields.Integer()
+    # end_transaction_id = fields.Integer()
 
 
 class MediaItemSchemaListSchema(PaginatedSchema):

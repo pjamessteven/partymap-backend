@@ -146,7 +146,7 @@ def add_new_event_location(creator=None, **kwargs):
         address_components=address_components,
     )
     db.session.add(location)
-    db.session.commit()
+    db.session.flush()
     return location
 
 
@@ -335,9 +335,12 @@ def get_all_locations(**kwargs):
     # query = query.filter(EventDate.cancelled != True)
 
     # filter hidden events out
-    # ignore linter warning here
-    query = query.filter(Event.hidden == False)
-
+    query = query.filter(
+        or_(
+                    Event.hidden == False,
+                    Event.hidden == True and Event.creator_id == current_user.id,
+                ))
+    
     return query.options(
         with_expression(
             EventLocation.events,

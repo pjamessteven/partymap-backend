@@ -1,7 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy_continuum import make_versioned
 from flask_admin.contrib.sqla import ModelView
-
 import pmapi.extensions as extensions
 
 # this needs to happen before models are declared

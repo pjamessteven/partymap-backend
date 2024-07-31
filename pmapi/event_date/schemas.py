@@ -69,13 +69,34 @@ class MiniEventDateSchema(Schema):
 
 
 @ts_interface()
-class EventDateVersionSchema(EventDateSchema):
+class EventDateVersionSchema(Schema):
+    id = fields.Integer()
+    event_id = fields.Integer()
     changeset = fields.Dict()
-    previous = fields.Nested("EventDateVersionSchema", exclude=["previous"])
+    # previous = fields.Nested("EventDateVersionSchema", exclude=["previous"])
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")
     transaction_id = fields.Integer()
     end_transaction_id = fields.Integer()
+    name = fields.Str(attribute="event.name")
+    start = fields.Str(attribute="start")
+    end = fields.Str(attribute="end")
+    start_naive = fields.Str(attribute="start_naive")
+    end_naive = fields.Str(attribute="end_naive")
+    date_confirmed = fields.Boolean()
+    tz = fields.Str()
+    location = fields.Nested("LocationSchema", exclude=["event_dates"])
+    location_id = fields.Str()
+    media_items = fields.Nested("MediaItemSchema", many=True)
+    description = fields.Str()
+    description_attribute = fields.Str()
+    url = fields.Str()
+    tickets = fields.Nested("EventDateTicketSchema", many=True)
+    tz = fields.Str()
+    cancelled = fields.Boolean()
+    duration = fields.Float()
+    size = fields.Integer()
+    # artists = fields.Nested("EventDateArtistSchema", many=True)
 
 
 class EventDateListSchema(PaginatedSchema):
