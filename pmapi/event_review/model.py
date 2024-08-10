@@ -5,47 +5,46 @@ import uuid
 
 from pmapi.extensions import db
 
-event_contribution_upvotes = db.Table(
-    "event_contribution_upvotes",
+event_review_upvotes = db.Table(
+    "event_review_upvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", db.Integer,
-              db.ForeignKey("event_contributions.id")),
+    db.Column("event_review_id", db.Integer,
+              db.ForeignKey("event_reviews.id")),
 )
 
-event_contribution_downvotes = db.Table(
-    "event_contribution_downvotes",
+event_review_downvotes = db.Table(
+    "event_review_downvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_contribution_id", db.Integer,
-              db.ForeignKey("event_contributions.id")),
+    db.Column("event_review_id", db.Integer,
+              db.ForeignKey("event_reviews.id")),
 )
 
 
-class EventContribution(db.Model):
-    __tablename__ = "event_contributions"
+class EventReview(db.Model):
+    __tablename__ = "event_reviews"
     __versioned__ = {'versioning_relations': ['event', 'event_date']}
+
     id = db.Column(db.Integer, primary_key=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)
-    creator = db.relationship("User", back_populates="created_contributions")
+    creator = db.relationship("User", back_populates="created_reviews")
 
     event_id = db.Column(db.Integer, db.ForeignKey(
         "events.id"), nullable=False)
-    event = db.relationship("Event", back_populates="event_contributions")
+    event = db.relationship("Event", back_populates="event_reviews")
     event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
-    event_date = db.relationship("EventDate", back_populates="contributions")
+    event_date = db.relationship("EventDate", back_populates="reviews")
 
     rating = db.Column(db.Integer)
 
     text = db.Column(db.Text)
-    media_items = db.relationship("MediaItem", back_populates="contribution")
+    media_items = db.relationship("MediaItem", back_populates="review")
 
-    status = db.Column(db.SmallInteger, default=1)
     score = db.Column(db.Integer, default=0)
-    hotness = db.Column(db.Float(15, 6), default=0.00)
 
-    reports = db.relationship("Report", back_populates="event_contribution")
+    reports = db.relationship("Report", back_populates="event_review")
 
     def to_dict(self):
         return dict(
@@ -84,8 +83,8 @@ class EventContribution(db.Model):
         """
         return ids of users who voted this item up
         """
-        select = event_contribution_upvotes.select(
-            event_contribution_upvotes.c.thread_id == self.id
+        select = event_review_upvotes.select(
+            event_review_upvotes.c.thread_id == self.id
         )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
@@ -95,8 +94,8 @@ class EventContribution(db.Model):
         """
         return ids of users who voted this item down
         """
-        select = event_contribution_downvotes.select(
-            event_contribution_downvotes.c.thread_id == self.id
+        select = event_review_downvotes.select(
+            event_review_downvotes.c.thread_id == self.id
         )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
@@ -107,16 +106,16 @@ class EventContribution(db.Model):
         did the user vote already?
         will return 1 if upvoted, -1 if downvoted and 0 if not voted.
         """
-        select_upvotes = event_contribution_upvotes.select(
+        select_upvotes = event_review_upvotes.select(
             db.and_(
-                event_contribution_upvotes.c.user_id == user_id,
-                event_contribution_upvotes.c.event_contribution_id == self.id,
+                event_review_upvotes.c.user_id == user_id,
+                event_review_upvotes.c.event_review_id == self.id,
             )
         )
-        select_downvotes = event_contribution_downvotes.select(
+        select_downvotes = event_review_downvotes.select(
             db.and_(
-                event_contribution_downvotes.c.user_id == user_id,
-                event_contribution_downvotes.c.event_contribution_id == self.id,
+                event_review_downvotes.c.user_id == user_id,
+                event_review_downvotes.c.event_review_id == self.id,
             )
         )
         rs = db.engine.execute(select_upvotes).fetchall()
@@ -145,18 +144,18 @@ class EventContribution(db.Model):
             if vote == 1:
                 # vote up the item
                 db.engine.execute(
-                    event_contribution_upvotes.insert(),
+                    event_review_upvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id,
+                    event_review_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = 1
             elif vote == -1:
                 # downvote the item
                 db.engine.execute(
-                    event_contribution_downvotes.insert(),
+                    event_review_downvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id,
+                    event_review_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -1
@@ -166,10 +165,10 @@ class EventContribution(db.Model):
             if vote == 1:
                 # unvote the thread
                 db.engine.execute(
-                    event_contribution_upvotes.delete(
+                    event_review_upvotes.delete(
                         db.and_(
-                            event_contribution_upvotes.c.user_id == user_id,
-                            event_contribution_upvotes.c.event_contribution_id
+                            event_review_upvotes.c.user_id == user_id,
+                            event_review_upvotes.c.event_review_id
                             == self.id,
                         )
                     )
@@ -180,10 +179,10 @@ class EventContribution(db.Model):
             elif vote == -1:
                 # unvote the item
                 db.engine.execute(
-                    event_contribution_upvotes.delete(
+                    event_review_upvotes.delete(
                         db.and_(
-                            event_contribution_upvotes.c.user_id == user_id,
-                            event_contribution_upvotes.c.event_contribution_id
+                            event_review_upvotes.c.user_id == user_id,
+                            event_review_upvotes.c.event_review_id
                             == self.id,
                         )
                     )
@@ -191,9 +190,9 @@ class EventContribution(db.Model):
                 self.score = self.score - 1
                 # and now add a downvote
                 db.engine.execute(
-                    event_contribution_downvotes.insert(),
+                    event_review_downvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id,
+                    event_review_id=self.id,
                 )
                 self.score = self.score - 1
                 vote_status = -2
@@ -203,10 +202,10 @@ class EventContribution(db.Model):
             if vote == -1:
                 # undownvote the item
                 db.engine.execute(
-                    event_contribution_downvotes.delete(
+                    event_review_downvotes.delete(
                         db.and_(
-                            event_contribution_downvotes.c.user_id == user_id,
-                            event_contribution_downvotes.c.event_contribution_id
+                            event_review_downvotes.c.user_id == user_id,
+                            event_review_downvotes.c.event_review_id
                             == self.id,
                         )
                     )
@@ -216,10 +215,10 @@ class EventContribution(db.Model):
             elif vote == 1:
                 # undownvote the item
                 db.engine.execute(
-                    event_contribution_downvotes.delete(
+                    event_review_downvotes.delete(
                         db.and_(
-                            event_contribution_downvotes.c.user_id == user_id,
-                            event_contribution_downvotes.c.event_contribution_id
+                            event_review_downvotes.c.user_id == user_id,
+                            event_review_downvotes.c.event_review_id
                             == self.id,
                         )
                     )
@@ -227,9 +226,9 @@ class EventContribution(db.Model):
                 self.score = self.score + 1
                 # then add an upvote
                 db.engine.execute(
-                    event_contribution_upvotes.insert(),
+                    event_review_upvotes.insert(),
                     user_id=user_id,
-                    event_contribution_id=self.id,
+                    event_review_id=self.id,
                 )
                 self.score = self.score + 1
                 vote_status = +2

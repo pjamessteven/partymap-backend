@@ -105,3 +105,30 @@ def generate_filepath(item, filename):
             + "/"
             + str(filename)
         )
+
+def generate_local_filepath(item, filename):
+    if item.event_id:
+        return os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"]
+            + "event/"
+            + str(item.event_id)
+            + "/"
+            + str(filename)
+        )
+    elif item.artist_id:
+        return os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"]
+            + "artist/"
+            + str(item.artist_id)
+            + "/"
+            + str(filename)
+        )
+    elif item.is_user_avatar:
+        return os.path.join(
+            current_app.config["MEDIA_UPLOAD_FOLDER"]
+            + "user_avatar/"
+            + str(item.is_user_avatar.username) +
+            '_' + str(item.is_user_avatar.id)
+            + "/"
+            + str(filename)
+        )

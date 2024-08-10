@@ -2,6 +2,8 @@ from marshmallow import fields, pre_dump
 from marshmallow import Schema
 from pmapi.event_location.model import EventLocation
 from pmapi.event_location.schemas import LocationSchema, LocationVersionSchema
+from pmapi.event_review.model import EventReview
+from pmapi.event_review.schemas import EventReviewSchema, EventReviewVersionSchema
 from typemallow2 import ts_interface
 from pmapi.common.schemas import PaginatedJsonSchema, PaginatedSchema
 from marshmallow_polyfield import PolyField
@@ -43,6 +45,8 @@ def schema_serialization_disambiguation(base_object, parent_obj):
         "RruleVersion": RruleVersionSchema,
         "EventLocationVersion": LocationVersionSchema,
         EventLocation.__name__: LocationSchema,
+        "EventReviewVersion": EventReviewVersionSchema,
+        EventReview.__name__: EventReviewSchema,
     }
     try:
         return class_to_schema[base_object.__class__.__name__]()

@@ -14,10 +14,10 @@ from pmapi.exceptions import InvalidAPIRequest
 from sqlalchemy.orm import joinedload
 from sqlalchemy import desc, func
 
+Activity = activity_plugin.activity_cls
 
 def get_activities(user_id=None, **kwargs):
     Transaction = versioning_manager.transaction_cls
-    Activity = activity_plugin.activity_cls
 
     # Step 1: Create a base query to join Transaction and User tables
     transactions_query = db.session.query(
@@ -50,7 +50,6 @@ def get_activities(user_id=None, **kwargs):
 
     # Fetch all activity details for the transaction ids
     transaction_ids = [transaction.transaction_id for transaction in transactions]
-    print('transids', transaction_ids)
     activities_query = db.session.query(Activity).filter(Activity.transaction_id.in_(transaction_ids)).order_by(desc(Activity.id))
     activities = activities_query.all()
 
@@ -75,7 +74,6 @@ def get_activities(user_id=None, **kwargs):
     return CustomPagination(json_result, page, per_page, total)
 
 def get_activities_unique(user_id=None, **kwargs):
-    Activity = activity_plugin.activity_cls
     query = db.session.query(Activity)
     if user_id:
         Transaction = versioning_manager.transaction_cls
@@ -89,8 +87,6 @@ def get_activities_unique(user_id=None, **kwargs):
 
 
 def get_activities_associated_with_target_transaction(transaction_id, **kwargs):
-    Activity = activity_plugin.activity_cls
-
     query = (
         db.session.query(Activity)
         .filter(Activity.target_tx_id == transaction_id)
@@ -100,7 +96,6 @@ def get_activities_associated_with_target_transaction(transaction_id, **kwargs):
 
 
 def get_activities_for_item(**kwargs):
-    Activity = activity_plugin.activity_cls
     item = kwargs.pop("item")
     query = (
         db.session.query(Activity)
@@ -112,8 +107,6 @@ def get_activities_for_item(**kwargs):
 
 
 def get_most_recent_activity_for_item(item):
-    Activity = activity_plugin.activity_cls
-
     activity = (
         db.session.query(Activity)
         .filter(or_(Activity.object == item, Activity.target == item))
@@ -122,3 +115,9 @@ def get_most_recent_activity_for_item(item):
     )
 
     return activity
+
+def delete_activities_for_item(item):
+    activities = db.session.query(Activity).filter(Activity.object == item).all()
+    for activity in activities:
+        db.session.delete(activity)
+    return

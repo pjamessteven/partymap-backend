@@ -93,10 +93,10 @@ class User(db.Model):
         primaryjoin="SuggestedEdit.creator_id == User.id",
     )
 
-    created_contributions = db.relationship(
-        "EventContribution",
-        back_populates="creator",
-        primaryjoin="EventContribution.creator_id == User.id",
+    created_reviews = db.relationship(
+        "EventReview",
+    back_populates="creator",
+        primaryjoin="EventReview.creator_id == User.id",
     )
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
@@ -193,18 +193,18 @@ class User(db.Model):
 
 
     def get_karma(self):
-        fetch the number of votes this user has had on his/her contributions and images
+        fetch the number of votes this user has had on his/her reviews and images
 
         add tags later????
-        contribution_ids = [c.id for c in self.contributions]
-        ecupvotes = eventcontribution_upvotes.select(db.and_(
-            eventcontribution_upvotes.c.eventcontribution_id.in_(contribution_ids),
-            eventcontribution_upvotes.c.user_id != self.id
+        review_ids = [c.id for c in self.reviews]
+        ecupvotes = eventreview_upvotes.select(db.and_(
+            eventreview_upvotes.c.eventreview_id.in_(review_ids),
+            eventreview_upvotes.c.user_id != self.id
         )
         )
-        ecdownvotes = eventcontribution_downvotes.select(db.and_(
-            eventcontribution_downvotes.c.eventcontribution_id.in_(contribution_ids),
-            eventcontribution_downvotes.c.user_id != self.id
+        ecdownvotes = eventreview_downvotes.select(db.and_(
+            eventreview_downvotes.c.eventreview_id.in_(review_ids),
+            eventreview_downvotes.c.user_id != self.id
         )
         )
         ecupvotesresults = db.engine.execute(ecupvotes)

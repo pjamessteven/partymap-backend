@@ -274,6 +274,9 @@ def edit_user(user_id, **kwargs):
         user.description = description
 
     if avatar:
+        if user.avatar:
+            media_items.delete_item(user.avatar)
+
         media_item = media_items.upload_user_avatar(
             avatar,  user=user, creator=current_user)
         user.avatar = media_item
@@ -339,20 +342,25 @@ def delete_user(user_id):
         for suggestion in user.created_suggestions:
             db.session.delete(suggestion)
 
-    if user.created_contributions:
-        for contribution in user.created_contributions:
-            db.session.delete(contribution)
+    if user.created_reviews:
+        for review in user.created_reviews:
+            db.session.delete(review)
 
+    if user.avatar:
+        media_items.delete_item(user.avatar)
+        
     if user.created_media_items:
         for media_item in user.created_media_items:
             if media_item.event:
                 if media_item.event.host_id == user.id:
-                    db.session.delete(media_item)
+                     media_items.delete_item(media_item)
                 else:
                     # don't delete media for events where user is not the host
+                    # (event posters etc.)
                     media_item.creator_id = None
             else:
-                db.session.delete(media_item)
+                media_items.delete_item(media_item)
+
 
     db.session.flush()
 

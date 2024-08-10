@@ -96,8 +96,8 @@ class Event(db.Model):
     event_tags = db.relationship(
         "EventTag", back_populates="event", order_by="EventTag.tag_id"
     )
-    event_contributions = db.relationship(
-        "EventContribution", back_populates="event")
+    event_reviews = db.relationship(
+        "EventReview", back_populates="event")
 
     media_items = db.relationship(
         "MediaItem",

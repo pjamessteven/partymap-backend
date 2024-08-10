@@ -4,41 +4,55 @@ import re
 import subprocess
 import base64
 import json
-
+from pmapi.media_item.schemas import generate_local_filepath
+from sqlalchemy_continuum import version_class
 from flask import current_app, flash
 from PIL import Image
 from mimetypes import guess_extension
 from flask_login import current_user
 from ffmpy import FFprobe
 from datetime import datetime
-
+import os
 # import magic
 
 from .model import MediaItem
 from pmapi.extensions import db, activity_plugin
 from pmapi import exceptions as exc
-
+import pmapi.activity.controllers as activities
 import pmapi.event.controllers as events
 import pmapi.tasks as tasks
 
 Activity = activity_plugin.activity_cls
 
-
-def delete_item(id):
-    item = get_media_item_or_404(id)
-    event = events.get_event_or_404(item.event_id)
+def delete_item(item):
     db.session.delete(item)
-
-    # trigger event revision
-    event.updated_at = datetime.utcnow()
     db.session.flush()
 
-    activity = Activity(verb=u"delete", object=item, target=event)
-    db.session.add(activity)
+    # Hard DB delete... this media never existed...
+    MediaItemVersion = version_class(MediaItem)
+    db.session.query(MediaItemVersion).filter_by(id=item.id).delete()
+    activities.delete_activities_for_item(item)
+
+    # Delete files from disk
+    files_names = [item.thumb_xxs_filename, item.thumb_xs_filename, item.thumb_filename, item.image_med_filename, item.image_filename, item.video_low_filename, item.video_med_filename,item.video_high_filename, item.video_poster_filename]
+    for file_name in files_names:
+        if file_name:
+            file_path = generate_local_filepath(item, file_name)
+             # Check if the file exists before attempting to delete it
+            print('path', file_path)
+            if os.path.exists(file_path):
+                print('removed')
+                os.remove(file_path)
+
+
+    db.session.flush()
+
+
+def delete_item_by_id(id):
+    item = get_media_item_or_404(id)
+    delete_item(item)
     db.session.commit()
-
     return "", 204
-
 
 def update_item(id, **kwargs):
     item = get_media_item_or_404(id)
@@ -313,6 +327,7 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
             activity = Activity(
                 verb=u"create", object=media_item, target=event)
             db.session.add(activity)
+            media_items.append(media_item)
 
     return media_items
 

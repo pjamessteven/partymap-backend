@@ -182,7 +182,7 @@ def register_blueprints(app):
     from pmapi.event_artist.resource import artists_blueprint
     from pmapi.services.resource import services_blueprint
 
-    from pmapi.event_contribution.resource import event_contribution_blueprint
+    from pmapi.event_review.resource import event_review_blueprint
     from pmapi.search.resource import search_blueprint
 
     # from pmapi.favorite_events.resource import favorites_blueprint
@@ -199,7 +199,7 @@ def register_blueprints(app):
     app.register_blueprint(media_blueprint, url_prefix="/api/media")
     app.register_blueprint(locations_blueprint, url_prefix="/api/location")
     app.register_blueprint(users_blueprint, url_prefix="/api/user")
-    app.register_blueprint(event_contribution_blueprint,
+    app.register_blueprint(event_review_blueprint,
                            url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")

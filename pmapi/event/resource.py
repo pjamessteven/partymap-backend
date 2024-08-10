@@ -445,6 +445,6 @@ def voteTag(event_id, tag_id):
     current_user.owned_events.append(event)
     db.session.commit()
     print(vote_status)
-    # check if contribution has been voted by user yet or not
+    # check if review has been voted by user yet or not
     return jsonify(et.to_dict())
 """

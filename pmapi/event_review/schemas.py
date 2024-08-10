@@ -6,8 +6,8 @@ from typemallow2 import ts_interface
 
 
 @ts_interface()
-class EventContributionSchema(Schema):
-    id = fields.UUID()
+class EventReviewSchema(Schema):
+    id = fields.Integer()
     event_id = fields.Integer()
     event_date_id = fields.Integer()
     text = fields.Str()
@@ -16,3 +16,11 @@ class EventContributionSchema(Schema):
     created_at = fields.DateTime()
     score = fields.Integer()
     rating = fields.Integer()
+
+@ts_interface()
+class EventReviewVersionSchema(EventReviewSchema):
+    changeset = fields.Dict()
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()
+

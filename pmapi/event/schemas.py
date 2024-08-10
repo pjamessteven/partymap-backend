@@ -32,7 +32,7 @@ class EventSchema(Schema):
     last_transaction = fields.Nested("TransactionSchema")
     is_favorited = fields.Boolean()
     page_views = fields.Int()
-    event_contributions = fields.Nested("EventContributionSchema",
+    event_reviews = fields.Nested("EventReviewSchema",
                                         many=True)
 
 

@@ -38,7 +38,7 @@ class MediaItemResource(MethodResource):
     @login_required
     @media_item_permissions.delete_media_item
     def delete(self, id):
-        return media_items.delete_item(id)
+        return media_items.delete_item_by_id(id)
 
 
 media_blueprint.add_url_rule(

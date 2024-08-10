@@ -49,10 +49,10 @@ class MediaItem(db.Model):
     video_high_filename = db.Column(db.String, default=None, nullable=True)
     video_poster_filename = db.Column(db.String, default=None, nullable=True)
     duration = db.Column(db.Integer)  # in seconds
-
-    contribution_id = db.Column(UUID, db.ForeignKey("event_contributions.id"))
-    contribution = db.relationship(
-        "EventContribution", back_populates="media_items")
+    
+    review_id = db.Column(db.Integer, db.ForeignKey("event_reviews.id"))
+    review = db.relationship(
+        "EventReview", back_populates="media_items")
 
     event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
     event = db.relationship(

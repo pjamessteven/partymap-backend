@@ -17,7 +17,7 @@ from pmapi.report.model import Report
 from pmapi.feedback.model import Feedback
 
 # from pmapi.event_artist.model import EventArtist
-from pmapi.event_contribution.model import EventContribution
+from pmapi.event_review.model import EventReview, event_review_downvotes, event_review_downvotes
 from pmapi.notification.model import Notification, UserNotification
 from pmapi.event_location.model import EventLocation
 from pmapi.suggestions.model import SuggestedEdit

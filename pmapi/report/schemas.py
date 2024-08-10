@@ -12,7 +12,7 @@ class ReportSchema(Schema):
     message = fields.Str()
     email = fields.Str()
     event = fields.Nested("EventSchema", only=["name", "id", "host"])
-    event_contribution = fields.Nested("EventContributionSchema")
+    event_review = fields.Nested("EventReviewSchema")
     media_item = fields.Nested("MediaItemSchema")
 
 

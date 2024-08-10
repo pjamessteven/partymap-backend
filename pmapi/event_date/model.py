@@ -37,7 +37,7 @@ class EventDateTicket(db.Model):
 
 
 class EventDate(db.Model):
-    __versioned__ = {'versioning_relations': ['artists', 'location', 'tickets', 'media_items', 'contributions']}
+    __versioned__ = {'versioning_relations': ['artists', 'location', 'tickets', 'media_items', 'reviews']}
     __tablename__ = "event_dates"
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -71,8 +71,8 @@ class EventDate(db.Model):
     cancelled = db.Column(db.Boolean, default=False)
     size = db.Column(db.Integer)
 
-    contributions = db.relationship(
-        "EventContribution", back_populates="event_date")
+    reviews = db.relationship(
+        "EventReview", back_populates="event_date")
     media_items = db.relationship("MediaItem", back_populates="event_date")
     suggestions = db.relationship("SuggestedEdit", back_populates="event_date")
 

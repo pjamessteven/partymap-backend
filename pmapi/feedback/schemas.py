@@ -11,7 +11,7 @@ class ReportSchema(Schema):
     description = fields.Str()
 
     event = fields.Nested("EventSchema")
-    event_contribution = fields.Nested("EventContributionSchema")
+    event_review = fields.Nested("EventReviewSchema")
     media_item = fields.Nested("MediaItemSchema")
 
 

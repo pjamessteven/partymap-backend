@@ -10,8 +10,8 @@ import pmapi.event.controllers as events
 import pmapi.media_item.controllers as media_items
 import pmapi.user.controllers as users
 from pmapi.hcaptcha.controllers import validate_hcaptcha
-
 from flask_login import current_user
+import pmapi.event_review.controllers as event_reviews
 
 from .model import Report
 from pmapi.config import BaseConfig
@@ -49,17 +49,17 @@ def create_report(**kwargs):
     email = kwargs.pop("email", None)
     event_id = kwargs.pop("event_id", None)
     media_item_id = kwargs.pop("media_item_id", None)
-    event_contribution_id = kwargs.pop("event_contribution_id", None)
+    event_review_id = kwargs.pop("event_review_id", None)
     token = kwargs.pop("hcaptcha_token", None)
 
     event = events.get_event(event_id)
 
-    contribution = None
+    review = None
 
-    if event_contribution_id:
-        contribution = event_contributions.get_contribution(
-            event_contribution_id)
-
+    if event_review_id:
+        review = event_reviews.get_review(
+            event_review_id)
+    
     if media_item_id:
         media_item = media_items.get_media_item_or_404(
             media_item_id)
@@ -74,7 +74,7 @@ def create_report(**kwargs):
         email = user.email
 
     report = Report(
-        creator_id=creator_id, message=message, media_item=media_item, email=email, event=event, event_contribution=contribution, open=True
+        creator_id=creator_id, message=message, media_item_id=media_item_id, email=email, event=event, event_review=review, open=True
     )
     db.session.add(report)
     db.session.commit()
