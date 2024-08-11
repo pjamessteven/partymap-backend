@@ -28,7 +28,7 @@ class SuggestedEdit(db.Model):
         default="pending",
     )
     approved = db.Column(db.Boolean, nullable=True)  # remove this column
-    approved_by_id = db.Column(UUID, db.ForeignKey("users.id, name='fk_suggested_edits_approved_by_id'"), nullable=True)
+    approved_by_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_suggested_edits_approved_by_id'), nullable=True)
     approved_by = db.relationship("User", foreign_keys=[approved_by_id])
     approved_at = db.Column(db.DateTime)
     action = db.Column(db.Enum("create", "update", "delete", name="edit_action"))
