@@ -9,7 +9,7 @@ from pprint import pprint
 
 @ts_interface()
 class MediaItemSchema(Schema):
-    id = fields.UUID()
+    id = fields.Int()
     attributes = fields.Dict()
     creator = fields.Nested("UserSchema", only=["username"])
     created_at = fields.DateTime()
@@ -66,8 +66,16 @@ class MediaItemSchema(Schema):
 
 
 @ts_interface()
-class MediaItemVersionSchema(MediaItemSchema):
+class MediaItemVersionSchema(Schema):
     changeset = fields.Dict()
+    thumb_url = fields.Function(
+        lambda obj: generate_filepath(obj, obj.thumb_filename)
+        if obj.thumb_filename
+        else None
+    )
+    id = fields.UUID()
+    caption = fields.Str()
+    type = fields.Str()
     # previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")

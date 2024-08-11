@@ -18,7 +18,13 @@ class EventReviewSchema(Schema):
     rating = fields.Integer()
 
 @ts_interface()
-class EventReviewVersionSchema(EventReviewSchema):
+class EventReviewVersionSchema(Schema):
+    text = fields.Str()
+    id = fields.Integer()
+    event_id = fields.Integer()
+    event_date_id = fields.Integer()
+    rating = fields.Integer()
+
     changeset = fields.Dict()
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")

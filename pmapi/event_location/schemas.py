@@ -19,7 +19,8 @@ class LocationSchema(Schema):
     place_id = fields.Str()
     event_dates = fields.Nested(EventDateSchema, many=True)
 
-class LocationVersionSchema(LocationSchema):
+class LocationVersionSchema(Schema):
+    description = fields.Str()
     changeset = BlacklistedDict(blacklist="geo", attribute="object_version.changeset")
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")

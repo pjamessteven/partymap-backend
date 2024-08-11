@@ -37,16 +37,15 @@ class EventSchema(Schema):
 
 
 @ts_interface()
-class EventVersionSchema(EventSchema):
+class EventVersionSchema(Schema):
     changeset = fields.Dict()
     # previous = fields.Nested("EventVersionSchema", exclude=["previous"])
     index = fields.Integer()
     transaction = fields.Nested("TransactionSchema")
     transaction_id = fields.Integer()
     end_transaction_id = fields.Integer()
-    event_dates = fields.Nested(
-        "EventDateSchema", many=True, exclude=["event"])
-
+    id = fields.Integer()
+    name = fields.Str()
 
 class EventListSchema(PaginatedSchema):
     items = fields.Nested("EventSchema", many=True)
