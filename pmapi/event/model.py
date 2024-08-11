@@ -30,7 +30,7 @@ def create_tsvector(*args):
 
 user_event_following_table = db.Table(
     "user_event_following_table",
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_user_event_following_user_id')),
     db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
 )
 
@@ -38,7 +38,7 @@ user_event_following_table = db.Table(
 event_page_views_table = db.Table(
     "event_page_views_table",
     db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_event_page_views_user_id')),
     db.Column("time", db.DateTime, default=datetime.utcnow),
 )
 
@@ -55,14 +55,14 @@ class Event(db.Model):
         "User", back_populates="following_events", secondary=user_event_following_table
     )
 
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_events_creator_id'))
     creator = db.relationship(
         "User",
         back_populates="created_events",
         foreign_keys=[creator_id],
     )
 
-    host_id = db.Column(UUID, db.ForeignKey("users.id"))
+    host_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_events_host_id'))
     host = db.relationship(
         "User",
         back_populates="hosted_events",
@@ -84,7 +84,7 @@ class Event(db.Model):
 
     youtube_url = db.Column(db.String)
 
-    rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id"))
+    rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id", name='fk_events_rrule_id'))
     rrule = db.relationship(
         "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"
     )
@@ -308,7 +308,7 @@ class Rrule(db.Model):
     end_date_time = db.Column(db.String)  # naive datetime string
     default_url = db.Column(db.String)
     default_location_id = db.Column(
-        db.Integer, db.ForeignKey("event_locations.id"))
+        db.Integer, db.ForeignKey("event_locations.id", name='fk_rrules_location_id'))
     default_location = db.relationship("EventLocation")
     # if exact is True, EventDate.date_confirmed will be true. If not, exact date will be confirmed later.
     exact = db.Column(db.Boolean, default=False)

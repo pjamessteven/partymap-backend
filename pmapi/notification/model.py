@@ -24,7 +24,7 @@ class UserNotification(db.Model):
     __tablename__ = "user_notifications"
 
     id = db.Column(
-        UUID, db.ForeignKey("notifications.id", ondelete="CASCADE"), primary_key=True
+        UUID, db.ForeignKey("notifications.id", ondelete="CASCADE", name='fk_user_notifications_notification_id'), primary_key=True
     )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -33,7 +33,7 @@ class UserNotification(db.Model):
     )
 
     user_id = db.Column(
-        UUID, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+        UUID, db.ForeignKey("users.id", ondelete="CASCADE", name='fk_user_notifications_user_id'), primary_key=True
     )
     user = db.relationship(
         "User", foreign_keys=[user_id], back_populates="notifications"
@@ -62,7 +62,7 @@ class EmailAction(db.Model):
         db.DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )
     user_id = db.Column(
-        UUID, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+        UUID, db.ForeignKey("users.id", ondelete="CASCADE", name='fk_email_actions_user_id'), nullable=True
     )
     actioned = db.Column(db.Boolean(), default=False)
     user = db.relationship("User")

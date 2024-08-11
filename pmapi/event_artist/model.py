@@ -88,7 +88,7 @@ class ArtistUrl(db.Model):
     __versioned__ = {}
     id = db.Column(db.Integer, primary_key=True)
     artist = db.relationship("Artist", back_populates="urls")
-    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id", name='fk_artist_urls_artist_id'))
     url = db.Column(db.String)
     type = db.Column(db.String)
 
@@ -97,11 +97,11 @@ class ArtistTag(db.Model):
     __tablename__ = "artist_tags"
     __versioned__ = {}
     id = db.Column(db.Integer, primary_key=True)
-    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag"))
-    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag", name='fk_artist_tags_tag_id'))
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id", name='fk_artist_tags_artist_id'))
     tag = db.relationship("Tag", back_populates="artists_with_tag")
     artist = db.relationship("Artist", back_populates="artist_tags")
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_artist_tags_creator_id'))
     creator = db.relationship("User", back_populates="created_artist_tags")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -113,12 +113,12 @@ class EventDateArtist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     artist = db.relationship("Artist", back_populates="events_with_artist")
-    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id", name='fk_event_date_artists_artist_id'))
 
     event_date = db.relationship("EventDate", back_populates="artists")
-    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id", name='fk_event_date_artists_event_date_id'))
 
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_event_date_artists_users_id'))
     creator = db.relationship("User", back_populates="created_event_artists")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

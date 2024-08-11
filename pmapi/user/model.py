@@ -59,7 +59,7 @@ class User(db.Model):
     notifications = db.relationship(
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
-    avatar_id = db.Column(db.Integer, db.ForeignKey(MediaItem.id))
+    avatar_id = db.Column(db.Integer, db.ForeignKey(MediaItem.id, name='fk_users_avatar_id'))
     avatar = db.relationship("MediaItem", uselist=False,
                              foreign_keys=[avatar_id], back_populates="is_user_avatar", primaryjoin="User.avatar_id == MediaItem.id")
 

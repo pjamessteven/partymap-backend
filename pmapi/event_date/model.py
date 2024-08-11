@@ -11,13 +11,13 @@ from pmapi.extensions import db
 user_event_date_going_table = db.Table(
     "user_event_date_going_table",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id")),
+    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id", name='fk_user_event_date_going_table_event_date_id'))
 )
 
 user_event_date_interested_table = db.Table(
     "user_event_date_interested_table",
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
-    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id")),
+    db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id", name='fk_user_event_date_interested_table_event_date_id'))
 )
 
 
@@ -25,10 +25,10 @@ class EventDateTicket(db.Model):
     __versioned__ = {'versioning_relations': ['event_date']}
     __tablename__ = "event_date_tickets"
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id", name='fk_event_date_tickets_event_id'))
     event = db.relationship("Event", back_populates="event_tickets")
     event_date = db.relationship("EventDate", back_populates="tickets")
-    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id", name='fk_event_date_tickets_event_date_id'))
     url = db.Column(db.String)
     description = db.Column(db.String)
     price_min = db.Column(db.Integer)
@@ -49,7 +49,7 @@ class EventDate(db.Model):
         "User", back_populates="going_event_dates", secondary=user_event_date_going_table
     )
 
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id", name='fk_event_dates_event_id'))
     event = db.relationship("Event", back_populates="event_dates")
     tz = db.Column(db.String, nullable=False)
 
@@ -59,7 +59,7 @@ class EventDate(db.Model):
     end_naive = db.Column(db.DateTime, nullable=False)
     date_confirmed = db.Column(db.Boolean, default=True)
     # info can change for each event
-    location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id"))
+    location_id = db.Column(db.Integer, db.ForeignKey("event_locations.id", name='fk_event_dates_location_id'))
     location = db.relationship("EventLocation", back_populates="event_dates")
     distance = query_expression()
     row_number = query_expression()

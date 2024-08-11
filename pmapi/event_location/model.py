@@ -18,14 +18,14 @@ event_location_type_association = db.Table(
     db.Column(
         "event_location_type_id",
         db.Integer,
-        db.ForeignKey("event_location_types.id"),
+        db.ForeignKey("event_location_types.id", name='fk_event_location_type_association_event_location_type_id'),
         index=True,
         primary_key=True,
     ),
     db.Column(
         "event_location_id",
         db.Integer,
-        db.ForeignKey("event_locations.id"),
+        db.ForeignKey("event_locations.id", name='fk_event_location_type_association_event_location_id'),
         index=True,
         primary_key=True,
     ),
@@ -39,9 +39,9 @@ class Locality(db.Model):
     short_name = db.Column(db.String)
     long_name = db.Column(db.String)
 
-    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name", name='fk_localities_country_id'))
     country = db.relationship("Country", back_populates="localities")
-    region_id = db.Column(UUID, db.ForeignKey("regions.id"))
+    region_id = db.Column(UUID, db.ForeignKey("regions.id", name='fk_localities_region_id'))
     region = db.relationship("Region", back_populates="localities")
 
     locations = db.relationship("EventLocation")
@@ -77,7 +77,7 @@ class Region(db.Model):
     short_name = db.Column(db.String)
     long_name = db.Column(db.String)
 
-    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name", name='fk_regions_country_id'))
     country = db.relationship("Country", back_populates="regions")
 
     localities = db.relationship("Locality")
@@ -138,13 +138,13 @@ class EventLocation(db.Model):
         back_populates="event_locations",
     )
     country = db.relationship("Country", back_populates="locations")
-    country_id = db.Column(db.String, db.ForeignKey("countries.short_name"))
+    country_id = db.Column(db.String, db.ForeignKey("countries.short_name", name='fk_event_locations_country_id'))
 
     region = db.relationship("Region", back_populates="locations")
-    region_id = db.Column(UUID, db.ForeignKey("regions.id"))
+    region_id = db.Column(UUID, db.ForeignKey("regions.id", name='fk_event_locations_region_id'))
 
     locality = db.relationship("Locality", back_populates="locations")
-    locality_id = db.Column(UUID, db.ForeignKey("localities.id"))
+    locality_id = db.Column(UUID, db.ForeignKey("localities.id", name='fk_event_locations_locality_id'))
 
     address_components = db.Column(JSONB)
 
@@ -156,7 +156,7 @@ class EventLocation(db.Model):
     event_dates = db.relationship("EventDate", back_populates="location")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_event_locations_users_id'))
     creator = db.relationship("User", back_populates="created_event_locations")
 
     # serverside clustering

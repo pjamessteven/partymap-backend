@@ -7,16 +7,16 @@ from pmapi.extensions import db
 
 event_review_upvotes = db.Table(
     "event_review_upvotes",
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_event_review_upvotes_user_id')),
     db.Column("event_review_id", db.Integer,
-              db.ForeignKey("event_reviews.id")),
+              db.ForeignKey("event_reviews.id", name='fk_event_review_upvotes_event_review_id')),
 )
 
 event_review_downvotes = db.Table(
     "event_review_downvotes",
-    db.Column("user_id", UUID, db.ForeignKey("users.id")),
+    db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_event_review_downvotes_user_id')),
     db.Column("event_review_id", db.Integer,
-              db.ForeignKey("event_reviews.id")),
+              db.ForeignKey("event_reviews.id", name='fk_event_review_downvotes_event_review_id')),
 )
 
 
@@ -28,13 +28,13 @@ class EventReview(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"), nullable=False)
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_event_reviews_creator_id'), nullable=False)
     creator = db.relationship("User", back_populates="created_reviews")
 
     event_id = db.Column(db.Integer, db.ForeignKey(
-        "events.id"), nullable=False)
+        "events.id", name='fk_event_reviews_event_id'), nullable=False)
     event = db.relationship("Event", back_populates="event_reviews")
-    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id", name='fk_event_reviews_event_date_id'))
     event_date = db.relationship("EventDate", back_populates="reviews")
 
     rating = db.Column(db.Integer)

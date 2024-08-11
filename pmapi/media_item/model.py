@@ -26,7 +26,7 @@ class MediaItem(db.Model):
     # can hold flags such as isLineupImage or isEventLogo
     attributes = db.Column(JSONB)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_media_items_creator_id')) 
     creator = db.relationship(
         "User", back_populates="created_media_items", foreign_keys=[creator_id])
 
@@ -50,18 +50,18 @@ class MediaItem(db.Model):
     video_poster_filename = db.Column(db.String, default=None, nullable=True)
     duration = db.Column(db.Integer)  # in seconds
     
-    review_id = db.Column(db.Integer, db.ForeignKey("event_reviews.id"))
+    review_id = db.Column(db.Integer, db.ForeignKey("event_reviews.id", name='fk_media_items_review_id'))
     review = db.relationship(
         "EventReview", back_populates="media_items")
 
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"), nullable=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id", name='fk_media_items_event_id'), nullable=True)
     event = db.relationship(
         "Event", back_populates="media_items", foreign_keys=[event_id])
 
-    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id"))
+    event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id", name='fk_media_items_event_date_id'))
     event_date = db.relationship("EventDate", uselist=False)
 
-    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id", name='fk_media_items_artist_id'))
     artist = db.relationship("Artist")
 
     is_user_avatar = db.relationship(

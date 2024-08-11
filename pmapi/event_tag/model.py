@@ -47,12 +47,12 @@ class EventTag(db.Model):
     __versioned__ = {}
 
     id = db.Column(db.Integer, primary_key=True)
-    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag"))
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+    tag_id = db.Column(db.String(50), db.ForeignKey("tags.tag", name='fk_event_tags_tag_id'))
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id", name='fk_event_tags_event_id'))
 
     tag = db.relationship("Tag", back_populates="events_with_tag")
     event = db.relationship("Event", back_populates="event_tags")
-    creator_id = db.Column(UUID, db.ForeignKey("users.id"))
+    creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_event_tags_creator_id'))
     creator = db.relationship("User", back_populates="created_event_tags")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
