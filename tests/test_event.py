@@ -15,7 +15,7 @@ def test_get_event(complete_event_factory):
 
 def test_get_event_or_404():
     with pytest.raises(exc.RecordNotFound):
-        events.get_event_or_404("52544252-6f78-4fbd-8fb9-adb3dec7b3f8")
+        events.get_event_or_404(2)
 
 
 def test_search_events(complete_event_factory):

@@ -26,7 +26,7 @@ class Tag(db.Model):
     __ts_vector__ = create_tsvector(cast(func.coalesce(tag, ""), postgresql.TEXT))
 
     # this is an index for searching tags
-    __table_args__ = (Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
+    __table_args__ = (Index("idx_tags_fts", __ts_vector__, postgresql_using="gin"),)
 
     @hybrid_property
     def count(self):

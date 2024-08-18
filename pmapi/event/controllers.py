@@ -46,50 +46,51 @@ def get_event_or_404(id):
 
 
 def get_event(id):
-    following_expression = (
-        db.session.query(user_event_following_table)
-        .filter(
-            and_(
-                user_event_following_table.c.user_id == current_user.id,
-                user_event_following_table.c.event_id == id,
-            )
-        )
-        .exists()
-    )
-
-    going_expression = (
-        db.session.query(user_event_date_going_table)
-        .filter(
-            and_(
-                user_event_date_going_table.c.user_id == current_user.id,
-                user_event_date_going_table.c.event_date_id == EventDate.id,
-            )
-        )
-        .exists()
-    )
-
-    interested_expression = (
-        db.session.query(user_event_date_interested_table)
-        .filter(
-            and_(
-                user_event_date_interested_table.c.user_id == current_user.id,
-                user_event_date_interested_table.c.event_date_id == EventDate.id,
-            )
-        )
-        .exists()
-    )
 
     query = Event.query.join(EventDate)
 
-    query = (query
-             .options(
-                 with_expression(
-                     Event.user_following,
-                     following_expression,
-                 ),
+    if current_user:
+        following_expression = (
+            db.session.query(user_event_following_table)
+            .filter(
+                and_(
+                    user_event_following_table.c.user_id == current_user.id,
+                    user_event_following_table.c.event_id == id,
+                )
+            )
+            .exists()
+        )
 
-             )
-             )
+        going_expression = (
+            db.session.query(user_event_date_going_table)
+            .filter(
+                and_(
+                    user_event_date_going_table.c.user_id == current_user.id,
+                    user_event_date_going_table.c.event_date_id == EventDate.id,
+                )
+            )
+            .exists()
+        )
+
+        interested_expression = (
+            db.session.query(user_event_date_interested_table)
+            .filter(
+                and_(
+                    user_event_date_interested_table.c.user_id == current_user.id,
+                    user_event_date_interested_table.c.event_date_id == EventDate.id,
+                )
+            )
+            .exists()
+        )
+
+        query = (query
+                .options(
+                    with_expression(
+                        Event.user_following,
+                        following_expression,
+                    ),
+                    )
+                )
 
     event = query.filter(Event.id == id).first()
 

@@ -12,8 +12,11 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from flask_login import AnonymousUserMixin
 from flask import url_for
+from flask_migrate import upgrade
 import pytest
 import uuid
+from sqlalchemy import func, and_, Index, ForeignKeyConstraint
+
 import pmapi.event_date.controllers as event_dates
 
 
@@ -21,7 +24,7 @@ class Config_Test(BaseConfig):
     ENV = "testing"
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "postgresql:///partymap-testing"
+    SQLALCHEMY_DATABASE_URI = "postgresql://partymap:password@test-db:5432/partymap"
     # PRESERVE_CONTEXT_ON_EXCEPTION = False
 
 
@@ -42,13 +45,33 @@ def app(config):
 
     ctx.pop()
 
-
+        
 @pytest.fixture(scope="session")
-def db(app):
+def db(app, config):
     """A database for the tests."""
     _db.app = app
     with app.app_context():
+        print('SETUP DB')
+        _db.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
         _db.create_all()
+        # configure anon user
+        anon = (
+            _db.session.query(User)
+            .filter(User.username == "anon")
+            .first()
+        )
+        if anon is None:
+            print('CREATING ANON')
+            anon = User(
+                username="anon",
+                email="anon@partymap.com",
+                status="active",
+                id=config.ANON_USER_ID,
+            )
+            _db.session.add(anon)
+            _db.session.commit()
+
+        # upgrade()
 
     yield _db
 
@@ -66,13 +89,36 @@ def clear_db(request):
     """
 
     def _clear_db():
+        print('CLEARING DB')
+
         db = request.getfixturevalue("db")
         meta = db.metadata
+        print('CLEARED DB2')
+
+        
+        # Drop all tables
+        for table in reversed(meta.sorted_tables):
+            print('table', table)
+            db.engine.execute(table.delete())
+        db.session.commit()
+        print('CLEARED DB3')
+
+        # Drop the indexes
+        with db.engine.connect() as conn:
+            event_index = Index("idx_events_fts", "events.c.__ts_vector__")
+            event_index.drop(conn)
+            tag_index = Index("idx_tags_fts", "tags.c.__ts_vector__")
+            tag_index.drop(conn)
+        print('CLEARED DB4')
+
+        """
         for table in reversed(meta.sorted_tables):
             db.session.execute(table.delete())
+        """
         db.session.commit()
 
     if "db" in request.fixturenames:
+        print('CLEAR DB')
         request.addfinalizer(_clear_db)
 
 
@@ -190,9 +236,7 @@ def event_factory(app, db, regular_user, user_factory):
         event = Event(
             name=name,
             creator_id=creator.id,
-            default_url="test.com",
             description=description,
-            default_location=location,
         )
 
         db.session.add(event)
@@ -232,6 +276,7 @@ def event_date_factory(
             event_location = event_location_factory()
         ed = event_dates.add_event_date(
             start_naive,
+            None,
             event,
             event_location=event_location,
             end_naive=end_naive,

@@ -13,6 +13,7 @@ import psycopg2
 from flask_login import current_user, AnonymousUserMixin
 from datetime import datetime
 from flask import jsonify
+from flask_migrate import Migrate
 
 from pmapi import extensions
 from pmapi.user.model import User
@@ -58,6 +59,7 @@ class AnonUser(AnonymousUserMixin):
 
 def create_app(config=CONFIG, app_name="PARTYMAP"):
     app = Flask(app_name)
+    migrate = Migrate(app, db)
 
     app.config.from_object(config)
     register_blueprints(app)
