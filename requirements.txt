@@ -130,7 +130,7 @@ timezonefinder==4.5.0
 toml==0.10.2
 typed-ast==1.4.2
 typemallow2 @ git+https://github.com/pjamessteven/Typemallow2@cacba56d2cb432acabfc18b1cd712f43b4fcff2c
-typing-extensions==3.7.4.3
+typing-extensions==4.12.2
 tzlocal==5.0.1
 urllib3==1.26.2
 URLObject==2.4.3
