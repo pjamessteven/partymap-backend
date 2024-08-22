@@ -9,12 +9,10 @@ import uuid
 
 from pmapi.user.model import User, OAuth
 from pmapi.extensions import db, cache
-
 import pmapi.user.controllers as users
 
 oauth_fb_blueprint = make_facebook_blueprint(
-    storage=SQLAlchemyStorage(
-        OAuth, db.session, cache=cache, user=current_user),
+    storage=SQLAlchemyStorage(OAuth, db.session, cache=cache, user=current_user),
     scope="email,public_profile",
 )
 
@@ -55,13 +53,11 @@ def facebook_logged_in(blueprint, token):
     user_id = info["id"]
 
     # Find this OAuth token in the database, or create it
-    query = OAuth.query.filter_by(
-        provider=blueprint.name, provider_user_id=user_id)
+    query = OAuth.query.filter_by(provider=blueprint.name, provider_user_id=user_id)
     try:
         oauth = query.one()
     except NoResultFound:
-        oauth = OAuth(provider=blueprint.name,
-                      provider_user_id=user_id, token=token)
+        oauth = OAuth(provider=blueprint.name, provider_user_id=user_id, token=token)
 
     user = None
 
@@ -73,7 +69,7 @@ def facebook_logged_in(blueprint, token):
         user = oauth.user
     else:
         existingUser = users.get_user_by_email(info["email"])
-        if (existingUser == None):
+        if existingUser == None:
             # Create a new local user account for this user
             user = User(email=info["email"])
         else:
@@ -91,7 +87,7 @@ def facebook_logged_in(blueprint, token):
     # for native mobile auth we pass a token that is used to authenticate with /login
     if session["mobile"]:
         user.one_off_auth_token = str(uuid.uuid4())
-        next_url = next_url + '?token=' + user.one_off_auth_token
+        next_url = next_url + "?token=" + user.one_off_auth_token
         db.session.commit()
     else:
         # Log in the new local user account
@@ -99,7 +95,7 @@ def facebook_logged_in(blueprint, token):
         flash("Successfully signed in.")
 
     if session["mobile"]:
-        return redirect('/oauth_redirect?redirect_uri='+next_url)
+        return redirect("/oauth_redirect?redirect_uri=" + next_url)
     else:
         return redirect(next_url)
 

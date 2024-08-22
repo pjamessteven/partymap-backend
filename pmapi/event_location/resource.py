@@ -82,6 +82,9 @@ class PointsResource(MethodResource):
             "duration_options": fields.List(fields.Integer(), required=False),
             "size_options": fields.List(fields.String(), required=False),
             "query": fields.Str(),
+            "distinct": fields.Boolean(),
+            "empty_lineup": fields.Boolean(),
+            "date_unconfirmed": fields.Boolean(),
         },
         location="query"
     )

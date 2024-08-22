@@ -4,7 +4,7 @@ from flask_login import current_user
 
 from sqlalchemy.orm import with_expression
 from sqlalchemy.orm import subqueryload, selectinload, joinedload, Bundle
-from sqlalchemy import select, func, distinct, String, Text, join
+from sqlalchemy import select, func, distinct, asc, String, Text, join
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy import or_, and_
 
@@ -239,6 +239,7 @@ def get_all_locations(**kwargs):
         j = join(Event, EventDate)
         # j = join(j, user_event_favorites_table)
 
+
         # an event having multiple locations is an edge case, find a better way to deal with this later
         expression = select(
             [
@@ -264,6 +265,7 @@ def get_all_locations(**kwargs):
             .populate_existing()
             .distinct()
         )  # fixes issues related to pagination
+
         if "date_min" in kwargs:
             datemin = kwargs.pop("date_min")
             query = query.filter(EventDate.start >= datemin)
@@ -314,6 +316,39 @@ def get_all_locations(**kwargs):
                         EventDateArtist.artist_id == artist_id)
                 )
 
+        """ 
+        # TODO 
+        if kwargs.get("distinct", None) is True:
+            print('distinct')
+            # add row number column so we can filter
+            # for the next occurance of an event date below
+            row_number_column = (
+                func.row_number()
+                .over(partition_by=EventDate.event_id, order_by=asc(EventDate.start))
+                .label("row_number")
+            )
+            subquery = query.add_column(
+                row_number_column
+            ).subquery()
+
+            query = (
+                db.session.query(subquery.c.EventLocation)
+                .filter(subquery.c.row_number == 1)
+                .distinct()
+            )
+        """
+        if kwargs.get("empty_lineup", None) is True:
+            query = query.filter(
+                    ~EventDate.artists.any()
+                )
+            
+        if kwargs.get("date_unconfirmed", None) is True:
+            query = query.filter(
+                    EventDate.date_confirmed == False
+                )
+            
+
+
         if kwargs.get("query", None) is not None:
             query_string = kwargs.pop("query")
             query_text = ""
@@ -331,6 +366,8 @@ def get_all_locations(**kwargs):
                 Event.__ts_vector__.match(
                     query_text, postgresql_regconfig="english")
             )
+
+        
     # filter cancelled events out
     # query = query.filter(EventDate.cancelled != True)
 

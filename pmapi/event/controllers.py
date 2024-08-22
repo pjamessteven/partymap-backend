@@ -207,6 +207,7 @@ def add_event(**kwargs):
     # separation count of 0 means no recurrance
     if rrule and rrule["separationCount"] > 0:
         rrule = Rrule(
+            id=event.id,
             recurring_type=rrule["recurringType"],
             separation_count=rrule["separationCount"],
             day_of_week=rrule["dayOfWeek"],
@@ -417,6 +418,7 @@ def update_event(event_id, **kwargs):
 
         else:
             rrule = Rrule(
+                id=event.id,
                 recurring_type=rrule["recurringType"],
                 separation_count=rrule["separationCount"],
                 day_of_week=rrule["dayOfWeek"],

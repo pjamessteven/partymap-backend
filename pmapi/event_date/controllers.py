@@ -948,12 +948,14 @@ def query_event_dates(**kwargs):
         for tag in tags:
             query = query.filter(Event.event_tags.any(EventTag.tag_id == tag))
 
+
     if "artists" in kwargs:
         artists = kwargs.pop("artists")
         for artist_id in artists:
             query = query.filter(
                 EventDate.artists.any(EventDateArtist.artist_id == artist_id)
             )
+
 
     if kwargs.get("duration_options", None) is not None:
         duration_options = kwargs.pop("duration_options")
@@ -1100,6 +1102,16 @@ def query_event_dates(**kwargs):
         # return only the first event date of an event
         query = query.from_self().filter(row_number_column == 1)
 
+    if kwargs.get("empty_lineup", None) is True:
+        query = query.filter(
+                ~EventDate.artists.any()
+            )
+        
+    if kwargs.get("date_unconfirmed", None) is True:
+        query = query.filter(
+                EventDate.date_confirmed == False
+            )
+        
     if lat and lng:
         # sort options if distance expression is used
         if sort_option == "distance":
@@ -1114,6 +1126,8 @@ def query_event_dates(**kwargs):
         # simply sort by date if distance expression not used
         query = query.order_by(EventDate.start_naive.asc())
 
+
+        
     seconds_end = time.time()
     print("query time in seconds: ", seconds_end - seconds_start)
 
