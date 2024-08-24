@@ -1,17 +1,11 @@
 How to run the PartyMap Flask backend (PMAPI) on Mac or Linux:
 
-PROD NOTES:
-- Currently not Dockerized, configured as a systemd service
-> sudo service pmapi status, etc.
-- Celery also implemented as a systemd service
-> sudo service pmapi-tasks status
-
 Overview:
 _____________________________________________________________________________
 
-I dockerized PMAPI because it has dependencies like rabbitmq, celery and postgres that can take a while to set up. 
-Docker makes it possible to automate the creation of virtual machines (services) that are set up the same every time according to a script. 
-The file docker-compose.yml contains the definitions for each of the creation and configuration of the four services that make up PMAPI. 
+I dockerized PMAPI because it has dependencies like rabbitmq, celery and postgres that can be annoying to manually set up. 
+If you haven't userd Docker before, basically it automates the creation of virtual machines images that are set up the same every time according to a script. 
+The file docker-compose.yml contains the  definitions for each of the creation and configuration of the four services that make up PMAPI. 
 These services all talk to each other over a virtual network. The hostname of each machine or 'service' on the network is simply the name of the service as defined in docker-copmose.yml.
 
 These containers are:
@@ -33,7 +27,7 @@ These containers are:
 		in the database. If we didn't hand it off to another worker thread using celery then the user would be staring at a loading spinner for wayyy
 		too long and wonder wtf is going if we hold up the main thread with work that takes a lot of time and could be done async.
 
-'worker_1':	A celery worker that waits for asynchronous work and then does it 'in the background'. Explained above.  This uses the same Debian container created by the 'web' service. 
+'worker_1':	A celery worker that waits for asynchronous work (like getting artist info and processing media) and then does it 'in the background'. Explained above.  This uses the same Debian container created by the 'web' service. 
 
 
 Initial install: 
@@ -143,3 +137,11 @@ Additional Notes:
 
 -Video converting requires ffmpeg and ffprobe to be installed.
 
+_______________________________________________________________________________
+
+
+PROD NOTES:
+- Currently not Dockerized, configured as a systemd service
+> sudo service pmapi status, etc.
+- Celery also implemented as a systemd service
+> sudo service pmapi-tasks status
