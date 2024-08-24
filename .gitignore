@@ -9,3 +9,5 @@ chromedriver
 static.zip
 static/
 env/
+.env.prd
+.env.dev
