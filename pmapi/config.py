@@ -10,7 +10,7 @@ class BaseConfig(object):
         "DATABASE_URL", "postgresql:///partymap")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # used for encryption and session management
-    SECRET_KEY = "u*+FF@b<a?upsABSuI]%v5sYu$c3Tc"
+    SECRET_KEY = os.getenv("SECRET_KEY")
     CELERY_RESULT_BACKEND = "rpc://"
     CELERY_BROKER_URL = "pyamqp://guest@localhost"
     TOP_LEVEL_DIR = os.path.abspath(os.curdir)

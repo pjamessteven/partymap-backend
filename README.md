@@ -8,18 +8,11 @@ Please find the source for the PartyMap Frontend at https://github.com/pjamesste
 
 ## License
 
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-This work is licensed under a
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+This work is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
-
-[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
-[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
-[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
-
-The Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0) allows others to remix, tweak, and build upon this work non-commercially, as long as they credit the original author(s) (Peter James Steven and PartyMap Contributors) and license their new creations under the identical terms. For more details, see the LICENSE file.
+The Apache License 2.0 allows users to use, modify, and distribute this work, even for commercial purposes as long as permission is granted. This license also provides an express grant of patent rights from contributors to users. For more details, see the LICENSE file in the repository.
 
 ---
 
