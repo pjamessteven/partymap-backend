@@ -1,5 +1,47 @@
 # PartyMap Flask backend (PMAPI)
 
+The backend for the global directory of festivals and events (https://www.partymap.com).
+
+Please find the source for the PartyMap Frontend at https://github.com/pjamessteven/partymap-quasar-v2/
+
+---
+
+## License
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+
+The Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0) allows others to remix, tweak, and build upon this work non-commercially, as long as they credit the original author(s) (Peter James Steven and PartyMap Contributors) and license their new creations under the identical terms. For more details, see the LICENSE file.
+
+---
+
+## Contributing
+
+Keen to contribute? Hell yeah!!! Let's build the best event platform on the internet!
+
+You can find us on Discord: https://discord.gg/BD7BwrZA
+
+To start contributing to the code base, [find](https://github.com/pjamessteven/partymap-quasar-v2/issues?q=is:issue+is:closed) an existing issue, or [open](https://github.com/pjamessteven/partymap-quasar-v2/issues/new/choose) a new one. We categorize issues into 2 types:
+
+- Feature requests:
+
+  - If you're opening a new feature request, we'd like you to explain what the proposed feature achieves, and include as much context as possible
+  - If you want to pick one up from the existing issues, simply drop a comment below it saying so.
+
+- Anything else (e.g. bug report, performance optimization, typo correction):
+  - Start coding right away.
+
+
+---
+
 ## Overview
 
 I dockerized PMAPI because it has dependencies like rabbitmq, celery and postgres that can be annoying to manually set up. If you haven't used Docker before, basically it automates the creation of virtual machines images that are set up the same every time according to a script. The file `docker-compose.yml` contains the definitions for each of the creation and configuration of the four services that make up PMAPI. These services all talk to each other over a virtual network. The hostname of each machine or 'service' on the network is simply the name of the service as defined in `docker-compose.yml`.
