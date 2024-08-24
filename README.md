@@ -1,4 +1,4 @@
-# How to run the PartyMap Flask backend (PMAPI) on Mac or Linux
+# PartyMap Flask backend (PMAPI)
 
 ## Overview
 
@@ -30,10 +30,12 @@ These containers are:
 > docker compose up
 
 6. 
-	A) If you want to your database prepopulated with events from a partymap.com snapshot
+	- If you want to your database prepopulated with events from a partymap.com snapshot
+
 		> docker compose exec web python3 manage.py seed_db
 
-	B) If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
+	- If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
+
 		> docker compose exec web python3 manage.py create_users
 
 7. That should be it! You should now be able to access the api from your local environment at localhost:5000
@@ -98,9 +100,9 @@ How to backup the production Postgresql DB:
 1) Login to prod machine or other environment via ssh
 2) Switch to the postgres user
 > sudo su - postgres
-3)
- > psql 
-4)> Dump
+3) Enter psql CLI and dump
+> psql 
+> dump
 
 How to restore a backup (in docker container)
 1) Open a shell for the web service
