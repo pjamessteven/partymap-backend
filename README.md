@@ -20,6 +20,8 @@ These containers are:
 
 2. Navigate to the project root
 
+3. Copy .env.dev.example to .env.dev and fill out requisite API keys
+
 3. Pull images
 > docker compose pull
 
