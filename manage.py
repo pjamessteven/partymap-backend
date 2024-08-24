@@ -9,8 +9,6 @@ from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag
 from flask.cli import FlaskGroup
 from sqlalchemy import exc
-# from utils.populate_db import Populate
-# from utils.clustering import ClusterEventLocations
 from pmapi.application import create_app
 from pmapi.extensions import db
 from pmapi.config import ProdConfig, DevConfig

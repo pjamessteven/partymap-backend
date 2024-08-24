@@ -75,16 +75,6 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
         redirect_uri = request.args.get('redirect_uri')
         return render_template('oauth_redirect.html', redirect_uri=redirect_uri)
 
-    """
-    def Test2(rootDir): 
-        for lists in os.listdir(rootDir): 
-            path = os.path.join(rootDir, lists) 
-            print(path)
-            if os.path.isdir(path): 
-                Test2(path)
-
-    Test2(CONFIG.MEDIA_UPLOAD_FOLDER)
-    """
     @app.before_request
     def update_last_active():
         if current_user and current_user.is_authenticated:
