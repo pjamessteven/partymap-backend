@@ -66,6 +66,7 @@ class MiniEventDateSchema(Schema):
     location = fields.Nested("LocationSchema", exclude=["event_dates"])
     location_id = fields.Str()
     distance = fields.Float()
+    cancelled = fields.Boolean()
 
 
 @ts_interface()
@@ -92,3 +93,5 @@ class EventDateQueryListSchema(PaginatedSchema):
     radius = fields.Integer()
     top_artists = fields.Nested("MinimalEventDateArtistSchema", many=True)
     top_tags = fields.Nested("EventTagSchema", many=True)
+    top_regions = fields.Nested("ExtendedRegionSchema", exclude=['localities'], many=True)
+

@@ -48,6 +48,10 @@ class RegionSchema(Schema):
         "LocalitySchema", many=True, only=["short_name", "long_name", "id"]
     )
 
+class ExtendedRegionSchema(RegionSchema):
+    lat = fields.Float()
+    lng = fields.Float()
+
 @ts_interface()
 class CountrySchema(Schema):
     short_name = fields.Str()
