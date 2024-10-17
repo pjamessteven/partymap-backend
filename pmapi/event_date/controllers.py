@@ -1,5 +1,6 @@
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
+from pmapi.event_location.schemas import ExtendedRegionSchema
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
@@ -25,6 +26,8 @@ from pmapi.event_date.model import EventDateTicket
 from pmapi.event.model import Event, user_event_following_table
 
 from .model import EventDate, user_event_date_interested_table, user_event_date_going_table
+
+from pmapi.utils import normalize_bounds
 
 from pmapi import exceptions as exc
 
@@ -1002,38 +1005,41 @@ def query_event_dates(**kwargs):
     # filter event dates within bounds
     if bounds:
 
-        northEast = bounds["_northEast"]
-        southWest = bounds["_southWest"]
+        normalized_bounds = normalize_bounds(bounds)
+        northEast = normalized_bounds["_northEast"]
+        southWest = normalized_bounds["_southWest"]
 
-        query = query.filter(
-            and_(
-                or_(
-                    and_(
-                        southWest["lat"] < northEast["lat"],
-                        EventLocation.lat.between(
-                            southWest["lat"], northEast["lat"]),
-                    ),
-                    and_(
-                        northEast["lat"] < southWest["lat"],
-                        EventLocation.lat.between(
-                            northEast["lat"], southWest["lat"]),
-                    ),
-                ),
-                # match lng
-                or_(
-                    and_(
-                        southWest["lng"] < northEast["lng"],
-                        EventLocation.lng.between(
-                            southWest["lng"], northEast["lng"]),
-                    ),
-                    and_(
-                        northEast["lng"] < southWest["lng"],
-                        EventLocation.lng.between(
-                            northEast["lng"], southWest["lng"]),
-                    ),
-                ),
-            )
+
+        # Create a PostGIS geometry from the bounding box
+        bbox = func.ST_MakeEnvelope(
+            southWest["lng"], southWest["lat"],
+            northEast["lng"], northEast["lat"],
+            4326  # SRID for WGS84
         )
+
+        # Handle antimeridian crossing
+        if southWest["lng"] > northEast["lng"]:
+            # Split the query into two parts
+            query = query.filter(
+                or_(
+                    func.ST_Intersects(
+                        func.ST_SetSRID(func.ST_MakePoint(EventLocation.lng, EventLocation.lat), 4326),
+                        func.ST_MakeEnvelope(southWest["lng"], southWest["lat"], 180, northEast["lat"], 4326)
+                    ),
+                    func.ST_Intersects(
+                        func.ST_SetSRID(func.ST_MakePoint(EventLocation.lng, EventLocation.lat), 4326),
+                        func.ST_MakeEnvelope(-180, southWest["lat"], northEast["lng"], northEast["lat"], 4326)
+                    )
+                )
+            )
+        else:
+            # Normal case (no antimeridian crossing)
+            query = query.filter(
+                func.ST_Intersects(
+                    func.ST_SetSRID(func.ST_MakePoint(EventLocation.lng, EventLocation.lat), 4326),
+                    bbox
+                )
+            )
 
     if lat and lng and bounds is None:
         # nearby search
@@ -1139,20 +1145,30 @@ def query_event_dates(**kwargs):
 
         artists = []
         tags = []
+        regions = []
 
-        for ed in query.slice(0, 50).all():  # avoid perfromance issues
+        for ed in query.slice(0, 100).all():  # avoid perfromance issues
             for artist in ed[0].artists:
                 artists.append(artist)
             for tag in ed[0].event.event_tags:
                 tags.append(tag)
-
+            region = ExtendedRegionSchema().dump(ed[0].location.region)
+            if (region.get('id')):
+                print(region)
+                print(region['id'])
+                region['lat'] =  ed[0].location.lat
+                region['lng'] = ed[0].location.lng
+                regions.append(region)
+            
         # Count the occurrences of each item in the lists
         artist_counter = Counter(artist.artist_id for artist in artists)
         tag_counter = Counter(tag.tag_id for tag in tags)
+        region_counter = Counter(region['id'] for region in regions)
 
         # Create a set to keep track of artists already added to the result
         artists_set = set()
         tags_set = set()
+        regions_set = set()
 
         # Create a new list ordered by the frequency of each artist without duplicates
         ordered_artists = [
@@ -1167,17 +1183,26 @@ def query_event_dates(**kwargs):
             if tag.tag_id not in tags_set and not tags_set.add(tag.tag_id)
         ]
 
+        ordered_regions = [
+            region
+            for region in regions
+            if region['id'] not in regions_set and not regions_set.add(region['id'])
+        ]
+
         # Sort the new lists by the frequency of each item
         ordered_artists.sort(
             key=lambda artist: artist_counter[artist.artist_id], reverse=True)
         ordered_tags.sort(
-            key=lambda artist: artist_counter[tag.tag_id], reverse=True)
+            key=lambda artist: tag_counter[tag.tag_id], reverse=True)
+        ordered_regions.sort(
+            key=lambda region: region_counter[region['id']], reverse=True)
 
         seconds_end_2 = time.time()
         print("tag/artist time in seconds: ", seconds_end_2 - seconds_start)
 
         results.top_artists = ordered_artists[0: 10]
         results.top_tags = ordered_tags[0: 20]
+        results.top_regions = ordered_regions[0:20]
 
     return results
 
