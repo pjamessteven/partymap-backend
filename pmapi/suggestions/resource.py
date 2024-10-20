@@ -65,7 +65,6 @@ class SuggestedEditResource(MethodResource):
     )
     @marshal_with(SuggestedEditSchema(), code=200)
     def put(self, suggested_edit_id, **kwargs):
-        print("test!", kwargs)
         return suggestions.update_suggested_edit(suggested_edit_id, **kwargs)
 
     @doc(summary="Delete an suggested edit")

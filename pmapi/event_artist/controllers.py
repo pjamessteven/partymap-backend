@@ -1,9 +1,10 @@
 import pytz
 from datetime import datetime
+from pmapi.media_item.controllers import add_media_to_artist
 from timezonefinder import TimezoneFinder
 from sqlalchemy import cast, or_, and_, desc
 from geoalchemy2 import func, Geography
-from pmapi import exceptions as exc
+from pmapi import exceptions as exc, user
 import hashlib
 import base64
 import time
@@ -22,9 +23,7 @@ from pmapi.config import BaseConfig
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 from pmapi.common.controllers import paginated_results
-import pmapi.media_item.controllers as media_items
 import pmapi.tasks as tasks
-import pmapi.suggestions.controllers as suggestions
 
 Activity = activity_plugin.activity_cls
 
@@ -180,7 +179,6 @@ def remove_artists_from_date(event_date, ed_artists):
 
 def update_artist(id, **kwargs):
     creator = kwargs.pop("creator", None)
-
     artist = get_artist_or_404(id)
 
     urls_to_add = kwargs.get("add_urls", None)
@@ -209,44 +207,15 @@ def update_artist(id, **kwargs):
         remove_tags_from_artist(tags_to_remove, artist)
 
     if media_items:
-        media_items.add_media_to_artist(media_items, artist, creator=creator)
+        add_media_to_artist(media_items, artist, creator=creator)
 
     db.session.flush()
+
     activity = Activity(verb=u"update", object=artist, target=artist)
     db.session.add(activity)
     db.session.commit()
+
     return artist
-
-
-def suggest_update(id, **kwargs):
-    # used by unpriviliged users to suggest updates
-    token = kwargs.pop("hcaptcha_token", None)
-    artist = get_artist_or_404(id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        action="update",
-        artist_id=artist.id,
-        creator_id=current_user.get_id(),
-        object_type="Artist",
-        **kwargs
-    )
-
-
-def suggest_delete(id, **kwargs):
-    # used by unpriviliged users to suggest updates
-    token = kwargs.pop("hcaptcha_token", None)
-    artist = get_artist_or_404(id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        action="delete",
-        artist_id=artist.id,
-        creator_id=current_user.get_id(),
-        object_type="Artist",
-    )
 
 
 def update_artists_of_date(event_date, artists):
@@ -421,7 +390,7 @@ def save_artist_image_from_wikimedia_url(url, artist):
         }
     ]
     try:
-        media_items.add_media_to_artist(items, artist)
+        add_media_to_artist(items, artist)
     except Exception:
         logging.error(
             "event_artist.save_artist_image_from_wikimedia_url.add_media_to_artist",
@@ -610,7 +579,7 @@ def refresh_spotify_data_for_artist(artist):
                     }
                 ]
                 try:
-                    media_items.add_media_to_artist(items, artist)
+                    add_media_to_artist(items, artist)
                 except Exception:
                     logging.error(
                         "event_artist.refresh_spotify_data_for_artist.add_media_to_artist",
@@ -703,7 +672,7 @@ def get_artist_image_from_deezer(artist):
             }
         ]
         try:
-            media_items.add_media_to_artist(items, artist)
+            add_media_to_artist(items, artist)
         except Exception:
             logging.error(
                 "event_artist.get_artist_image_from_deezer.add_media_to_artist",
@@ -848,8 +817,8 @@ def delete_artist(id):
     db.session.commit()
     db.session.flush()
 
-
 def refresh_info(id):
+
     artist = get_artist_or_404(id)
 
     if artist.mbid:
@@ -892,4 +861,5 @@ def refresh_info(id):
         get_artist_image_from_deezer(artist)
 
     db.session.commit()
+
     return artist

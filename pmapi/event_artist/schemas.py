@@ -72,6 +72,16 @@ class EventDateArtistSchema(Schema):
     stage = fields.Str()
 
 @ts_interface()
+class ArtistVersionSchema(Schema):
+    changeset = fields.Dict()
+    id = fields.Int()
+    # previous = fields.Nested("MediaItemVersionSchema", exclude=["previous"])
+    index = fields.Integer()
+    transaction = fields.Nested("TransactionSchema")
+    transaction_id = fields.Integer()
+    # end_transaction_id = fields.Integer()
+
+@ts_interface()
 class EventDateArtistVersionSchema(Schema):
     changeset = fields.Dict()
     name = fields.Pluck("ArtistSchema", "name",

@@ -1,8 +1,5 @@
 from pmapi.common import permissions
 import pmapi.exceptions as exc
-from . import controllers as event_artists
-from pmapi.event import controllers as events
-from flask_login import current_user
 
 
 class delete(permissions.Permission):
