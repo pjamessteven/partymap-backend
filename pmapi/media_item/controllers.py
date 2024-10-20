@@ -19,7 +19,6 @@ from .model import MediaItem
 from pmapi.extensions import db, activity_plugin
 from pmapi import exceptions as exc
 import pmapi.activity.controllers as activities
-import pmapi.event.controllers as events
 import pmapi.tasks as tasks
 
 Activity = activity_plugin.activity_cls
@@ -54,20 +53,19 @@ def delete_item_by_id(id):
     db.session.commit()
     return "", 204
 
-def update_item(id, **kwargs):
+def update_item(event, id, **kwargs):
     item = get_media_item_or_404(id)
+    event = item.event
     if "caption" in kwargs:
         item.caption = kwargs.pop("caption")
 
     if "position" in kwargs:
         # reorder list and fix any errors in numbering
-        item.event.media_items.reorder()
-        event = events.get_event_or_404(item.event_id)
+        event.media_items.reorder()
         position = kwargs.pop("position")
         event.media_items.pop(item.position)
         # add item to list again
         event.media_items.insert(position, item)
-        item.event_id = event.id
 
         # trigger event revision
         event.updated_at = datetime.utcnow()

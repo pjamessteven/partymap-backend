@@ -6,10 +6,14 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_apispec import marshal_with
 import pmapi.event_artist.controllers as artists
+from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.suggestions.controllers import add_suggested_edit
 from .schemas import ArtistSchema, ArtistListSchema
 import pmapi.event_artist.permissions as artist_permissions
 from pmapi.common.controllers import paginated_view_args
 from flask_login import login_required
+from flask_login import current_user
+from pmapi.user.controllers import action_as_system_user
 
 
 artists_blueprint = Blueprint("artists", __name__)
@@ -80,9 +84,19 @@ class ArtistSuggestResource(MethodResource):
         }
     )
     def delete(self, id, **kwargs):
-        print(kwargs)
-        artists.suggest_delete(id, **kwargs)
-        return "", 204
+        # used by unpriviliged users to suggest updates
+        token = kwargs.pop("hcaptcha_token", None)
+        artist = artists.get_artist_or_404(id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
+
+        return add_suggested_edit(
+            action="delete",
+            artist_id=artist,
+            creator_id=current_user.get_id(),
+            object_type="Artist",
+        )
+
 
     @doc(summary="Suggest an edit to an artist")
     @use_kwargs(
@@ -101,8 +115,19 @@ class ArtistSuggestResource(MethodResource):
         }
     )
     def put(self, id, **kwargs):
-        artists.suggest_update(id, **kwargs)
-        return "", 200
+        # used by unpriviliged users to suggest updates
+        token = kwargs.pop("hcaptcha_token", None)
+        artist = artists.get_artist_or_404(id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
+
+        return add_suggested_edit(
+            action="update",
+            artist=artist,
+            creator_id=current_user.get_id(),
+            object_type="Artist",
+            **kwargs
+        )
 
 
 artists_blueprint.add_url_rule(
@@ -119,6 +144,7 @@ class ArtistRefreshResource(MethodResource):
     )
     @login_required
     @marshal_with(ArtistSchema(), code=200)
+    @action_as_system_user
     def get(self, **kwargs):
         return artists.refresh_info(**kwargs)
 

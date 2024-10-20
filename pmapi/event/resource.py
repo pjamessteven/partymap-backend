@@ -6,6 +6,9 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
+from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.suggestions.controllers import add_suggested_edit
+from pmapi.user.controllers import get_user_or_404
 from . import controllers as events
 import pmapi.activity.controllers as activities
 from . import permissions as event_permissions
@@ -48,7 +51,11 @@ class EventsResource(MethodResource):
     )
     @marshal_with(EventListSchema(), code=200)
     def get(self, **kwargs):
-        return events.search_events(**kwargs)
+        created_by_user = None
+        if "created_by" in kwargs:
+            created_by_user = get_user_or_404(kwargs.pop("created_by"))
+            
+        return events.search_events(created_by_user, **kwargs)
 
     @doc(summary="Add an event", description="Add an event")
     @event_permissions.add
@@ -154,8 +161,13 @@ class EventSuggestEditResource(MethodResource):
         }
     )
     def delete(self, event_id, **kwargs):
-        events.suggest_delete(event_id, **kwargs)
-        return "", 204
+        token = kwargs.pop("hcaptcha_token", None)
+        events.get_event_or_404(event_id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
+        return add_suggested_edit(
+            event_id=event_id, action="delete", object_type="Event", **kwargs
+        )
 
     @doc(summary="Suggest an edit to an event")
     @use_kwargs(
@@ -182,9 +194,21 @@ class EventSuggestEditResource(MethodResource):
         },
     )
     def put(self, event_id, **kwargs):
+        # used by unpriviliged users to suggest updates to an event
+        token = kwargs.pop("hcaptcha_token", None)
+        events.get_event_or_404(event_id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
 
-        events.suggest_update(event_id, **kwargs)
-        return "", 200
+        return add_suggested_edit(
+            event_id=event_id,
+            action="update",
+            creator_id=current_user.get_id(),
+            object_type="Event",
+            event_date_id=None,
+            **kwargs
+        )
+
 
 
 events_blueprint.add_url_rule(

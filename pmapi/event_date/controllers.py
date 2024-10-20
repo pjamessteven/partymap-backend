@@ -1,5 +1,6 @@
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
+from pmapi.event_artist.controllers import add_artists_to_date, remove_artists_from_date, update_artists_of_date
 from pmapi.event_location.schemas import ExtendedRegionSchema
 from timezonefinder import TimezoneFinder
 from datetime import datetime
@@ -14,8 +15,6 @@ from sqlalchemy.orm import with_expression, lazyload
 from collections import Counter
 from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
-import pmapi.event_artist.controllers as event_artists
-import pmapi.event.controllers as events
 import pmapi.user.controllers as users
 from pmapi.extensions import db, activity_plugin
 from pmapi.event_location.model import EventLocation
@@ -31,7 +30,6 @@ from pmapi.utils import normalize_bounds
 
 from pmapi import exceptions as exc
 
-import pmapi.suggestions.controllers as suggestions
 import pmapi.media_item.controllers as media_items
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
@@ -93,7 +91,7 @@ def get_event_date(id):
 
 
 def add_event_date_with_datetime(
-    event_id,
+    event,
     date_time,
     location,
     description=None,
@@ -105,8 +103,6 @@ def add_event_date_with_datetime(
     creator=None,
 ):
     # this function is used by the post eventdate endpoint
-    event = events.get_event_or_404(event_id)
-
     if date_time:
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
@@ -234,7 +230,7 @@ def add_event_date(
         db.session.add(activity)
 
     if artists is not None:
-        event_artists.add_artists_to_date(event_date, artists)
+        add_artists_to_date(event_date, artists)
 
     if lineup_images is not None:
         media_items.add_lineup_images_to_event_date(
@@ -242,56 +238,6 @@ def add_event_date(
 
     #    db.session.commit()
     return event_date
-
-
-def suggest_delete(id, **kwargs):
-    # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token", None)
-    event_date = get_event_date_or_404(id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-            
-    return suggestions.add_suggested_edit(
-        event_id=event_date.event_id,
-        event_date_id=id,
-        creator_id=current_user.get_id(),
-        action="delete",
-        object_type="EventDate",
-        **kwargs
-    )
-
-
-def suggest_update(id, **kwargs):
-    # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token", None)
-    event_date = get_event_date_or_404(id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        event_id=event_date.event_id,
-        event_date_id=id,
-        creator_id=current_user.get_id(),
-        action="update",
-        object_type="EventDate",
-        **kwargs
-    )
-
-
-def suggest_add(event_id, **kwargs):
-    # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token", None)
-    events.get_event_or_404(event_id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        event_id=event_id,
-        action="create",
-        object_type="EventDate",
-        creator_id=current_user.get_id(),
-        **kwargs
-    )
 
 
 def update_event_date(id, **kwargs):
@@ -415,15 +361,15 @@ def update_event_date(id, **kwargs):
         event_date.size = kwargs.pop("size")
 
     if "remove_artists" in kwargs:
-        event_artists.remove_artists_from_date(
+        remove_artists_from_date(
             event_date, kwargs.pop("remove_artists"))
 
     if "add_artists" in kwargs:
-        event_artists.add_artists_to_date(
+        add_artists_to_date(
             event_date, kwargs.pop("add_artists"))
 
     if "update_artists" in kwargs:
-        event_artists.update_artists_of_date(
+        update_artists_of_date(
             event_date, kwargs.pop("update_artists"))
 
     if "lineup_images" in kwargs:
@@ -721,10 +667,10 @@ def generateRecurringDates(rp, start, end=None):
 
 def delete_event_date(id):
     event_date = get_event_date_or_404(id)
-    event = events.get_event_or_404(event_date.event_id)
+    event = event_date.event
     # this field is useful for triggering
     # a new version of the parent event object in continuum
-    event_date.event.updated_at = datetime.utcnow()
+    event.updated_at = datetime.utcnow()
     db.session.delete(event_date)
     db.session.flush()
     activity = Activity(verb=u"delete", object=event_date,
@@ -734,9 +680,6 @@ def delete_event_date(id):
     return event
 
 
-def get_event_dates_for_event(event_id):
-    event = events.get_event_or_404(event_id)
-    return event.event_dates
 
 
 def query_event_dates(**kwargs):
@@ -1004,11 +947,13 @@ def query_event_dates(**kwargs):
 
     # filter event dates within bounds
     if bounds:
-
+        """
         normalized_bounds = normalize_bounds(bounds)
         northEast = normalized_bounds["_northEast"]
         southWest = normalized_bounds["_southWest"]
-
+        """
+        northEast = bounds["_northEast"]
+        southWest = bounds["_southWest"]
 
         # Create a PostGIS geometry from the bounding box
         bbox = func.ST_MakeEnvelope(
@@ -1017,8 +962,8 @@ def query_event_dates(**kwargs):
             4326  # SRID for WGS84
         )
 
-        # Handle antimeridian crossing
-        if southWest["lng"] > northEast["lng"]:
+        # Handle antimeridian crossing (disabled as this is better handeld on frontend)
+        if southWest["lng"] > northEast["lng"] and False:
             # Split the query into two parts
             query = query.filter(
                 or_(

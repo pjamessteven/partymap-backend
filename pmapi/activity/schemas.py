@@ -15,12 +15,12 @@ from pmapi.event.schemas import (
 )
 from pmapi.common.schemas import BlacklistedDict
 
-from pmapi.event_artist.schemas import EventDateArtistSchema, EventDateArtistVersionSchema
+from pmapi.event_artist.schemas import ArtistSchema, ArtistVersionSchema, EventDateArtistSchema, EventDateArtistVersionSchema
 from pmapi.event_date.schemas import EventDateSchema, EventDateVersionSchema
 from pmapi.event_tag.schemas import EventTagSchema, EventTagVersionSchema
 from pmapi.event.model import Event, Rrule
 from pmapi.event_date.model import EventDate
-from pmapi.event_artist.model import EventDateArtist
+from pmapi.event_artist.model import Artist, EventDateArtist
 from pmapi.event_tag.model import EventTag
 from pmapi.media_item.model import MediaItem
 from pmapi.media_item.schemas import MediaItemSchema, MediaItemVersionSchema
@@ -39,6 +39,8 @@ def schema_serialization_disambiguation(base_object, parent_obj):
         "EventTagVersion": EventTagVersionSchema,
         EventDateArtist.__name__: EventDateArtistSchema,
         "EventDateArtistVersion": EventDateArtistVersionSchema,
+        Artist.__name__: ArtistSchema,
+        "ArtistVersion": ArtistVersionSchema,
         MediaItem.__name__: MediaItemSchema,
         "MediaItemVersion": MediaItemVersionSchema,
         Rrule.__name__: RruleSchema,

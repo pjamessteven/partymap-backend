@@ -8,6 +8,9 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
 from flask_login import current_user
+from pmapi.event.controllers import get_event_or_404
+from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.suggestions.controllers import add_suggested_edit
 from .schemas import EventDateSchema, EventDateListSchema, EventDateQueryListSchema
 from pmapi.event.schemas import EventSchema
 
@@ -217,9 +220,8 @@ class EventDatesResource(MethodResource):
     )
     @marshal_with(EventSchema(), code=200)
     def post(self, event_id, **kwargs):
-        event = event_dates.add_event_date_with_datetime(
-            event_id, **kwargs, creator=current_user
-        )
+        event = get_event_or_404(event_id)
+        event = event_dates.add_event_date_with_datetime(event, **kwargs, creator=current_user)
         db.session.commit()
         return event
 
@@ -230,8 +232,8 @@ class EventDatesResource(MethodResource):
     )
     @marshal_with(EventDateSchema(many=True), code=200)
     def get(self, event_id):
-        return event_dates.get_event_dates_for_event(event_id)
-
+        event = get_event_or_404(event_id)
+        return event.event_dates
 
 event_dates_blueprint.add_url_rule(
     "/event/<event_id>",
@@ -266,8 +268,19 @@ class EventDateSuggestAddResource(MethodResource):
     )
     @marshal_with(EventDateSchema(), code=200)
     def post(self, event_id, **kwargs):
-        event_dates.suggest_add(event_id, **kwargs)
+        event = get_event_or_404(event_id)
+        # used by unpriviliged users to suggest updates to an event
+        token = kwargs.pop("hcaptcha_token", None)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
 
+        return add_suggested_edit(
+            event=event,
+            action="create",
+            object_type="EventDate",
+            creator_id=current_user.get_id(),
+            **kwargs
+        )
 
 event_dates_blueprint.add_url_rule(
     "/event/<event_id>/suggest",
@@ -289,10 +302,21 @@ class EventDateSuggestResource(MethodResource):
         }
     )
     def delete(self, id, **kwargs):
-        print(kwargs)
-        event_dates.suggest_delete(id, **kwargs)
-        return "", 204
-
+        # used by unpriviliged users to suggest updates to an event
+        token = kwargs.pop("hcaptcha_token", None)
+        event_date = event_dates.get_event_date_or_404(id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
+                
+        return add_suggested_edit(
+            event=event_date.event,
+            event_date=event_date,
+            creator_id=current_user.get_id(),
+            action="delete",
+            object_type="EventDate",
+            **kwargs
+        )
+    
     @doc(summary="Suggest an edit to an event date")
     @use_kwargs(
         {
@@ -316,8 +340,20 @@ class EventDateSuggestResource(MethodResource):
         }
     )
     def put(self, id, **kwargs):
-        event_dates.suggest_update(id, **kwargs)
-        return "", 200
+        # used by unpriviliged users to suggest updates to an event
+        token = kwargs.pop("hcaptcha_token", None)
+        event_date = event_dates.get_event_date_or_404(id)
+        if not current_user.is_authenticated:
+            validate_hcaptcha(token)
+
+        return add_suggested_edit(
+            event=event_date.event,
+            event_date=event_date,
+            creator_id=current_user.get_id(),
+            action="update",
+            object_type="EventDate",
+            **kwargs
+        )
 
 
 event_dates_blueprint.add_url_rule(

@@ -1,5 +1,6 @@
+from pmapi.event.controllers import delete_event
 from sqlalchemy import or_
-from flask_login import current_user, logout_user
+from flask_login import current_user, logout_user, login_user
 from werkzeug.security import generate_password_hash
 from sqlalchemy_continuum import transaction_class
 from .model import User, OAuth
@@ -14,18 +15,17 @@ from pmapi.mail.controllers import (
 )
 from pmapi.utils import ROLES
 from pmapi.extensions import db
-import pmapi.event.controllers as events
 from pmapi.event.model import event_page_views_table, user_event_following_table
 from pmapi.event_date.model import user_event_date_going_table, user_event_date_interested_table
 import pmapi.media_item.controllers as media_items
-from flask_login import (
-    login_user,
-)
+
 from flask import session
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import MetaData, Table, Column
 import logging
 
+from pmapi.config import BaseConfig
+from functools import wraps
 
 def get_all_users(**kwargs):
     return paginated_results(User, **kwargs)
@@ -332,7 +332,7 @@ def delete_user(user_id):
         for event in user.created_events:
             if event.host_id == user.id:
                 # only delete events that the user is the host of
-                events.delete_event(event.id)
+                delete_event(event.id)
             else:
                 # for general events ('an event I know about')
                 # dont delete them
@@ -428,3 +428,26 @@ def reset_password(token, password, password_confirm):
     login_user(user, remember=True)
 
     return user
+
+
+# wrapper function for actioning as system user
+def action_as_system_user(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try: 
+            requesting_user = get_user_or_404(current_user.id)
+            system_user = get_user_or_404(BaseConfig.SYSTEM_USER_ID)
+            login_user(system_user, force=True)
+        except Exception as e:
+            print(f"Action as system: Error retrieving users: {str(e)}")
+            raise
+        try:
+            result = func(*args, **kwargs)
+        except Exception as e:
+            print(f"Action as system: Error occurred: {str(e)}") 
+            raise
+        finally:
+            login_user(requesting_user, remember=True)
+
+        return result
+    return wrapper

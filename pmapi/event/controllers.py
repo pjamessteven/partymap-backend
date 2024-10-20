@@ -1,4 +1,6 @@
 from pmapi.common.permissions import current_user_role_is_at_least, user_role_is_at_least
+from pmapi.event_date.controllers import delete_future_event_dates, generate_future_event_dates
+
 from pmapi.utils import ROLES
 from .model import Event, Rrule, user_event_following_table, event_page_views_table
 from pmapi import exceptions as exc
@@ -10,12 +12,9 @@ from sqlalchemy import cast, or_, and_, func, select, join
 from sqlalchemy.orm import with_expression
 from pmapi.event_date.model import EventDate, EventDateTicket, user_event_date_going_table, user_event_date_interested_table
 from pmapi.user.model import User
-import pmapi.user.controllers as users
 import pmapi.event_tag.controllers as event_tags
 import pmapi.media_item.controllers as media_items
-import pmapi.event_date.controllers as event_dates
 import pmapi.event_location.controllers as event_locations
-import pmapi.suggestions.controllers as suggestions
 from pmapi.common.controllers import paginated_results
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 from pmapi.exceptions import InvalidAPIRequest
@@ -131,7 +130,7 @@ def get_event_contributors(event_id, **kwargs):
     return paginated_results(User, query=query, **kwargs)
 
 
-def search_events(**kwargs):
+def search_events(created_by_user, **kwargs):
     query = db.session.query(Event)
     if "query" in kwargs:
         query_string = kwargs.pop("query")
@@ -147,9 +146,8 @@ def search_events(**kwargs):
                 query_text, postgresql_regconfig="english")
         )
 
-    if "created_by" in kwargs:
-        user = users.get_user_or_404(kwargs.pop("created_by"))
-        query = query.filter(Event.creator_id == user.id)
+    if created_by_user:
+        query = query.filter(Event.creator_id == created_by_user.id)
 
     if "hidden" in kwargs:
         query = query.filter(Event.hidden == True)
@@ -240,7 +238,7 @@ def add_event(**kwargs):
     db.session.add(activity)
 
     # DATES
-    event_dates.generate_future_event_dates(
+    generate_future_event_dates(
         event,
         date_time,
         loc,
@@ -276,34 +274,6 @@ def add_event(**kwargs):
         )
     
     return event
-
-
-def suggest_delete(event_id, **kwargs):
-    token = kwargs.pop("hcaptcha_token", None)
-    get_event_or_404(event_id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        event_id=event_id, action="delete", object_type="Event", **kwargs
-    )
-
-
-def suggest_update(event_id, **kwargs):
-    # used by unpriviliged users to suggest updates to an event
-    token = kwargs.pop("hcaptcha_token", None)
-    get_event_or_404(event_id)
-    if not current_user.is_authenticated:
-        validate_hcaptcha(token)
-
-    return suggestions.add_suggested_edit(
-        event_id=event_id,
-        action="update",
-        creator_id=current_user.get_id(),
-        object_type="Event",
-        event_date_id=None,
-        **kwargs
-    )
 
 
 def update_event(event_id, **kwargs):
@@ -459,16 +429,16 @@ def update_event(event_id, **kwargs):
         if remove_rrule:
             # delete future event dates (not including the next one)
             # login as bot user for following action
-            event_dates.delete_future_event_dates(
+            delete_future_event_dates(
                 event, preserve_next=False, activity=False
             )
 
         if date_time and location and rrule:
-            event_dates.delete_future_event_dates(
+            delete_future_event_dates(
                 event, preserve_next=False, activity=False
             )
             print(rrule.week_of_month)
-            event_dates.generate_future_event_dates(
+            generate_future_event_dates(
                 event, date_time, rrule.default_location, rrule, activity=False
             )
 

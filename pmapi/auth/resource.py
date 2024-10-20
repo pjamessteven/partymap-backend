@@ -5,13 +5,13 @@ from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from marshmallow import fields
+from pmapi.auth.controllers import authenticate_apple_user, authenticate_user
 import pmapi.exceptions as exc
 
 import pmapi.exceptions as exc
 from pmapi.user.model import User
 from pmapi.extensions import lm, db
 from pmapi.user.schemas import PrivateUserSchema
-import pmapi.auth.controllers as auth
 
 auth_blueprint = Blueprint("auth", __name__)
 
@@ -41,7 +41,7 @@ class LoginResource(MethodResource):
     )
     @marshal_with(PrivateUserSchema(), code=200)
     def post(self, **kwargs):
-        return auth.authenticate_user(**kwargs)
+        return authenticate_user(**kwargs)
 
     @doc(
         summary="Get current user info.",
@@ -96,7 +96,7 @@ class AppleLoginResource(MethodResource):
         if id_token is None:
             raise exc.InvalidAPIRequest("Token is required")
 
-        return auth.authenticate_apple_user(id_token)
+        return authenticate_apple_user(id_token)
 
 
 auth_blueprint.add_url_rule(

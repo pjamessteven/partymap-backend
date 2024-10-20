@@ -3,8 +3,6 @@ import logging
 from celery import Celery
 from pmapi.extensions import mail
 from ffmpy import FFmpeg
-import pmapi.event_artist.controllers as artists
-import pmapi.application as application
 from flask.helpers import get_debug_flag
 from .config import DevConfig
 from .config import ProdConfig
@@ -106,8 +104,10 @@ def refresh_artist_info(artist_id):
 
     CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
+    import pmapi.application as application
     app = application.create_app(config=CONFIG)
 
     with app.app_context():
-        artists.refresh_info(artist_id)
+        from pmapi.event_artist.controllers import refresh_info
+        refresh_info(artist_id)
         db.session.close()  # close session so we don't have issues with celery workers

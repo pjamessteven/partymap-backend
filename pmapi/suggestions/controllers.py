@@ -1,3 +1,6 @@
+from pmapi.event.controllers import  update_event
+from pmapi.event_artist.controllers import delete_artist, get_artist_or_404, update_artist
+from pmapi.event_date.controllers import add_event_date_with_datetime, delete_event_date, update_event_date
 from .model import SuggestedEdit
 
 
@@ -5,22 +8,13 @@ from pmapi import exceptions as exc
 from pmapi.extensions import db, activity_plugin
 from datetime import datetime
 from flask_login import current_user, login_user
-from sqlalchemy_continuum import version_class, transaction_class
-from sqlalchemy import cast, or_, and_, func, select, join
-from sqlalchemy.orm import with_expression
-from pmapi.event_date.model import EventDate
-from pmapi.user.model import User
+
 import pmapi.user.controllers as users
-import pmapi.event_artist.controllers as artists
-import pmapi.event_tag.controllers as event_tags
-import pmapi.media_item.controllers as media_items
-import pmapi.event_date.controllers as event_dates
-import pmapi.event.controllers as events
+
 import pmapi.user.controllers as users
-import pmapi.event_location.controllers as event_locations
+
 from pmapi.common.controllers import paginated_results
-from sqlalchemy import inspect
-import pprint
+
 
 Activity = activity_plugin.activity_cls
 
@@ -56,20 +50,14 @@ def get_suggested_edits(**kwargs):
 def add_suggested_edit(
     action,
     object_type=None,
-    event_date_id=None,
-    event_id=None,
-    artist_id=None,
+    event_date=None,
+    event=None,
+    artist=None,
     **kwargs
 ):
     # check target object exists
-    if not event_id and not artist_id and not event_date_id:
+    if not event and not artist and not event_date:
         raise exc.InvalidAPIRequest("Suggestion must have a target")
-    if event_id:
-        events.get_event_or_404(event_id)
-    if event_date_id:
-        event_dates.get_event_date_or_404(event_date_id)
-    if artist_id:
-        artists.get_artist_or_404(artist_id)
 
     message = kwargs.pop("message", None)
 
@@ -78,9 +66,9 @@ def add_suggested_edit(
         creator_id = current_user.get_id()
 
     suggested_edit = SuggestedEdit(
-        event_id=event_id,
-        artist_id=artist_id,
-        event_date_id=event_date_id,
+        event_id=event.id,
+        artist_id=artist.id,
+        event_date_id=event_date.id,
         action=action,
         object_type=object_type,
         kwargs=kwargs,
@@ -96,7 +84,7 @@ def add_suggested_edit(
 def update_suggested_edit(id, **kwargs):
     print("update", kwargs)
     suggestion = get_suggested_edit_or_404(id)
-    event = events.get_event_or_404(suggestion.event_id)
+    event = suggestion.event
 
     status = kwargs.pop("status", None)
     # log out then log back in so the transaction_id is that of the suggester
@@ -117,32 +105,32 @@ def update_suggested_edit(id, **kwargs):
         if suggestion.action == "create":
             if suggestion.object_type == "EventDate":
                 # create event date
-                event_dates.add_event_date_with_datetime(
+                add_event_date_with_datetime(
                     event, **suggestion.kwargs)
 
         if suggestion.action == "update":
             if suggestion.object_type == "EventDate":
                 # update event date
-                event_dates.update_event_date(
+                update_event_date(
                     suggestion.event_date_id, **suggestion.kwargs
                 )
 
             elif suggestion.object_type == "Event":
-                events.update_event(
+                update_event(
                     suggestion.event_id, is_suggestion=True, **suggestion.kwargs
                 )
 
             elif suggestion.object_type == "Artist":
-                artists.update_artist(
+                update_artist(
                     suggestion.artist_id, **suggestion.kwargs)
 
         if suggestion.action == "delete":
             if suggestion.object_type == "EventDate":
                 # create event date
-                event_dates.delete_event_date(suggestion.event_date_id)
+                delete_event_date(suggestion.event_date_id)
 
             elif suggestion.object_type == "Artist":
-                artists.delete_artist(
+                delete_artist(
                     suggestion.artist_id, **suggestion.kwargs)
 
         suggestion.status = "approved"
