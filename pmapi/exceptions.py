@@ -143,7 +143,6 @@ class SystemError(JSONException):
     status_code = 500
     message = (
         "There was a server error completing your request."
-        " Our team has been notified will look into it."
     )
 
 

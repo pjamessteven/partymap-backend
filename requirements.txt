@@ -9,7 +9,7 @@ asn1crypto==1.4.0
 atomicwrites==1.4.1
 attrs==20.3.0
 autopep8==1.5.5
-backports.zoneinfo;python_version<"3.9"
+backports.zoneinfo==0.2.1
 billiard==4.2.0
 binaryornot==0.4.4
 black==20.8b1
@@ -43,6 +43,7 @@ Flask-Cors==3.0.9
 Flask-Dance==3.2.0
 Flask-Login==0.5.0
 Flask-Migrate==2.5.3
+Flask-RESTful==0.3.10
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.4.4
 Flask-Track-Usage @ git+https://github.com/ashcrow/flask-track-usage@baeec4d1c5decc6e3d604b722e8bb6aa7db0bc1d
@@ -56,7 +57,6 @@ idna==2.10
 importlib-metadata==4.8.1
 importlib-resources==1.5.0
 iniconfig==1.1.1
-pip-install==1.3.5
 itsdangerous==1.1.0
 Jinja2==2.11.2
 jinja2-time==0.2.0
@@ -78,6 +78,7 @@ pathspec==0.8.1
 pexpect==4.8.0
 pg8000==1.19.2
 Pillow==8.0.1
+pip-install==1.3.5
 pipenv==2020.11.15
 pluggy==0.13.1
 poyo==0.5.0
@@ -98,6 +99,7 @@ pytest==6.2.3
 pytest-flask==1.2.0
 pytest-timeout==1.4.2
 python-dateutil==2.8.2
+python-dotenv==1.0.1
 python-editor==1.0.4
 python-http-client==3.3.2
 python-magic==0.4.24
@@ -130,7 +132,8 @@ timezonefinder==4.5.0
 toml==0.10.2
 typed-ast==1.4.2
 typemallow2 @ git+https://github.com/pjamessteven/Typemallow2@cacba56d2cb432acabfc18b1cd712f43b4fcff2c
-typing-extensions==4.12.2
+typing_extensions==4.12.2
+tzdata==2024.2
 tzlocal==5.0.1
 urllib3==1.26.2
 URLObject==2.4.3
