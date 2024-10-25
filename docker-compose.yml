@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     env_file:
-      - ./.env.dev
+      - ./.env
     ports:
       - 5000:5000
     depends_on: 
@@ -29,7 +29,7 @@ services:
       context: .
     hostname: worker_1
     env_file:
-      - ./.env.dev
+      - ./.env
     entrypoint: celery
     user: '1000'
     command: -A pmapi.tasks worker --loglevel=info -Q pmapi.tasks
