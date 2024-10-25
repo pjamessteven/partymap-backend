@@ -71,7 +71,8 @@ class ProdConfig(BaseConfig):
     CELERY_BROKER_URL = "pyamqp://guest@localhost"
 
     # Uploads
-    MEDIA_UPLOAD_FOLDER = "/var/www/content.partymap.com/uploaded_media/"
+    TOP_LEVEL_DIR = os.path.abspath(os.curdir)
+    MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
     WEBSITE_URL = "https://partymap.com"
     UPLOADS_URL = "https://content.partymap.com/uploaded_media/"
 
