@@ -1,0 +1,62 @@
+version: "3"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    ports:
+      - 5000
+    depends_on: 
+      - rabbit
+      - db
+    volumes:
+      - .:/app
+      - /var/www/dev.content.partymap.com/uploaded_media:/static/uploaded_media
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:management
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=rabbitmq
+      - RABBIT_MQ_HOSTNAME=rabbit
+    ports:
+      - 5672
+      - 15672
+  worker_1:
+    build:
+      context: .
+    hostname: worker_1
+    env_file:
+      - ./.env
+    entrypoint: celery
+    user: '1000'
+    command: -A pmapi.tasks worker --loglevel=info -Q pmapi.tasks
+    volumes:
+      - .:/app
+    links:
+      - rabbit
+    depends_on:
+      - rabbit
+  db:
+    image: postgis/postgis:13-3.2-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=partymap
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=partymap
+    ports:
+        - 5432
+  test-db:
+    image: postgis/postgis:13-3.2-alpine
+    environment:
+      - POSTGRES_USER=partymap
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=partymap
+    ports:
+        - 5432
+volumes:
+  postgres_data:  

@@ -6,6 +6,10 @@ import os
 
 
 class BaseConfig(object):
+    WEBSITE_URL = os.getenv("WEBSITE_URL")
+    UPLOADS_URL = os.getenv("UPLOADS_URL")
+    LOGIN_REDIRECT_URL = os.getenv("WEBSITE_URL") + "/login"
+
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", "postgresql:///partymap")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -17,7 +21,6 @@ class BaseConfig(object):
 
     SENDGRID_DEFAULT_FROM = "noreply@partymap.com"
     SUPPORT_EMAIL = "info@partymap.com"
-    LOGIN_REDIRECT_URL = "http://localhost:8080/login"
     
     TRACK_USAGE_USE_FREEGEOIP = True
     TRACK_USAGE_INCLUDE_OR_EXCLUDE_VIEWS = "include"  # include all views
@@ -45,6 +48,8 @@ class BaseConfig(object):
     # This indicates that it's OK for Google to return different OAuth scopes than requested; Google does that sometimes.
     OAUTHLIB_RELAX_TOKEN_SCOPE = True
 
+    MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
+
 
 class DevConfig(BaseConfig):
     DEBUG = True
@@ -53,11 +58,16 @@ class DevConfig(BaseConfig):
 
     # Uploads
     TOP_LEVEL_DIR = os.path.abspath(os.curdir)
-    MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
-    WEBSITE_URL = "http://localhost:9000"
-    UPLOADS_URL = "http://localhost:5000/uploaded_media/"
 
-    LOGIN_REDIRECT_URL = "http://localhost:9000/login"
+    # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
+    OAUTHLIB_INSECURE_TRANSPORT = True
+    TRACK_USAGE_USE_FREEGEOIP = False
+
+
+class DevConfig(BaseConfig):
+    DEBUG = True
+    CELERY_BROKER_URL = "amqp://%s:%s@%s" % (os.getenv("RABBITMQ_DEFAULT_USER", ""), os.getenv(
+        "RABBITMQ_DEFAULT_PASS", ""), os.getenv("RABBIT_MQ_HOSTNAME", ""))
 
     # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
     OAUTHLIB_INSECURE_TRANSPORT = True
@@ -69,11 +79,3 @@ class ProdConfig(BaseConfig):
 
     CELERY_RESULT_BACKEND = "rpc://"
     CELERY_BROKER_URL = "pyamqp://guest@localhost"
-
-    # Uploads
-    TOP_LEVEL_DIR = os.path.abspath(os.curdir)
-    MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
-    WEBSITE_URL = "https://partymap.com"
-    UPLOADS_URL = "https://content.partymap.com/uploaded_media/"
-
-    LOGIN_REDIRECT_URL = "https://partymap.com/login"

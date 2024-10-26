@@ -161,7 +161,8 @@ _______________________________________________________________________________
 
 
 ## PROD NOTES:
-- Currently not Dockerized, configured as a systemd service
-> sudo service pmapi status, etc.
-- Celery also implemented as a systemd service
-> sudo service pmapi-tasks status
+- /var/www/content.partymap.com/uploaded_media needs to be mounted as volume to /static/uploaded_media/
+
+docker compose up -v /var/www/content.partymap.com:/static/uploaded_media
+
+- Uses uwsgi, socket file is created within container directory
