@@ -470,8 +470,12 @@ def delete_event(event_id):
         db.session.delete(media_item)
     for suggestion in event.suggestions:
         db.session.delete(suggestion)
+    for review in event.event_reviews:
+        db.session.delete(review)
     for report in event.reports:
         db.session.delete(report)
+    for ticket in event.event_tickets:
+        db.session.delete(ticket)
     if event.rrule:
         db.session.delete(event.rrule)
 
@@ -484,10 +488,20 @@ def delete_event(event_id):
     db.session.commit()
     db.session.delete(event)
 
-    # add activity
-    db.session.flush()
-    activity = Activity(verb=u"delete", object=event, target=event)
-    db.session.add(activity)
+    # delete all activity
+
+    # Query all activities where the target object is either the object or the target
+    activities = db.session.query(Activity).filter(
+        or_(
+            Activity.object == event,
+            Activity.target == event
+        )
+    ).all()
+
+    # Delete the found activities
+    for activity in activities:
+        db.session.delete(activity)
+    
 
     db.session.commit()
 
