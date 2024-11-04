@@ -50,7 +50,11 @@ class BaseConfig(object):
 
     MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
 
-
+    DIFY_URL = os.getenv("DIFY_URL")
+    DIFY_USER = os.getenv("DIFY_USER")
+    DIFY_TRANSLATE_KEY = os.getenv("DIFY_TRANSLATE_KEY")
+    DIFY_TRANSLATE_TAG_KEY = os.getenv("DIFY_TRANSLATE_TAG_KEY")
+    
 class DevConfig(BaseConfig):
     DEBUG = True
     CELERY_BROKER_URL = "amqp://%s:%s@%s" % (os.getenv("RABBITMQ_DEFAULT_USER", ""), os.getenv(

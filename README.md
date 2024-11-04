@@ -64,7 +64,7 @@ These containers are:
 > docker compose build (--no-cache option can be useful sometimes)
 
 5. Run containers 
-> docker compose up -r docker-compose.local.yml
+> docker compose -f docker-compose.local.yml up
 
 6. 
 	- If you want to your database prepopulated with events from a partymap.com snapshot

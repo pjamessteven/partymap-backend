@@ -3,7 +3,7 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask, session, render_template, request
+from flask import Flask, session, render_template, request, g, jsonify
 from flask_cors import cross_origin
 from flask.helpers import get_debug_flag
 import psycopg2
@@ -12,7 +12,6 @@ import psycopg2
 # from sqlalchemy_continuum import make_versioned
 from flask_login import current_user, AnonymousUserMixin
 from datetime import datetime
-from flask import jsonify
 from flask_migrate import Migrate
 
 from pmapi import extensions
@@ -39,8 +38,8 @@ from .config import DevConfig
 from .config import ProdConfig
 import os
 import logging
-from pmapi.utils import ROLES
-
+from pmapi.utils import ROLES, SUPPORTED_LANGUAGES
+from pmapi.scripts import update_translations
 # ONLY FOR TESTING !!
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -129,6 +128,11 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
         def static_file(path):
             return app.send_static_file(path)
 
+    @app.cli.command("update-translation")
+    def update_translation():
+        return update_translations()
+
+
     return app
 
 
@@ -145,6 +149,9 @@ def register_extensions(app):
     extensions.mail.init_app(app)
     extensions.apidocs.init_app(app)
     extensions.configure_celery(app, extensions.celery)
+    # extensions.babel.init_app(app)
+   #  extensions.babel.localeselector(get_locale)
+
     with app.app_context():
         try:
             extensions.tracker.init_app(
@@ -343,3 +350,4 @@ def handle_db_disconnect(error):
 def handle_integrity_error(original_error):
     error = RecordAlreadyExists()
     return handle_error(error, original_error)
+

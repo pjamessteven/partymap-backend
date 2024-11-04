@@ -1,13 +1,15 @@
 from datetime import datetime
 from flask import current_app
 from sqlalchemy import func, and_, Index, ForeignKeyConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, HSTORE
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_continuum import transaction_class, version_class
 from sqlalchemy import select
 from sqlalchemy.orm import query_expression
-
+from sqlalchemy_utils import TranslationHybrid
+from sqlalchemy.ext.mutable import MutableDict
+from pmapi.utils import get_locale
 from pmapi.extensions import db
 
 # from pmapi.favorite_events.model import favorites_association_table
@@ -15,6 +17,10 @@ from pmapi.event_date.model import EventDate
 
 # from pmapi.event_location.model import EventLocation
 
+translation_hybrid = TranslationHybrid(
+    current_locale=get_locale,
+    default_locale='en'
+)
 
 def create_tsvector(*args):
     # https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql
@@ -74,13 +80,20 @@ class Event(db.Model):
     # deleted = db.Column(db.Boolean, nullable=False, default=False)
 
     name = db.Column(db.Text, nullable=False)
+    name_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    name_t = translation_hybrid(name_translations)
 
     # summary
     description = db.Column(db.Text)
     description_attribute = db.Column(db.Text)
+    description_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    description_t = translation_hybrid(description_translations)
 
     full_description = db.Column(db.Text)
     full_description_attribute = db.Column(db.Text)
+    full_description_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    full_description_t = translation_hybrid(full_description_translations)
+
 
     youtube_url = db.Column(db.String)
 
