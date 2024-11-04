@@ -144,7 +144,7 @@ class EventResource(MethodResource):
 
 
 events_blueprint.add_url_rule(
-    "/<event_id>/", view_func=EventResource.as_view("EventResource")
+    "/<event_id>", view_func=EventResource.as_view("EventResource")
 )
 
 

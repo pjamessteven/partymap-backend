@@ -1,5 +1,6 @@
 from marshmallow import fields
 from marshmallow import Schema
+from sqlalchemy_utils import TranslationHybrid
 
 
 class PaginatedSchema(Schema):
@@ -32,3 +33,15 @@ class BlacklistedDict(fields.Dict):
     def _deserialize(self, value, attr, obj):
         value = super(BlacklistedDict, self)._deserialize(value, attr, obj)
         return {key: value[key] for key in value if key not in self.blacklist}
+
+class TranslationHybridField(fields.Field):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, TranslationHybrid):
+            return value.current
+        return value
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return value

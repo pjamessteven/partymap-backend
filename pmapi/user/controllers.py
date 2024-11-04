@@ -256,7 +256,7 @@ def edit_user(user_id, **kwargs):
     avatar = kwargs.pop("avatar", None)
     alias = kwargs.pop("alias", None)
     description = kwargs.pop("description", None)
-
+    locale = kwargs.pop("locale", None)
     user = get_user_or_404(user_id)
 
     if username:
@@ -315,6 +315,9 @@ def edit_user(user_id, **kwargs):
         validate.status(status)
         user.status = status
 
+    if locale:
+        user.locale = locale
+        
     db.session.commit()
     return user
 

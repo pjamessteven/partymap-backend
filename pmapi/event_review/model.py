@@ -1,10 +1,16 @@
 import math
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, HSTORE
 import uuid
-
+from sqlalchemy_utils import TranslationHybrid
+from flask_babel import get_locale
 from pmapi.extensions import db
+from sqlalchemy.ext.mutable import MutableDict
 
+translation_hybrid = TranslationHybrid(
+    current_locale=get_locale,
+    default_locale='en'
+)
 event_review_upvotes = db.Table(
     "event_review_upvotes",
     db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_event_review_upvotes_user_id')),
@@ -40,6 +46,9 @@ class EventReview(db.Model):
     rating = db.Column(db.Integer)
 
     text = db.Column(db.Text)
+    text_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    text_t = translation_hybrid(text_translations)
+
     media_items = db.relationship("MediaItem", back_populates="review")
 
     score = db.Column(db.Integer, default=0)

@@ -51,7 +51,7 @@ class User(db.Model):
     description = db.Column(db.String(1000))
     oauth = db.Column(db.Boolean, unique=False, default=False)
     one_off_auth_token = db.Column(UUID)
-
+    locale = db.Column(db.String(16))
     status = db.Column(
         ENUM("active", "disabled", "pending", name="user_status"), default="pending"
     )

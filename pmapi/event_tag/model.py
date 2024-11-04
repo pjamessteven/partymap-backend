@@ -1,12 +1,18 @@
 from datetime import datetime
 from sqlalchemy import Index, func, cast, select
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID,HSTORE
 from sqlalchemy.ext.hybrid import hybrid_property
-
+from sqlalchemy_utils import TranslationHybrid
+from sqlalchemy.ext.mutable import MutableDict
+from pmapi.utils import get_locale
 
 from pmapi.extensions import db
 
+translation_hybrid = TranslationHybrid(
+    current_locale=get_locale,
+    default_locale='en'
+)
 
 def create_tsvector(*args):
     exp = args[0]
@@ -19,6 +25,8 @@ class Tag(db.Model):
     __tablename__ = "tags"
 
     tag = db.Column(db.String(50), primary_key=True, nullable=False)
+    tag_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    tag_t = translation_hybrid(tag_translations)
     events_with_tag = db.relationship("EventTag", back_populates="tag")
     artists_with_tag = db.relationship("ArtistTag", back_populates="tag")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

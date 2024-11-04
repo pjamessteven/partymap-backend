@@ -1,12 +1,19 @@
 from datetime import datetime
 from sqlalchemy.ext.orderinglist import ordering_list
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, HSTORE
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import and_, join
 from sqlalchemy import select, func
-
+from sqlalchemy_utils import TranslationHybrid
+from sqlalchemy.ext.mutable import MutableDict
+from pmapi.utils import get_locale
 from pmapi.extensions import db
 from pmapi.event_date.model import EventDate
+
+translation_hybrid = TranslationHybrid(
+    current_locale=get_locale,
+    default_locale='en'
+)
 
 
 class Artist(db.Model):
@@ -21,9 +28,15 @@ class Artist(db.Model):
     suggestions = db.relationship("SuggestedEdit", back_populates="artist")
     artist_tags = db.relationship("ArtistTag", back_populates="artist")
     popularity = db.Column(db.Integer)
-    # artist specific stuff
+
     description = db.Column(db.Text)
+    description_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    description_t = translation_hybrid(description_translations)
+
     disambiguation = db.Column(db.Text)
+    disambiguation_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    disambiguation_t = translation_hybrid(disambiguation_translations)
+
     area = db.Column(db.Text)
     urls = db.relationship("ArtistUrl")
     media_items = db.relationship(

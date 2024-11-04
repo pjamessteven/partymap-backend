@@ -8,7 +8,7 @@ services:
     env_file:
       - ./.env
     ports:
-      - 5000
+      - 5000:5000
     depends_on: 
       - rabbit
       - db
@@ -22,8 +22,8 @@ services:
       - RABBITMQ_DEFAULT_PASS=rabbitmq
       - RABBIT_MQ_HOSTNAME=rabbit
     ports:
-      - 5672
-      - 15672
+      - 5673:5672
+      - 15672:15672
   worker_1:
     build:
       context: .
@@ -48,7 +48,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-        - 5432
+        - 5432:5432
   test-db:
     image: postgis/postgis:13-3.2-alpine
     environment:
@@ -56,6 +56,6 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-        - 5432
+        - 5433:5432
 volumes:
   postgres_data:  

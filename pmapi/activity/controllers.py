@@ -1,9 +1,10 @@
+
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.extensions import db, activity_plugin
 from pmapi.user.model import User
 from sqlalchemy_continuum import versioning_manager, version_class
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc, and_
 from sqlalchemy import inspect
 from sqlalchemy.orm import contains_eager, aliased
 from collections import defaultdict
@@ -36,6 +37,20 @@ def get_activities(user_id=None, **kwargs):
     if user_id:
         transactions_query = transactions_query.filter(Transaction.user_id == user_id)
 
+
+    transactions_query = transactions_query.filter(
+        or_(
+            and_(
+                or_(Activity.verb == 'create', Activity.verb == 'update'),
+                Activity.target_type == 'Event'
+            ),
+            and_(
+                or_(Activity.verb == 'create', Activity.verb == 'update'),
+                Activity.object_type == 'EventReview'
+            )
+        )
+    )
+    
     transactions_query = transactions_query.order_by(desc(Transaction.id))
 
     # Manual pagination
@@ -45,6 +60,7 @@ def get_activities(user_id=None, **kwargs):
 
     if page > 0:
         transactions_query = transactions_query.offset((page - 1) * per_page).limit(per_page)
+
 
     transactions = transactions_query.all()
 
@@ -67,9 +83,6 @@ def get_activities(user_id=None, **kwargs):
             "issued_at": transaction.issued_at,
             "username": transaction.username,
             "activities": activities,
-            "target_version": activities[0].target_version,
-            "target_type": activities[0].target_type,
-            "target_id": activities[0].target_id,
         })
     return CustomPagination(json_result, page, per_page, total)
 
