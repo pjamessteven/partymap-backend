@@ -3,10 +3,18 @@ from sqlalchemy.orm import query_expression
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import func, extract, select
 from sqlalchemy_continuum import version_class
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, HSTORE
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy_utils import TranslationHybrid
+from pmapi.utils import get_locale
+
 
 from pmapi.extensions import db
 
+translation_hybrid = TranslationHybrid(
+    current_locale=get_locale,
+    default_locale='en'
+)
 
 user_event_date_going_table = db.Table(
     "user_event_date_going_table",
@@ -19,7 +27,6 @@ user_event_date_interested_table = db.Table(
     db.Column("user_id", UUID, db.ForeignKey("users.id")),
     db.Column("event_date_id", db.Integer, db.ForeignKey("event_dates.id", name='fk_user_event_date_interested_table_event_date_id'))
 )
-
 
 class EventDateTicket(db.Model):
     __versioned__ = {'versioning_relations': ['event_date']}
@@ -64,7 +71,11 @@ class EventDate(db.Model):
     distance = query_expression()
     row_number = query_expression()
     artists = db.relationship("EventDateArtist", back_populates="event_date")
+
     description = db.Column(db.Text)
+    description_translations = db.Column(MutableDict.as_mutable(HSTORE))
+    description_t = translation_hybrid(description_translations)
+
     description_attribute = db.Column(db.Text)
     url = db.Column(db.String)
     tickets = db.relationship("EventDateTicket", back_populates="event_date")

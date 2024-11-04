@@ -38,3 +38,4 @@ class PrivateUserSchema(UserSchema):
     oauth = fields.Boolean()
     oauth_obj = fields.Nested(OAuth)
     last_active = fields.DateTime()
+    locale = fields.Str()

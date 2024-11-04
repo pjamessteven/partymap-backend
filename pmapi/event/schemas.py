@@ -2,6 +2,7 @@ from marshmallow import fields
 from marshmallow import Schema
 from pmapi.common.schemas import PaginatedSchema
 from typemallow2 import ts_interface
+from pmapi.common.schemas import TranslationHybridField
 
 # from pmapi.media_item.schemas import MediaItemSchema
 
@@ -14,9 +15,11 @@ class EventSchema(Schema):
     host = fields.Nested("UserSchema", only=["username"])
     created_at = fields.DateTime()
     updated_at = fields.DateTime()
-    description = fields.Str()
+    description = fields.String()
+    description_t = TranslationHybridField()
     description_attribute = fields.Str()
     full_description = fields.Str()
+    full_description_t = TranslationHybridField()
     full_description_attribute = fields.Str()
     youtube_url = fields.Str()
     tz = fields.Str()
