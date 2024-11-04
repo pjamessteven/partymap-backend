@@ -4,6 +4,7 @@ from pmapi.config import BaseConfig
 import requests
 from flask import request, g
 
+
 ROLES = {"UNPRIVILIGED_USER": 0, "HOST": 10, "STAFF": 20, "ADMIN": 30}
 
 ACCOUNT_STATUSES = ["active", "disabled", "pending"]
