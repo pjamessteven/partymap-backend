@@ -2,6 +2,7 @@ import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from pmapi.event_artist.controllers import add_artists_to_date, remove_artists_from_date, update_artists_of_date
 from pmapi.event_location.schemas import ExtendedRegionSchema
+from pmapi.tasks import update_translation_field
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
@@ -236,7 +237,9 @@ def add_event_date(
         media_items.add_lineup_images_to_event_date(
             lineup_images, event, event_date)
 
-    #    db.session.commit()
+
+    update_translation_field.delay(event_date, 'description_translations', event_date.description)
+
     return event_date
 
 
@@ -333,6 +336,7 @@ def update_event_date(id, **kwargs):
 
     if "description" in kwargs:
         event_date.description = kwargs.pop("description", None)
+        update_translation_field.delay(event_date, 'description_translations', event_date.description)
 
     if "description_attribute" in kwargs:
         event_date.description_attribute = kwargs.pop(

@@ -1,6 +1,7 @@
 from pmapi.common.permissions import current_user_role_is_at_least, user_role_is_at_least
 from pmapi.event_date.controllers import delete_future_event_dates, generate_future_event_dates
 
+from pmapi.tasks import update_translation_field
 from pmapi.utils import ROLES
 from .model import Event, Rrule, user_event_following_table, event_page_views_table
 from pmapi import exceptions as exc
@@ -267,6 +268,9 @@ def add_event(**kwargs):
             
     db.session.commit()
 
+    update_translation_field.delay(event, 'description_translations', event.description)
+    update_translation_field.delay(event, 'full_description_translations', event.full_description)
+
     # send notification
     if creator.role < 30:
         send_new_event_notification(
@@ -450,6 +454,9 @@ def update_event(event_id, **kwargs):
 
     db.session.commit()
     # login_user(requesting_user, force=True, remember=True)
+
+    update_translation_field.delay(event, 'description_translations', event.description)
+    update_translation_field.delay(event, 'full_description_translations', event.full_description)
 
     return event
 

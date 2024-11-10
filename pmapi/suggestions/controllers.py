@@ -66,9 +66,9 @@ def add_suggested_edit(
         creator_id = current_user.get_id()
 
     suggested_edit = SuggestedEdit(
-        event_id=event.id,
-        artist_id=artist.id,
-        event_date_id=event_date.id,
+        event_id=getattr(event, 'id', None),
+        artist_id=getattr(artist, 'id', None), 
+        event_date_id=getattr(event_date, 'id', None),
         action=action,
         object_type=object_type,
         kwargs=kwargs,

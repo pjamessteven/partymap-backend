@@ -397,62 +397,77 @@ def save_artist_image_from_wikimedia_url(url, artist):
         )
 
 
-def get_artist_details_from_music_brainz(mbid):
-    try:
-        response = requests.get(
-            url="https://musicbrainz.org/ws/2/artist/"
-            + mbid
-            + "?inc=url-rels&fmt=json",
-            headers={"Accept": "application/json"},
-            timeout=TIMEOUT,
-        )
-    except RequestException as e:
-        logging.error(
-            "event_artist.get_artist_details_from_music_brainz.request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
-        )
+def get_artist_details_from_music_brainz(mbid, attempt=5):
+    if attempt > 0:
+        # wait  (musicbrainz api limited to one req/sec)
+        try:
+            response = requests.get(
+                url="https://musicbrainz.org/ws/2/artist/"
+                + mbid
+                + "?inc=url-rels&fmt=json",
+                headers={"Accept": "application/json"},
+                timeout=TIMEOUT,
+            )
+        except RequestException as e:
+            logging.error(
+                "event_artist.get_artist_details_from_music_brainz.request_error",
+                status_code=response.status_code,
+                error_body="", 
+                exception=e,
+            )
 
-    if response.status_code != 200:
-        # wait and try again (musicbrainz api limited to one req/sec)
-        time.sleep(1)
-        return get_artist_details_from_music_brainz(mbid)
-    return response.json()
-
-
-def get_artist_details_from_last_fm(mbid):
-    url = (
-        "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&api_key="
-        + BaseConfig.LAST_FM_API_KEY
-        + "&mbid="
-        + mbid
-        + "&format=json"
+        if response.status_code != 200:
+            time.sleep(2)
+            return get_artist_details_from_music_brainz(mbid, attempt-1)
+        return response.json()
+    
+    logging.error(
+        "event_artist.get_artist_details_from_music_brainz.max_retries_reached",
+        status_code=response.status_code,
+        error_body="max retries reached for getting artist details " + mbid, 
+        exception=e,
     )
-    try:
-        response = requests.get(
-            url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
+
+def get_artist_details_from_last_fm(mbid, retries=5):
+    if retries > 0:
+        url = (
+            "http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&api_key="
+            + BaseConfig.LAST_FM_API_KEY
+            + "&mbid="
+            + mbid
+            + "&format=json"
         )
-    except RequestException as e:
-        logging.error(
-            "event_artist.get_artist_details_from_last_fm.request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
-        )
+        try:
+            response = requests.get(
+                url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
+            )
+        except RequestException as e:
+            logging.error(
+                "event_artist.get_artist_details_from_last_fm.request_error",
+                status_code="",
+                error_body=response.status_code,  # TODO: proper status code here
+                exception=e,
+            )
 
-    if response.status_code != 200:
-        # wait and try again (last.fm api limited to one req/sec)
-        time.sleep(1)
-        return get_artist_details_from_last_fm(mbid)
+        if response.status_code != 200:
+            # wait and try again (last.fm api limited to one req/sec)
+            time.sleep(2)
+            return get_artist_details_from_last_fm(mbid, retries-1)
 
-    response = response.json()
-    bio = response.get("artist", {}).get("bio", {}).get("content", None)
-    tags = []
-    for tag in response.get("artist", {}).get("tags", {}).get("tag", []):
-        tags.append(tag.get("name"))
+        response = response.json()
+        bio = response.get("artist", {}).get("bio", {}).get("content", None)
+        tags = []
+        for tag in response.get("artist", {}).get("tags", {}).get("tag", []):
+            tags.append(tag.get("name"))
 
-    return bio, tags
+        return bio, tags
+    
+    logging.error(
+        "event_artist.get_artist_details_from_music_brainz.max_retries_reached",
+        status_code=response.status_code,
+        error_body="max retries reached for getting artist details " + mbid, 
+        exception=e,
+    )
 
 
 def refresh_spotify_data_for_artist(artist):
@@ -835,13 +850,13 @@ def refresh_info(id):
             area = area.get("name", None)
 
         # update artist
-        artist.disambiguation = musicbrainz_response["disambiguation"]
+        artist.disambiguation =  musicbrainz_response.get("disambiguation", None)
         artist.description = lastfm_bio
         artist.area = area
         if lastfm_tags and len(lastfm_tags) > 0:
             add_tags_to_artist(lastfm_tags, artist, False)
 
-        if musicbrainz_response["relations"]:
+        if musicbrainz_response.get("relations", None):
             add_musicbrainz_urls_to_artist(
                 musicbrainz_response["relations"], artist)
 
@@ -861,5 +876,9 @@ def refresh_info(id):
         get_artist_image_from_deezer(artist)
 
     db.session.commit()
+    if (artist.disambiguation):
+        tasks.update_translation_field.delay(artist, 'disambiguation_translations', artist.disambiguation)
+    if (artist.description):
+        tasks.update_translation_field.delay(artist, 'description_translations', artist.description)
 
     return artist

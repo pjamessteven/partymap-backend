@@ -29,7 +29,7 @@ class EventDateSchema(Schema):
     location_id = fields.Str()
     event = fields.Nested(
         "EventSchema",
-        only=["event_tags", "cover_items", "host", "rrule", "description"],
+        only=["event_tags", "cover_items", "host", "rrule", "description", "description_t"],
     )
     media_items = fields.Nested("MediaItemSchema", many=True)
     description = fields.Str()

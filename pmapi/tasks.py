@@ -1,3 +1,4 @@
+from datetime import time
 from flask.helpers import get_debug_flag
 import logging
 from celery import Celery
@@ -8,6 +9,7 @@ from .config import DevConfig
 from .config import ProdConfig
 from requests.exceptions import RequestException
 from pmapi.extensions import db
+from pmapi.utils import SUPPORTED_LANGUAGES, get_translation
 
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
@@ -17,20 +19,6 @@ celery = Celery(
     backend=CONFIG.CELERY_RESULT_BACKEND,
     broker=CONFIG.CELERY_BROKER_URL,
 )
-
-
-def configure_celery(app, celery):
-
-    celery.conf.update(app.config)
-
-    class ContextTask(celery.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-
-    celery.Task = ContextTask
-    return celery
-
 
 @celery.task(ignore_result=True)
 def background_send_mail(
@@ -97,17 +85,30 @@ def get_video_thumbnail(
 
 
 @celery.task(
-    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="1/s"
+    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def refresh_artist_info(artist_id):
-    DEV_ENVIRON = get_debug_flag()
+    from pmapi.event_artist.controllers import refresh_info
+    refresh_info(artist_id)
+    db.session.close()  # close session so we don't have issues with celery workers
 
-    CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+@celery.task(
+    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+)
+def update_translation_field(obj, translation_field_name, input_text, onlyMissing=True):
 
-    import pmapi.application as application
-    app = application.create_app(config=CONFIG)
+    translation_field = obj.getattr(translation_field_name)
+    if translation_field is None:
+        translation_field = {}
+        setattr(obj, translation_field_name, translation_field)
 
-    with app.app_context():
-        from pmapi.event_artist.controllers import refresh_info
-        refresh_info(artist_id)
-        db.session.close()  # close session so we don't have issues with celery workers
+    for lang in SUPPORTED_LANGUAGES:
+        if not onlyMissing or lang not in translation_field:
+            translation_field[lang] = get_translation(input_text, lang, CONFIG.DIFY_TRANSLATE_TAG_KEY)
+            time.sleep(1.5)
+    print('updated translation field for ' + obj.__name__ + ' (id: ' + obj.get('id', None))
+    print(translation_field)
+
+    db.session.commit()
+    db.session.close()
+    return translation_field
