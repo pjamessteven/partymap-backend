@@ -1,10 +1,9 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.8-bullseye
+FROM python:3.10-bullseye
 
 # install system dependencies (I think the PIL python library requires all this qt5 shit)
 RUN pip install --upgrade pip
-RUN pip install uwsgi
 RUN apt update && apt install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools pyqt5-dev postgresql ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

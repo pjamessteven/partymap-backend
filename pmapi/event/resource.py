@@ -162,11 +162,11 @@ class EventSuggestEditResource(MethodResource):
     )
     def delete(self, event_id, **kwargs):
         token = kwargs.pop("hcaptcha_token", None)
-        events.get_event_or_404(event_id)
+        event = events.get_event_or_404(event_id)
         if not current_user.is_authenticated:
             validate_hcaptcha(token)
         return add_suggested_edit(
-            event_id=event_id, action="delete", object_type="Event", **kwargs
+            event=event, action="delete", object_type="Event", **kwargs
         )
 
     @doc(summary="Suggest an edit to an event")
@@ -196,16 +196,15 @@ class EventSuggestEditResource(MethodResource):
     def put(self, event_id, **kwargs):
         # used by unpriviliged users to suggest updates to an event
         token = kwargs.pop("hcaptcha_token", None)
-        events.get_event_or_404(event_id)
+        event = events.get_event_or_404(event_id)
         if not current_user.is_authenticated:
             validate_hcaptcha(token)
 
         return add_suggested_edit(
-            event_id=event_id,
+            event=event,
             action="update",
             creator_id=current_user.get_id(),
             object_type="Event",
-            event_date_id=None,
             **kwargs
         )
 

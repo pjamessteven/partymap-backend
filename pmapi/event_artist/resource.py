@@ -92,7 +92,7 @@ class ArtistSuggestResource(MethodResource):
 
         return add_suggested_edit(
             action="delete",
-            artist_id=artist,
+            artist=artist,
             creator_id=current_user.get_id(),
             object_type="Artist",
         )

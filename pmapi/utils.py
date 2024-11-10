@@ -1,3 +1,4 @@
+from datetime import time
 import random
 import string
 from pmapi.config import BaseConfig
@@ -49,6 +50,14 @@ def get_locale():
     return request.accept_languages.best_match(SUPPORTED_LANGUAGES)
 
 
+def get_translation_for_all_languages(text, target_translation_dict):
+    for lang in SUPPORTED_LANGUAGES:
+        if lang not in target_translation_dict:
+            target_translation_dict[lang] = get_translation(text, lang, BaseConfig.DIFY_TRANSLATE_TAG_KEY)
+            time.sleep(1.5)
+    print('translation complete:', target_translation_dict)
+    return target_translation_dict
+
 def get_translation(text, target_lang, workflow_key):
     url = f'{BaseConfig.DIFY_URL}/workflows/run'
     
@@ -68,7 +77,8 @@ def get_translation(text, target_lang, workflow_key):
         response.raise_for_status()  # Raise an exception for bad status codes
         json =  response.json()
         text = json['data']['outputs']['text']
-        if 'TEXT_IN_TARGET_LANG' in text:
+        if 'TRANSLATION_ERROR' in text:
+            print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang, + ') ' + text)
             return None 
         return text
     
