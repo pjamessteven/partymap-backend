@@ -23,12 +23,11 @@ from pmapi.config import BaseConfig
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 from pmapi.common.controllers import paginated_results
-import pmapi.tasks as tasks
+from pmapi.tasks import refresh_artist_info, update_artist_translation
 
 Activity = activity_plugin.activity_cls
 
 TIMEOUT = 5
-
 
 def get_artist_or_404(id):
     artist = get_artist(id)
@@ -277,7 +276,7 @@ def add_artist(name, mbid=None):
     )
     db.session.add(artist)
     db.session.flush()
-    tasks.refresh_artist_info.delay(artist.id)
+    refresh_artist_info.delay(artist.id)
 
     return artist
 
@@ -304,7 +303,7 @@ def add_artist_to_date(
                 # update existing artist with mbid
                 artist.mbid = mbid
                 db.session.flush()
-                tasks.refresh_artist_info.delay(artist.id)
+                refresh_artist_info.delay(artist.id)
 
     elif id:
         artist = get_artist_by_id(id)
@@ -876,9 +875,7 @@ def refresh_info(id):
         get_artist_image_from_deezer(artist)
 
     db.session.commit()
-    if (artist.disambiguation):
-        tasks.update_translation_field.delay(artist, 'disambiguation_translations', artist.disambiguation)
-    if (artist.description):
-        tasks.update_translation_field.delay(artist, 'description_translations', artist.description)
+
+    update_artist_translation.delay(artist.id)
 
     return artist

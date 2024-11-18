@@ -4,7 +4,6 @@ config.py
 """
 import os
 
-
 class BaseConfig(object):
     WEBSITE_URL = os.getenv("WEBSITE_URL")
     UPLOADS_URL = os.getenv("UPLOADS_URL")
@@ -15,8 +14,7 @@ class BaseConfig(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # used for encryption and session management
     SECRET_KEY = os.getenv("SECRET_KEY")
-    CELERY_RESULT_BACKEND = "rpc://"
-    CELERY_BROKER_URL = "pyamqp://guest@localhost"
+
     TOP_LEVEL_DIR = os.path.abspath(os.curdir)
 
     SENDGRID_DEFAULT_FROM = "noreply@partymap.com"
@@ -57,21 +55,6 @@ class BaseConfig(object):
     
 class DevConfig(BaseConfig):
     DEBUG = True
-    CELERY_BROKER_URL = "amqp://%s:%s@%s" % (os.getenv("RABBITMQ_DEFAULT_USER", ""), os.getenv(
-        "RABBITMQ_DEFAULT_PASS", ""), os.getenv("RABBIT_MQ_HOSTNAME", ""))
-
-    # Uploads
-    TOP_LEVEL_DIR = os.path.abspath(os.curdir)
-
-    # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
-    OAUTHLIB_INSECURE_TRANSPORT = True
-    TRACK_USAGE_USE_FREEGEOIP = False
-
-
-class DevConfig(BaseConfig):
-    DEBUG = True
-    CELERY_BROKER_URL = "amqp://%s:%s@%s" % (os.getenv("RABBITMQ_DEFAULT_USER", ""), os.getenv(
-        "RABBITMQ_DEFAULT_PASS", ""), os.getenv("RABBIT_MQ_HOSTNAME", ""))
 
     # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
     OAUTHLIB_INSECURE_TRANSPORT = True
@@ -80,6 +63,3 @@ class DevConfig(BaseConfig):
 
 class ProdConfig(BaseConfig):
     DEBUG = False
-
-    CELERY_RESULT_BACKEND = "rpc://"
-    CELERY_BROKER_URL = "pyamqp://guest@localhost"

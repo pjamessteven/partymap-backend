@@ -1,8 +1,12 @@
-from datetime import time
+import time
+import os
 from flask.helpers import get_debug_flag
 import logging
-from celery import Celery
-from pmapi.extensions import mail
+from pmapi.event.model import Event
+from pmapi.event_artist.model import Artist
+from pmapi.event_date.model import EventDate
+from pmapi.event_review.model import EventReview
+from pmapi.extensions import configure_celery, mail, celery
 from ffmpy import FFmpeg
 from flask.helpers import get_debug_flag
 from .config import DevConfig
@@ -14,11 +18,18 @@ from pmapi.utils import SUPPORTED_LANGUAGES, get_translation
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
-celery = Celery(
-    __name__,
-    backend=CONFIG.CELERY_RESULT_BACKEND,
-    broker=CONFIG.CELERY_BROKER_URL,
-)
+def _create_app():
+    from pmapi.application import create_app
+    return create_app(config=CONFIG)
+
+class SqlAlchemyTask(celery.Task):
+    """An abstract Celery Task that ensures that the connection the the
+    database is closed on task completion"""
+    abstract = True
+
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        db.session.remove()
+
 
 @celery.task(ignore_result=True)
 def background_send_mail(
@@ -84,31 +95,65 @@ def get_video_thumbnail(
     ff.run()
 
 
-@celery.task(
-    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def refresh_artist_info(artist_id):
-    from pmapi.event_artist.controllers import refresh_info
-    refresh_info(artist_id)
-    db.session.close()  # close session so we don't have issues with celery workers
+    app = _create_app()
+    with app.app_context():
+        from pmapi.event_artist.controllers import refresh_info
+        refresh_info(artist_id)
 
-@celery.task(
-    autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+
+@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
-def update_translation_field(obj, translation_field_name, input_text, onlyMissing=True):
+def update_event_translation(event_id):
+    app = _create_app()
+    with app.app_context():
+        event = db.session.query(Event).filter(Event.id == event_id).first()
+        event.description_translations = update_translation_field(event.description_translations, event.description)
+        event.full_description_translations = update_translation_field(event.full_description_translations, event.full_description)
+        db.session.commit()
 
-    translation_field = obj.getattr(translation_field_name)
+@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+)
+def update_event_date_translation(id):
+    app = _create_app()
+    with app.app_context():
+        event_date = db.session.query(EventDate).filter(EventDate.id == id).first()
+        event_date.description_translations = update_translation_field(event_date.description_translations, event_date.description)
+
+        db.session.commit()
+
+@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+)
+def update_artist_translation(id):
+    app = _create_app()
+    with app.app_context():
+        artist = db.session.query(Artist).filter(Artist.id == id).first()
+        if (artist.disambiguation):
+            artist.description_translations = update_translation_field(artist.disambiguation_translations, artist.disambiguation)
+        if (artist.description):
+            artist.description_translations = update_translation_field(artist.description_translations, artist.description)
+        db.session.commit()
+
+
+@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+)
+def update_review_translation(id):
+    app = _create_app()
+    with app.app_context():
+        review = db.session.query(EventReview).filter(EventReview.id == id).first()
+        review.text_translations = update_translation_field(review.text_translations, review.text)
+        db.session.commit()
+
+
+def update_translation_field(translation_field, input_text, onlyMissing=False):
     if translation_field is None:
         translation_field = {}
-        setattr(obj, translation_field_name, translation_field)
 
     for lang in SUPPORTED_LANGUAGES:
         if not onlyMissing or lang not in translation_field:
-            translation_field[lang] = get_translation(input_text, lang, CONFIG.DIFY_TRANSLATE_TAG_KEY)
+            translation_field[lang] = get_translation(input_text, lang, CONFIG.DIFY_TRANSLATE_KEY)
             time.sleep(1.5)
-    print('updated translation field for ' + obj.__name__ + ' (id: ' + obj.get('id', None))
-    print(translation_field)
-
-    db.session.commit()
-    db.session.close()
+            
     return translation_field

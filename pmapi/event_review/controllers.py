@@ -1,5 +1,5 @@
 from flask_login import current_user
-from pmapi.tasks import update_translation_field
+from pmapi.tasks import update_review_translation, update_translation_field
 from sqlalchemy import delete
 from sqlalchemy_continuum import version_class
 from .model import EventReview, event_review_downvotes, event_review_upvotes
@@ -83,6 +83,6 @@ def add_review(event_id, creator=current_user, **kwargs):
     db.session.add(activity)
 
     db.session.commit()
-    update_translation_field.delay(review, 'text_translations', review.text)
+    update_review_translation.delay(review.id)
 
     return review

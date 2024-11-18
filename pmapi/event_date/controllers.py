@@ -2,7 +2,6 @@ import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from pmapi.event_artist.controllers import add_artists_to_date, remove_artists_from_date, update_artists_of_date
 from pmapi.event_location.schemas import ExtendedRegionSchema
-from pmapi.tasks import update_translation_field
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
@@ -135,6 +134,10 @@ def add_event_date_with_datetime(
             artists=artists,
         )
         db.session.commit()
+        
+        from pmapi.tasks import update_event_date_translation
+        update_event_date_translation.delay(event_date.id)
+
         return event
 
     else:
@@ -237,9 +240,7 @@ def add_event_date(
         media_items.add_lineup_images_to_event_date(
             lineup_images, event, event_date)
 
-
-    update_translation_field.delay(event_date, 'description_translations', event_date.description)
-
+    
     return event_date
 
 
@@ -336,7 +337,6 @@ def update_event_date(id, **kwargs):
 
     if "description" in kwargs:
         event_date.description = kwargs.pop("description", None)
-        update_translation_field.delay(event_date, 'description_translations', event_date.description)
 
     if "description_attribute" in kwargs:
         event_date.description_attribute = kwargs.pop(
@@ -394,6 +394,10 @@ def update_event_date(id, **kwargs):
     db.session.add(activity)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
     db.session.commit()
+    
+    if "description" in kwargs:
+        update_event_date_translation.delay(event_date.id)
+
     return event_date
 
 
@@ -798,7 +802,8 @@ def query_event_dates(**kwargs):
             going_expression,
         ))
 
-    joined_tables = [mapper.class_ for mapper in query._join_entities]
+
+    joined_tables = [entity.entity for entity in query._compile_state()._join_entities]
 
     if EventLocation not in joined_tables:
         query = query.join(EventLocation)

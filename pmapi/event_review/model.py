@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID, HSTORE
 import uuid
 from sqlalchemy_utils import TranslationHybrid
-from flask_babel import get_locale
+from pmapi.utils import get_locale
 from pmapi.extensions import db
 from sqlalchemy.ext.mutable import MutableDict
 
