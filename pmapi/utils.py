@@ -71,14 +71,14 @@ def get_translation(text, target_lang, workflow_key):
         'Authorization': 'Bearer ' + workflow_key
     }
 
-    
     try:
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         json =  response.json()
         text = json['data']['outputs']['text']
+        print('text', json, text)
         if 'TRANSLATION_ERROR' in text:
-            print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang, + ') ' + text)
+            print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
             return None 
         return text
     

@@ -24,25 +24,24 @@ mail = Mailer()
 apidocs = FlaskApiSpec()
 tracker = TrackUsage()
 celery = Celery(
-    __name__,
-    backend=BaseConfig.CELERY_RESULT_BACKEND,
-    broker=BaseConfig.CELERY_BROKER_URL,
+    __name__
 )
 engine = create_engine(BaseConfig.SQLALCHEMY_DATABASE_URI)
 Session = sessionmaker(engine)  # import when you want to manually create a session
-
 babel = Babel()
 
+
 def configure_celery(app, celery):
+    celery.config_from_object('celeryconfig')
 
-    celery.conf.update(app.config)
-
+    # make sure each celery task is run with app context
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
             with app.app_context():
                 return self.run(*args, **kwargs)
 
     celery.Task = ContextTask
+
     return celery
 
 

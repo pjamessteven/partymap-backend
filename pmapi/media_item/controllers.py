@@ -19,7 +19,7 @@ from .model import MediaItem
 from pmapi.extensions import db, activity_plugin
 from pmapi import exceptions as exc
 import pmapi.activity.controllers as activities
-import pmapi.tasks as tasks
+from pmapi.tasks import get_video_thumbnail, run_video_conversion
 
 Activity = activity_plugin.activity_cls
 
@@ -463,7 +463,7 @@ def save_media_item(file, path):
         thumb_width, thumb_height = get_new_video_dimensions(
             width, height, max_width=512, max_height=512
         )
-        tasks.get_video_thumbnail(
+        get_video_thumbnail(
             input_filepath=filepath,
             thumb_out_filepath=os.path.join(path, thumb_filename),
             poster_out_filepath=os.path.join(path, video_poster_filename),
@@ -477,7 +477,7 @@ def save_media_item(file, path):
         )
         video_low_filename = unique_filename + "_v_low" + file_extension
 
-        tasks.run_video_conversion.delay(
+        run_video_conversion.delay(
             input_filepath=filepath,
             output_filepath=os.path.join(path, video_low_filename),
             min_bitrate=400,
@@ -493,7 +493,7 @@ def save_media_item(file, path):
             )
             video_med_filename = unique_filename + "_v_med" + file_extension
 
-            tasks.run_video_conversion.delay(
+            run_video_conversion.delay(
                 input_filepath=filepath,
                 output_filepath=os.path.join(path, video_med_filename),
                 min_bitrate=600,

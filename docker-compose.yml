@@ -32,7 +32,7 @@ services:
       - ./.env
     entrypoint: celery
     user: '1000'
-    command: -A pmapi.tasks worker --loglevel=info -Q pmapi.tasks
+    command: -A pmapi.worker.celery worker --loglevel=info
     volumes:
       - .:/app
     links:
