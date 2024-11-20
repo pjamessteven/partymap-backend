@@ -88,8 +88,8 @@ class EventDateListSchema(PaginatedSchema):
 
 
 class EventDateQueryListSchema(PaginatedSchema):
-    items = fields.List(fields.Tuple(
-        (fields.Nested("MiniEventDateSchema"), fields.Str())))
+    items = fields.List(
+        (fields.Nested("MiniEventDateSchema")))
     radius = fields.Integer()
     top_artists = fields.Nested("MinimalEventDateArtistSchema", many=True)
     top_tags = fields.Nested("EventTagSchema", many=True)

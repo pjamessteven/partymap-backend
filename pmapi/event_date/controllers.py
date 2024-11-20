@@ -11,7 +11,8 @@ from icalendar import Calendar as icalendarCalendar, Event as icalendarEvent, vC
 
 from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_, asc, distinct
-from sqlalchemy.orm import with_expression, lazyload
+from sqlalchemy.orm import with_expression, aliased
+
 from collections import Counter
 from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
@@ -21,6 +22,7 @@ from pmapi.event_location.model import EventLocation
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
 from pmapi.event_date.model import EventDateTicket
+from pmapi.tasks import update_event_date_translation
 
 from pmapi.event.model import Event, user_event_following_table
 
@@ -134,8 +136,7 @@ def add_event_date_with_datetime(
             artists=artists,
         )
         db.session.commit()
-        
-        from pmapi.tasks import update_event_date_translation
+
         update_event_date_translation.delay(event_date.id)
 
         return event
@@ -687,9 +688,446 @@ def delete_event_date(id):
     db.session.commit()
     return event
 
+"""
+def query_event_dates(**kwargs):
+
+    # Base query
+    query = db.session.query(EventDate).join(Event, EventDate.event_id == Event.id)
+    location_filters = kwargs.get("location", None)
+    bounds = kwargs.get("bounds", None)
+    lat, lng = None, None
+    radius = kwargs.get("radius", None)
+    sort_option = kwargs.get("sort_option", None)
+
+    distance_expression = None
+    
+    # Distance filter if location is provided
+    if location_filters:
+        lat = float(location_filters["lat"])
+        lng = float(location_filters["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        distance_expression = func.ST_Distance(
+            cast(EventLocation.geo, Geography(srid=4326)),
+            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+        )
+
+        query = (
+            query.join(EventLocation, EventDate.location_id == EventLocation.id)
+                 .add_columns(distance_expression.label("distance"))
+        )
+
+        # Apply radius filter
+        if radius:
+            query = query.filter(distance_expression <= radius)
+
+    elif bounds:
+        # Bounds filter
+        northEast = bounds["_northEast"]
+        southWest = bounds["_southWest"]
+
+        bbox = func.ST_MakeEnvelope(
+            southWest["lng"], southWest["lat"], northEast["lng"], northEast["lat"], 4326
+        )
+
+        query = query.join(EventLocation, EventDate.location_id == EventLocation.id)
+        query = query.filter(func.ST_Intersects(EventLocation.geo, bbox))
+
+    # User-related filters
+    if current_user.is_authenticated:
+        query = query.options(
+            with_expression(
+                EventDate.user_interested,
+                db.session.query(user_event_date_interested_table)
+                    .filter(
+                        user_event_date_interested_table.c.user_id == current_user.id,
+                        user_event_date_interested_table.c.event_date_id == EventDate.id,
+                    )
+                    .exists(),
+            ),
+            with_expression(
+                EventDate.user_going,
+                db.session.query(user_event_date_going_table)
+                    .filter(
+                        user_event_date_going_table.c.user_id == current_user.id,
+                        user_event_date_going_table.c.event_date_id == EventDate.id,
+                    )
+                    .exists(),
+            ),
+        )
+
+    # Date filters
+    if date_min := kwargs.get("date_min"):
+        query = query.filter(EventDate.end >= date_min)
+    if date_max := kwargs.get("date_max"):
+        query = query.filter(
+            and_(
+                or_(EventDate.end <= date_max, EventDate.end.is_(None)),
+                EventDate.start <= date_max,
+            )
+        )
+
+    # Tag filters
+    if tags := kwargs.get("tags"):
+        query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
+
+
+    # Sort and distinct logic
+    if kwargs.get("distinct"):
+        row_number_column = func.row_number().over(
+            partition_by=EventDate.event_id, order_by=EventDate.start.asc()
+        ).label("row_number")
+        subquery = query.add_column(row_number_column).add_column(distance_expression).subquery()
+        query = db.session.query(aliased(EventDate, subquery)).filter(subquery.c.row_number == 1)
+    print(query.all())
+
+    if sort_option == "distance" and distance_expression:
+        query = query.order_by(func.coalesce(subquery.c.distance, 0).asc(), EventDate.start.asc())
+    else:
+        query = query.order_by(EventDate.start.asc())
+
+
+    # Paginate results
+    results = paginated_results(EventDate, query, **kwargs)
+
+    # Enrich first page with top artists/tags/regions
+    if kwargs.get("page", 1) == 1:
+        enrich_results_with_top_entities(results, query)
+
+    return results
+"""
+"""
+mostly working just not distance query expresssion
+def query_event_dates(**kwargs):
+    # Base query
+    query = db.session.query(EventDate).join(Event, EventDate.event_id == Event.id)
+    location_filters = kwargs.get("location", None)
+    bounds = kwargs.get("bounds", None)
+    lat, lng = None, None
+    radius = kwargs.get("radius", None)
+    sort_option = kwargs.get("sort_option", None)
+    # Create an alias for EventDate that we'll use throughout
+    EventDateAlias = aliased(EventDate)
+    EventDateSubAlias = None
+    query = db.session.query(EventDateAlias)
+    
+    # Distance filter if location is provided
+    if location_filters:
+        lat = float(location_filters["lat"])
+        lng = float(location_filters["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        distance_expression = func.ST_Distance(
+            cast(EventLocation.geo, Geography(srid=4326)),
+            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+        )
+
+        query = (
+            query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+            .join(Event, EventDateAlias.event_id == Event.id)
+            .options(with_expression(EventDateAlias.distance, distance_expression))
+        )
+
+        # Apply radius filter
+        if radius:
+            query = query.filter(distance_expression <= radius)
+
+    if bounds:
+
+        # Bounds filter
+        northEast = bounds["_northEast"]
+        southWest = bounds["_southWest"]
+
+        bbox = func.ST_MakeEnvelope(
+            southWest["lng"], southWest["lat"], northEast["lng"], northEast["lat"], 4326
+        )
+
+        query = (
+            query
+            .filter(func.ST_Intersects(EventLocation.geo, bbox))
+        )
+
+    # User-related filters
+    if current_user.is_authenticated:
+        query = query.options(
+            with_expression(
+                EventDateAlias.user_interested,
+                db.session.query(user_event_date_interested_table)
+                    .filter(
+                        user_event_date_interested_table.c.user_id == current_user.id,
+                        user_event_date_interested_table.c.event_date_id == EventDateAlias.id,
+                    )
+                    .exists(),
+            ),
+            with_expression(
+                EventDateAlias.user_going,
+                db.session.query(user_event_date_going_table)
+                    .filter(
+                        user_event_date_going_table.c.user_id == current_user.id,
+                        user_event_date_going_table.c.event_date_id == EventDateAlias.id,
+                    )
+                    .exists(),
+            ),
+        )
+
+    # Date filters
+    if date_min := kwargs.get("date_min"):
+        query = query.filter(EventDateAlias.end >= date_min)
+    if date_max := kwargs.get("date_max"):
+        query = query.filter(
+            and_(
+                or_(EventDateAlias.end <= date_max, EventDateAlias.end.is_(None)),
+                EventDateAlias.start <= date_max,
+            )
+        )
+
+    # Tag filters
+    if tags := kwargs.get("tags"):
+        query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
+
+    # Sort and distinct logic
+    if kwargs.get("distinct"):
+        # Add row_number for distinct filtering
+        row_number_column = func.row_number().over(
+            partition_by=EventDateAlias.event_id, 
+            order_by=EventDateAlias.start.asc()
+        ).label("row_number")
+
+        # Create subquery
+        subquery = query.add_columns(row_number_column, EventDateAlias.distance).subquery()
+        
+        # Create new query from subquery using alias
+        EventDateSubAlias = aliased(EventDateAlias, subquery)
+        query = db.session.query(EventDateSubAlias).filter(
+            subquery.c.row_number == 1
+        )
+
+    # Sorting logic based on distance or start date
+    if sort_option == "distance" and location_filters:
+        if EventDateSubAlias:
+            query = query.order_by(
+                func.coalesce(EventDateSubAlias.distance, 0).asc(), 
+                EventDateSubAlias.start.asc()
+            )
+        else:
+            query = query.order_by(
+                func.coalesce(EventDateAlias.distance, 0).asc(), 
+                EventDateAlias.start.asc()
+            )
+    else:
+        if EventDateSubAlias:
+            query = query.order_by(EventDateSubAlias.start.asc())
+        else: 
+            query = query.order_by(EventDateAlias.start.asc())
+
+    # Paginate results
+    results = paginated_results(EventDate, query, **kwargs)
+
+    # Enrich first page with top artists/tags/regions
+    if kwargs.get("page", 1) == 1:
+        enrich_results_with_top_entities(results, query)
+
+    return results
+"""
+
+def query_event_dates(**kwargs):
+    # Base query
+    query = db.session.query(EventDate).join(Event, EventDate.event_id == Event.id)
+    location_filters = kwargs.get("location", None)
+    bounds = kwargs.get("bounds", None)
+    lat, lng = None, None
+    radius = kwargs.get("radius", None)
+    sort_option = kwargs.get("sort_option", None)
+    # Create an alias for EventDate that we'll use throughout
+    EventDateAlias = aliased(EventDate)
+    EventDateSubAlias = None
+    query = db.session.query(EventDateAlias)
+    
+    # Initialize distance_expression as None
+    distance_expression = None
+
+    # Distance filter if location is provided
+    if location_filters:
+        lat = float(location_filters["lat"])
+        lng = float(location_filters["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        distance_expression = func.ST_Distance(
+            cast(EventLocation.geo, Geography(srid=4326)),
+            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+        )
+
+        query = (
+            query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+            .join(Event, EventDateAlias.event_id == Event.id)
+            .options(with_expression(EventDateAlias.distance, distance_expression))
+        )
+
+        # Apply radius filter
+        if radius:
+            query = query.filter(distance_expression <= radius)
+
+    if bounds:
+        # Ensure EventLocation is joined if not already
+        if location_filters is None:
+            query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+            query = query.join(Event, EventDateAlias.event_id == Event.id)
+
+        # Bounds filter
+        northEast = bounds["_northEast"]
+        southWest = bounds["_southWest"]
+
+        bbox = func.ST_MakeEnvelope(
+            southWest["lng"], southWest["lat"], northEast["lng"], northEast["lat"], 4326
+        )
+
+        query = query.filter(func.ST_Intersects(EventLocation.geo, bbox))
 
 
 
+    # Date filters
+    if date_min := kwargs.get("date_min"):
+        query = query.filter(EventDateAlias.end >= date_min)
+    if date_max := kwargs.get("date_max"):
+        query = query.filter(
+            and_(
+                or_(EventDateAlias.end <= date_max, EventDateAlias.end.is_(None)),
+                EventDateAlias.start <= date_max,
+            )
+        )
+
+    # Tag filters
+    if tags := kwargs.get("tags"):
+        query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
+
+    # Sort and distinct logic
+    if kwargs.get("distinct"):
+        # Add row_number for distinct filtering
+        row_number_column = func.row_number().over(
+            partition_by=EventDateAlias.event_id, 
+            order_by=EventDateAlias.start.asc()
+        ).label("row_number")
+
+        # Create subquery including all columns from EventDateAlias
+        subquery = query.add_columns(row_number_column).subquery()
+        
+        # Create new query from subquery using alias
+        EventDateSubAlias = aliased(EventDate, subquery)
+        query = db.session.query(EventDateSubAlias).filter(
+            subquery.c.row_number == 1
+        )
+        
+        # Reapply the distance expression if it exists
+        if distance_expression is not None:
+            query = query.join(EventLocation, EventDateSubAlias.location_id == EventLocation.id)
+            query = query.options(with_expression(
+                EventDateSubAlias.distance,
+                distance_expression
+            ))
+
+    # User-related filters
+    if current_user.is_authenticated:
+        if EventDateSubAlias:
+            query = query.options(
+                with_expression(
+                    EventDateSubAlias.user_interested,
+                    db.session.query(user_event_date_interested_table)
+                        .filter(
+                            user_event_date_interested_table.c.user_id == current_user.id,
+                            user_event_date_interested_table.c.event_date_id == EventDateSubAlias.id,
+                        )
+                        .exists(),
+                ),
+                with_expression(
+                    EventDateSubAlias.user_going,
+                    db.session.query(user_event_date_going_table)
+                        .filter(
+                            user_event_date_going_table.c.user_id == current_user.id,
+                            user_event_date_going_table.c.event_date_id == EventDateSubAlias.id,
+                        )
+                        .exists(),
+                ),
+            )
+        else:
+            query = query.options(
+                with_expression(
+                    EventDateAlias.user_interested,
+                    db.session.query(user_event_date_interested_table)
+                        .filter(
+                            user_event_date_interested_table.c.user_id == current_user.id,
+                            user_event_date_interested_table.c.event_date_id == EventDateAlias.id,
+                        )
+                        .exists(),
+                ),
+                with_expression(
+                    EventDateAlias.user_going,
+                    db.session.query(user_event_date_going_table)
+                        .filter(
+                            user_event_date_going_table.c.user_id == current_user.id,
+                            user_event_date_going_table.c.event_date_id == EventDateAlias.id,
+                        )
+                        .exists(),
+                ),
+            )
+
+    # Sorting logic based on distance or start date
+    if sort_option == "distance" and location_filters:
+        if EventDateSubAlias:
+            query = query.order_by(
+                func.coalesce(EventDateSubAlias.distance, 0).asc(), 
+                EventDateSubAlias.start.asc()
+            )
+        else:
+            query = query.order_by(
+                func.coalesce(EventDateAlias.distance, 0).asc(), 
+                EventDateAlias.start.asc()
+            )
+    else:
+        if EventDateSubAlias:
+            query = query.order_by(EventDateSubAlias.start.asc())
+        else: 
+            query = query.order_by(EventDateAlias.start.asc())
+
+    # Paginate results
+    results = paginated_results(EventDate, query, **kwargs)
+
+    # Enrich first page with top artists/tags/regions
+    if kwargs.get("page", 1) == 1:
+        enrich_results_with_top_entities(results, query)
+
+    return results
+
+
+def enrich_results_with_top_entities(results, query):
+    artists, tags, regions = [], [], []
+
+    for ed in query.slice(0, 100).all():
+        for artist in ed.artists:
+            artists.append(artist)
+        for tag in ed.event.event_tags:
+            tags.append(tag)
+        region = ed.location.region
+        if (hasattr(region, 'id')):
+            region.lat =  ed.location.lat
+            region.lng = ed.location.lng
+            regions.append(region)
+
+    results.top_artists = get_top_entities(artists, "artist_id", 10)
+    results.top_tags = get_top_entities(tags, "tag_id", 20)
+    results.top_regions = get_top_entities(regions, "id", 20)
+
+
+def get_top_entities(entities, id_attr, limit):
+    valid_entities = [e for e in entities if e is not None and hasattr(e, id_attr)]
+    counter = Counter(getattr(e, id_attr) for e in valid_entities)
+    unique_entities = list({getattr(e, id_attr): e for e in valid_entities}.values())
+    return sorted(unique_entities, key=lambda e: counter[getattr(e, id_attr)], reverse=True)[:limit]
+
+
+"""
 def query_event_dates(**kwargs):
 
     # for nearby search
@@ -723,25 +1161,7 @@ def query_event_dates(**kwargs):
         )
         .exists()
     )
-    """
-    if kwargs.get("distinct", False) is True:
-        # use subquery to return only the next event_date of an event
-        date_min = date_time.utcnow()
-        if kwargs.get('date_min'):
-            date_min = kwargs.get('date_min')
 
-        next_ed = s.query(EventDate).\
-                    filter(EventDate.start > date_min).\
-                    order_by(EventDate.start.asc()).\
-                    subquery()
-
-    next_date = db.session.query(
-        EventDate,
-        func.row_number()
-        .over(partition_by=EventDate.event_id, order_by=EventDate.start.asc())
-        .label("rn"),
-    ).subquery()
-    """
 
     if kwargs.get("location", None) is not None:
         location = kwargs.get("location")
@@ -752,23 +1172,6 @@ def query_event_dates(**kwargs):
             raise exc.InvalidAPIRequest(
                 "lat and lng are required for nearby search.")
 
-        # potentially faster to keep geometry type
-        # than convert degrees to meters.
-        # when input is geography type it returns meters
-        """
-        query = (
-            db.session.query(
-                EventDate,
-                func.ST_Distance(
-                    cast(EventLocation.geo, Geography(srid=4326)),
-                    cast("SRID=4326;POINT(%f %f)" %
-                         (lng, lat), Geography(srid=4326)),
-                ).label("distance"),
-            )
-            .join(Event, EventDate.event_id == Event.id)
-            .join(EventLocation, EventDate.location_id == EventLocation.place_id)
-        )
-        """
         distance_expression = func.ST_Distance(
             cast(EventLocation.geo, Geography(srid=4326)),
             cast("SRID=4326;POINT(%f %f)" % (lng, lat), Geography(srid=4326)),
@@ -823,6 +1226,7 @@ def query_event_dates(**kwargs):
                     Event.hidden == False,
                     Event.hidden == True and Event.creator_id == user.id,
                 ))
+
 
     if kwargs.get("creator_user", None) is not None:
         user = users.get_user_or_404(kwargs.pop("creator_user"))
@@ -954,13 +1358,15 @@ def query_event_dates(**kwargs):
                 query_text, postgresql_regconfig="english")
         )
 
+
+
     # filter event dates within bounds
     if bounds:
-        """
+        ""
         normalized_bounds = normalize_bounds(bounds)
         northEast = normalized_bounds["_northEast"]
         southWest = normalized_bounds["_southWest"]
-        """
+        ""
         northEast = bounds["_northEast"]
         southWest = bounds["_southWest"]
 
@@ -1060,7 +1466,13 @@ def query_event_dates(**kwargs):
 
     if kwargs.get("distinct", None) is True:
         # return only the first event date of an event
-        query = query.from_self().filter(row_number_column == 1)
+        # DEPRECATED as of SQLALCHEMY 1.4 query = query.from_self().filter(row_number_column == 1)
+        subquery = query.subquery()
+        EventDateAlias = aliased(EventDate, subquery)
+        query = (
+            db.session.query(EventDateAlias)
+            .filter(subquery.c.row_number == 1)  # Reference row_number_column from the subquery
+        )
 
     if kwargs.get("empty_lineup", None) is True:
         query = query.filter(
@@ -1071,7 +1483,7 @@ def query_event_dates(**kwargs):
         query = query.filter(
                 EventDate.date_confirmed == False
             )
-        
+
     if lat and lng:
         # sort options if distance expression is used
         if sort_option == "distance":
@@ -1108,8 +1520,6 @@ def query_event_dates(**kwargs):
                 tags.append(tag)
             region = ExtendedRegionSchema().dump(ed[0].location.region)
             if (region.get('id')):
-                print(region)
-                print(region['id'])
                 region['lat'] =  ed[0].location.lat
                 region['lng'] = ed[0].location.lng
                 regions.append(region)
@@ -1159,7 +1569,7 @@ def query_event_dates(**kwargs):
         results.top_regions = ordered_regions[0:20]
 
     return results
-
+"""
 
 def toggle_going(id):
     event_date = get_event_date_or_404(id)
