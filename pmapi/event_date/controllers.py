@@ -2,6 +2,7 @@ import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from pmapi.event_artist.controllers import add_artists_to_date, remove_artists_from_date, update_artists_of_date
 from pmapi.event_location.schemas import ExtendedRegionSchema
+from pmapi.event_review.model import EventReview
 from timezonefinder import TimezoneFinder
 from datetime import datetime
 from flask_login import current_user
@@ -663,7 +664,7 @@ def generateRecurringDates(rp, start, end=None):
                     until=ten_years_away,
                 )
             )
-            print(startdates)
+
 
     else:
         raise exc.InvalidAPIRequest("Invalid recurring_type (1-3)")
@@ -939,10 +940,19 @@ def query_event_dates(**kwargs):
     bounds = kwargs.get("bounds", None)
     lat, lng = None, None
     radius = kwargs.get("radius", None)
+
+    creator_user = kwargs.get("creator_user", None)
+    host_user = kwargs.get("host_user", None)
+    interested_user = kwargs.get("interested_user", None)
+    going_user = kwargs.get("going_user", None)
+    following_user = kwargs.get("following_user", None)
+    reviewed_user = kwargs.get("reviewed_user", None)
+    all_related_to_user = kwargs.get("all_related_to_user", None)
+
     sort_option = kwargs.get("sort_option", None)
     # Create an alias for EventDate that we'll use throughout
     EventDateAlias = aliased(EventDate)
-    EventDateSubAlias = None
+
     query = db.session.query(EventDateAlias)
     
     # Initialize distance_expression as None
@@ -966,9 +976,64 @@ def query_event_dates(**kwargs):
             .options(with_expression(EventDateAlias.distance, distance_expression))
         )
 
+        if bounds is None and radius == 0:
+            # used on the home page of partyman
+            # to return a list of events in proximity of point/users location
+            # and return the radius in response
+            radii = [
+                10000,
+                20000,
+                50000,
+                100000,
+                200000,
+                500000,
+                1000000,
+                2000000,
+                5000000,
+                10000000,
+                20000000,
+            ]
+
+            # Add row_number for distinct filtering
+            row_number_column = func.row_number().over(
+                partition_by=EventDateAlias.event_id, 
+                order_by=EventDateAlias.start.asc()
+            ).label("row_number")
+
+            # Create subquery including all columns from EventDateAlias
+            subquery = query.add_columns(row_number_column).subquery()
+            
+            # Create new query from subquery using alias
+            CountEventDateAlias = aliased(EventDate, subquery)
+            count_query = db.session.query(CountEventDateAlias).join(EventLocation, CountEventDateAlias.location_id == EventLocation.id).filter(
+                subquery.c.row_number == 1
+            )
+
+            for r in radii:               
+                count = (
+                    count_query
+                    .filter(
+                        func.ST_DWithin(
+                            cast(EventLocation.geo, Geography(srid=4326)),
+                            cast(
+                                "SRID=4326;POINT(%f %f)" % (lng, lat),
+                                Geography(srid=4326),
+                            ),
+                            r,
+                        )
+                    )
+                    .from_self()
+                    .count()
+                )
+                # threshold of events required before trying the next radius
+                if count >= 4:
+                    radius = r
+                    break
+
         # Apply radius filter
         if radius:
             query = query.filter(distance_expression <= radius)
+
 
     if bounds:
         # Ensure EventLocation is joined if not already
@@ -1003,6 +1068,88 @@ def query_event_dates(**kwargs):
     if tags := kwargs.get("tags"):
         query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
 
+    # User related filters
+
+    if creator_user:
+        user = users.get_user_or_404(creator_user)
+        query = query.filter(Event.creator_id == user.id)
+
+    if host_user:
+        user = users.get_user_or_404(host_user)
+        query = query.filter(Event.host_id == user.id)
+
+    if interested_user:
+        user = users.get_user_or_404(interested_user)
+        interested_event_date_ids = db.session.query(
+            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
+        query = query.filter(
+            EventDateAlias.id.in_(interested_event_date_ids)
+        )
+
+    if going_user:
+        user = users.get_user_or_404(going_user)
+        going_event_date_ids = db.session.query(
+            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
+        query = query.filter(
+            EventDateAlias.id.in_(going_event_date_ids)
+        )
+
+    if reviewed_user:
+        user = users.get_user_or_404(reviewed_user)
+        query = query.join(EventReview, EventDateAlias.event_id == EventReview.event_id)
+        query = query.filter(EventReview.creator_id == user.id)
+
+    if following_user:
+        user = users.get_user_or_404(following_user)
+        following_event_ids = db.session.query(
+            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
+        query = query.filter(
+            Event.id.in_(following_event_ids)
+        )
+
+    if all_related_to_user:
+        user = users.get_user_or_404(all_related_to_user)
+        query = query.join(EventReview, EventDateAlias.event_id == EventReview.event_id)
+        interested_event_date_ids = db.session.query(
+            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
+        going_event_date_ids = db.session.query(
+            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
+        following_event_ids = db.session.query(
+            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
+        query = query.filter(
+            or_(
+                (EventReview.creator_id == user.id),
+                (Event.creator_id == user.id), (Event.host_id == user.id),
+                (EventDateAlias.id.in_(going_event_date_ids)),
+                (EventDateAlias.id.in_(interested_event_date_ids)), (
+                    Event.id.in_(following_event_ids)
+                ))
+        )
+
+    # Apply going/interested expression to results
+    if current_user.is_authenticated:
+        query = query.options(
+            with_expression(
+                EventDateAlias.user_interested,
+                db.session.query(user_event_date_interested_table)
+                    .filter(
+                        user_event_date_interested_table.c.user_id == current_user.id,
+                        user_event_date_interested_table.c.event_date_id == EventDateAlias.id,
+                    )
+                    .exists(),
+            ),
+            with_expression(
+                EventDateAlias.user_going,
+                db.session.query(user_event_date_going_table)
+                    .filter(
+                        user_event_date_going_table.c.user_id == current_user.id,
+                        user_event_date_going_table.c.event_date_id == EventDateAlias.id,
+                    )
+                    .exists(),
+            ),
+        )
+
+
     # Sort and distinct logic
     if kwargs.get("distinct"):
         # Add row_number for distinct filtering
@@ -1015,84 +1162,32 @@ def query_event_dates(**kwargs):
         subquery = query.add_columns(row_number_column).subquery()
         
         # Create new query from subquery using alias
-        EventDateSubAlias = aliased(EventDate, subquery)
-        query = db.session.query(EventDateSubAlias).filter(
+        EventDateAlias = aliased(EventDate, subquery)
+        query = db.session.query(EventDateAlias).filter(
             subquery.c.row_number == 1
         )
         
         # Reapply the distance expression if it exists
         if distance_expression is not None:
-            query = query.join(EventLocation, EventDateSubAlias.location_id == EventLocation.id)
+            query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
             query = query.options(with_expression(
-                EventDateSubAlias.distance,
+                EventDateAlias.distance,
                 distance_expression
             ))
 
-    # User-related filters
-    if current_user.is_authenticated:
-        if EventDateSubAlias:
-            query = query.options(
-                with_expression(
-                    EventDateSubAlias.user_interested,
-                    db.session.query(user_event_date_interested_table)
-                        .filter(
-                            user_event_date_interested_table.c.user_id == current_user.id,
-                            user_event_date_interested_table.c.event_date_id == EventDateSubAlias.id,
-                        )
-                        .exists(),
-                ),
-                with_expression(
-                    EventDateSubAlias.user_going,
-                    db.session.query(user_event_date_going_table)
-                        .filter(
-                            user_event_date_going_table.c.user_id == current_user.id,
-                            user_event_date_going_table.c.event_date_id == EventDateSubAlias.id,
-                        )
-                        .exists(),
-                ),
-            )
-        else:
-            query = query.options(
-                with_expression(
-                    EventDateAlias.user_interested,
-                    db.session.query(user_event_date_interested_table)
-                        .filter(
-                            user_event_date_interested_table.c.user_id == current_user.id,
-                            user_event_date_interested_table.c.event_date_id == EventDateAlias.id,
-                        )
-                        .exists(),
-                ),
-                with_expression(
-                    EventDateAlias.user_going,
-                    db.session.query(user_event_date_going_table)
-                        .filter(
-                            user_event_date_going_table.c.user_id == current_user.id,
-                            user_event_date_going_table.c.event_date_id == EventDateAlias.id,
-                        )
-                        .exists(),
-                ),
-            )
-
     # Sorting logic based on distance or start date
     if sort_option == "distance" and location_filters:
-        if EventDateSubAlias:
-            query = query.order_by(
-                func.coalesce(EventDateSubAlias.distance, 0).asc(), 
-                EventDateSubAlias.start.asc()
-            )
-        else:
-            query = query.order_by(
-                func.coalesce(EventDateAlias.distance, 0).asc(), 
-                EventDateAlias.start.asc()
-            )
+        query = query.order_by(
+            func.coalesce(EventDateAlias.distance, 0).asc(), 
+            EventDateAlias.start.asc()
+        )
     else:
-        if EventDateSubAlias:
-            query = query.order_by(EventDateSubAlias.start.asc())
-        else: 
-            query = query.order_by(EventDateAlias.start.asc())
+        query = query.order_by(EventDateAlias.start.asc())
 
     # Paginate results
     results = paginated_results(EventDate, query, **kwargs)
+
+    results.radius = radius
 
     # Enrich first page with top artists/tags/regions
     if kwargs.get("page", 1) == 1:

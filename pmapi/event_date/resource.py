@@ -56,6 +56,7 @@ class DatesResource(MethodResource):
             "host_user": fields.Str(),
             "interested_user": fields.Str(),
             "going_user": fields.Str(),
+            "reviewed_user": fields.Str(),
             "following_user": fields.Str(),
             "all_related_to_user": fields.Str(),
             "empty_lineup": fields.Boolean(),
