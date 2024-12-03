@@ -949,7 +949,11 @@ def query_event_dates(**kwargs):
     reviewed_user = kwargs.get("reviewed_user", None)
     all_related_to_user = kwargs.get("all_related_to_user", None)
 
+    empty_lineup = kwargs.get("empty_lineup", None)
+    date_unconfirmed = kwargs.get("date_unconfirmed", None)
+
     sort_option = kwargs.get("sort_option", None)
+
     # Create an alias for EventDate that we'll use throughout
     EventDateAlias = aliased(EventDate)
 
@@ -1068,8 +1072,17 @@ def query_event_dates(**kwargs):
     if tags := kwargs.get("tags"):
         query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
 
-    # User related filters
+    if empty_lineup:
+        query = query.filter(
+                ~EventDateAlias.artists.any()
+            )
+        
+    if date_unconfirmed:
+        query = query.filter(
+                EventDateAlias.date_confirmed == False
+            )
 
+    # User related filters
     if creator_user:
         user = users.get_user_or_404(creator_user)
         query = query.filter(Event.creator_id == user.id)
