@@ -18,7 +18,6 @@ class Mailer(object):
         self.api_key = app.config["SENDGRID_API_KEY"]
         self.default_from = app.config["SENDGRID_DEFAULT_FROM"]
         validate.email(self.default_from)
-
         self.testing = app.testing
         if self.testing:
             # keep a running count of successfully sent mail

@@ -9,6 +9,8 @@ ERROR_CODES = {
     "EMAIL_ALREADY_REGISTERED": "Email address already registered",
     "ACCOUNT_DISABLED": "Account is temporarily disabled. Contact info@partymap.com",
     "ACCOUNT_PENIDNG": "Account has not been activated. Check your email!",
+    "ACCOUNT_LOCKED": "Too many login attempts! Your account has been locked. Please reset your password using the 'forgot password' option.",
+    "INVALID_PASSWORD": "Login failed, try again...",
 }
 
 

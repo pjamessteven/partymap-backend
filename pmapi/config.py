@@ -5,6 +5,8 @@ config.py
 import os
 
 class BaseConfig(object):
+    SESSION_COOKIE_SAMESITE = None
+
     WEBSITE_URL = os.getenv("WEBSITE_URL")
     UPLOADS_URL = os.getenv("UPLOADS_URL")
     LOGIN_REDIRECT_URL = os.getenv("WEBSITE_URL") + "/login"
@@ -63,3 +65,4 @@ class DevConfig(BaseConfig):
 
 class ProdConfig(BaseConfig):
     DEBUG = False
+    SESSION_COOKIE_SECURE = True

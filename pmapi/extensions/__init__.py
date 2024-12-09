@@ -12,11 +12,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from celery import Celery
 from flask_babel import Babel
+from flask.helpers import get_debug_flag
+
+DEV_ENVIRON = get_debug_flag()
+
+allowed_origins = [
+    "http://localhost:9000",
+    "https://partymap.com"
+] if DEV_ENVIRON else [ "https://partymap.com"]
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
 admin = Admin(name="PARTYMAP", template_mode="bootstrap3")
 db = SQLAlchemy()
-cors = CORS(resources={r"/api/*": {"origins": "*", "supports_credentials": True}})
+cors = CORS(resources={r"/api/*": {"origins": allowed_origins, "supports_credentials": True}})
 lm = LoginManager()
 activity_plugin = ActivityPlugin()
 flask_plugin = FlaskPlugin()
