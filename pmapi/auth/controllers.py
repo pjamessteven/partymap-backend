@@ -103,11 +103,6 @@ def authenticate_user(**kwargs):
     remember = kwargs.get("remember", False)
     one_off_token = kwargs.get("token", None)
 
-    if session["attempt"] == 0:
-        raise exc.InvalidAPIRequest(
-            "Too many login attempts. Try again later or reset your password"
-        )
-
     if one_off_token is not None:
         user = users.get_user_by_token_or_404(one_off_token)
         if user:
@@ -126,7 +121,12 @@ def authenticate_user(**kwargs):
 
     if not user:
         raise exc.LoginRequired()
-
+    
+    if user.login_attempts > 5:
+        raise exc.InvalidAPIRequest(
+           code="ACCOUNT_LOCKED"
+        )
+    
     # don't allow pending or disabled accounts to login
     if user.status == "disabled":
         raise exc.UserDisabled()
@@ -134,12 +134,15 @@ def authenticate_user(**kwargs):
         raise exc.UserPending()
 
     if not check_password_hash(user.password, password):
-        session["attempt"] = session["attempt"] - 1
+        user.login_attempts = user.login_attempts + 1
+        db.session.commit()
         raise exc.InvalidAPIRequest(
-            "Login failed, try again..."
+           code="AUTH_FAIL"
         )
-
-    # flask-login
-    login_user(user, remember=remember)
-    session.permanent = True
-    return user
+    else:
+        user.login_attempts = 0
+        db.session.commit()
+        # flask-login
+        login_user(user, remember=remember)
+        session.permanent = True
+        return user

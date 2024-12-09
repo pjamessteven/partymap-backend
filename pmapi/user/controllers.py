@@ -421,8 +421,9 @@ def reset_password(token, password, password_confirm):
     if password != password_confirm:
         raise exc.InvalidAPIRequest("Passwords don't match")
     user.set_password(password)
+
     # reset password attempts
-    session["attempt"] = 5
+    user.login_attempts = 0
 
     db.session.delete(email_action)
     db.session.commit()

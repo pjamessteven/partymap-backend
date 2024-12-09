@@ -39,7 +39,7 @@ class User(db.Model):
     __tablename__ = "users"
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    login_attempts = db.Column(db.Integer, default=0)
     role = db.Column(db.Integer, nullable=False,
                      default=ROLES["UNPRIVILIGED_USER"])
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
