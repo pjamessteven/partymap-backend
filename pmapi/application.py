@@ -84,6 +84,17 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
             # set login attempts to 5
             session["attempt"] = 5
 
+    @app.after_request
+    def add_partitioned_cookie(response):
+        # Manually ensure the Partitioned attribute is added 
+        # (without this we can't use the session cookie from local dev environment in modern browsers)
+        if "Set-Cookie" in response.headers:
+            cookie_header = response.headers["Set-Cookie"]
+            # Append Partitioned to the existing Set-Cookie header
+            response.headers["Set-Cookie"] = f"{cookie_header}; Partitioned"
+        
+        return response
+
     with app.app_context():
         # create and set anonymous user
         """
