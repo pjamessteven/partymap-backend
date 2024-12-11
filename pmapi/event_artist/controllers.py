@@ -876,6 +876,6 @@ def refresh_info(id):
 
     db.session.commit()
 
-    update_artist_translation.delay(artist.id)
+    # update_artist_translation.delay(artist.id)
 
     return artist
