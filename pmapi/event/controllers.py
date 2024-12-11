@@ -451,10 +451,10 @@ def update_event(event_id, **kwargs):
 
 
     db.session.commit()
-    # login_user(requesting_user, force=True, remember=True)
-    print('testing')
-    result = update_event_translation.delay(event.id)
-    print('backend', result.backend)
+
+    if description is not None or full_description is not None:
+        update_event_translation.delay(event.id)
+
     return event
 
 
