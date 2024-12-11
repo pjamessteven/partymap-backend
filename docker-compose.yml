@@ -14,7 +14,7 @@ services:
       - db
     volumes:
       - .:/app
-      - /var/www/content.partymap.com:/app/static/uploaded_media
+      - /var/www/content.partymap.com/uploaded_media:/app/static/uploaded_media
   rabbit:
     hostname: rabbit
     image: rabbitmq:management
