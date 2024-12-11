@@ -870,9 +870,11 @@ def refresh_info(id):
     db.session.flush()
 
     spotify_image_found = refresh_spotify_data_for_artist(artist)
-    if not spotify_image_found:
+
+    # DISABLED BECAUSE DEEZER MOSTLY RETURNS BLANK AVATARS
+    # if not spotify_image_found:
         # get deezer image if spotify image doesn't exist
-        get_artist_image_from_deezer(artist)
+        # get_artist_image_from_deezer(artist)
 
     db.session.commit()
 
