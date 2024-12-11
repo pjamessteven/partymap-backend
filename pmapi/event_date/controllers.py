@@ -1082,6 +1082,13 @@ def query_event_dates(**kwargs):
                 EventDateAlias.date_confirmed == False
             )
 
+    # Filter hidden events out
+    query = query.filter(
+        or_(
+                    Event.hidden == False,
+                    Event.hidden == True and Event.creator_id == user.id,
+                ))
+
     # User related filters
     if creator_user:
         user = users.get_user_or_404(creator_user)
@@ -1122,7 +1129,7 @@ def query_event_dates(**kwargs):
 
     if all_related_to_user:
         user = users.get_user_or_404(all_related_to_user)
-        query = query.join(EventReview, EventDateAlias.event_id == EventReview.event_id)
+        query = query.outerjoin(EventReview, EventDateAlias.event_id == EventReview.event_id)
         interested_event_date_ids = db.session.query(
             user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
         going_event_date_ids = db.session.query(
