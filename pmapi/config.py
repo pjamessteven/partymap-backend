@@ -17,8 +17,6 @@ class BaseConfig(object):
     # used for encryption and session management
     SECRET_KEY = os.getenv("SECRET_KEY")
 
-    TOP_LEVEL_DIR = os.path.abspath(os.curdir)
-
     SENDGRID_DEFAULT_FROM = "noreply@partymap.com"
     SUPPORT_EMAIL = "info@partymap.com"
     
@@ -48,7 +46,6 @@ class BaseConfig(object):
     # This indicates that it's OK for Google to return different OAuth scopes than requested; Google does that sometimes.
     OAUTHLIB_RELAX_TOKEN_SCOPE = True
 
-    MEDIA_UPLOAD_FOLDER = TOP_LEVEL_DIR + "/static/uploaded_media/"
 
     DIFY_URL = os.getenv("DIFY_URL")
     DIFY_USER = os.getenv("DIFY_USER")
@@ -57,6 +54,7 @@ class BaseConfig(object):
     
 class DevConfig(BaseConfig):
     DEBUG = True
+    MEDIA_UPLOAD_FOLDER = os.path.abspath(os.curdir) + "/static/uploaded_media/"
 
     # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
     OAUTHLIB_INSECURE_TRANSPORT = True
@@ -64,5 +62,6 @@ class DevConfig(BaseConfig):
 
 
 class ProdConfig(BaseConfig):
+    MEDIA_UPLOAD_FOLDER = "/var/www/content.partymap.com/uploaded_media/"
     DEBUG = False
     SESSION_COOKIE_SECURE = True

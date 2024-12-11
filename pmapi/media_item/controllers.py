@@ -277,7 +277,7 @@ def add_logo_to_event(image, event, creator=current_user):
     # delete any previous logo
     for item in event.media_items:
         if item.attributes is not None and "isEventLogo" in item.attributes:
-            delete_item(item.id)
+            delete_item(item)
 
     media_item = add_media_item(
         file, path)
