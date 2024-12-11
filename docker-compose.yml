@@ -50,7 +50,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-        - 5432
+        - 5432:5432
   test-db:
     image: postgis/postgis:13-3.2-alpine
     environment:
