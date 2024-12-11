@@ -33,7 +33,7 @@ services:
       - ./.env
     entrypoint: celery
     user: '1000'
-    command: -A pmapi.worker.celery worker --loglevel=info
+    command: -A pmapi.worker.celery worker --loglevel=info --concurrency=4
     volumes:
       - .:/app
       - /var/www/content.partymap.com/uploaded_media:/app/static/uploaded_media
