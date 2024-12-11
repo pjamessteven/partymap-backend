@@ -102,7 +102,7 @@ def refresh_artist_info(artist_id):
     with app.app_context():
         from pmapi.event_artist.controllers import refresh_info
         refresh_info(artist_id)
-
+        db.session.close()
 
 @celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
@@ -113,6 +113,7 @@ def update_event_translation(event_id):
         event.description_translations = update_translation_field(event.description_translations, event.description)
         event.full_description_translations = update_translation_field(event.full_description_translations, event.full_description)
         db.session.commit()
+        db.session.close()
 
 @celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
@@ -123,6 +124,7 @@ def update_event_date_translation(id):
         event_date.description_translations = update_translation_field(event_date.description_translations, event_date.description)
 
         db.session.commit()
+        db.session.close()
 
 @celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
@@ -135,6 +137,7 @@ def update_artist_translation(id):
         if (artist.description):
             artist.description_translations = update_translation_field(artist.description_translations, artist.description)
         db.session.commit()
+        db.session.close()
 
 
 @celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
@@ -145,6 +148,7 @@ def update_review_translation(id):
         review = db.session.query(EventReview).filter(EventReview.id == id).first()
         review.text_translations = update_translation_field(review.text_translations, review.text)
         db.session.commit()
+        db.session.close()
 
 
 def update_translation_field(translation_field, input_text, onlyMissing=False):
@@ -155,5 +159,5 @@ def update_translation_field(translation_field, input_text, onlyMissing=False):
         if not onlyMissing or lang not in translation_field:
             translation_field[lang] = get_translation(input_text, lang, CONFIG.DIFY_TRANSLATE_KEY)
             time.sleep(1.5)
-            
+
     return translation_field
