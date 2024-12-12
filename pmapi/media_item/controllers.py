@@ -19,7 +19,6 @@ from .model import MediaItem
 from pmapi.extensions import db, activity_plugin
 from pmapi import exceptions as exc
 import pmapi.activity.controllers as activities
-from pmapi.tasks import get_video_thumbnail, run_video_conversion
 
 Activity = activity_plugin.activity_cls
 
@@ -463,6 +462,8 @@ def save_media_item(file, path):
         thumb_width, thumb_height = get_new_video_dimensions(
             width, height, max_width=512, max_height=512
         )
+        from pmapi.tasks import get_video_thumbnail, run_video_conversion
+
         get_video_thumbnail(
             input_filepath=filepath,
             thumb_out_filepath=os.path.join(path, thumb_filename),

@@ -34,8 +34,8 @@ from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
 
 from flask_track_usage.storage.sql import SQLStorage
-from .config import DevConfig
-from .config import ProdConfig
+from .config import DevConfig, ProdConfig
+
 import os
 import logging
 from pmapi.utils import ROLES, SUPPORTED_LANGUAGES
@@ -93,6 +93,7 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
 
 
     with app.app_context():
+        from pmapi import event_listeners  # Import here to avoid circular imports
         # create and set anonymous user
         """
         anon = (
@@ -156,7 +157,6 @@ def register_extensions(app):
     extensions.cors.init_app(app)
     extensions.mail.init_app(app)
     extensions.apidocs.init_app(app)
-    extensions.configure_celery(app, extensions.celery)
     # extensions.babel.init_app(app)
    #  extensions.babel.localeselector(get_locale)
 
