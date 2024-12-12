@@ -23,7 +23,6 @@ from pmapi.event_location.model import EventLocation
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
 from pmapi.event_date.model import EventDateTicket
-from pmapi.tasks import update_event_date_translation
 
 from pmapi.event.model import Event, user_event_following_table
 
@@ -138,7 +137,9 @@ def add_event_date_with_datetime(
         )
         db.session.commit()
 
-        update_event_date_translation.delay(event_date.id)
+        from pmapi.tasks import update_event_date_translation
+        event_date_id = event_date.id
+        update_event_date_translation.delay(event_date_id)
 
         return event
 
@@ -398,7 +399,9 @@ def update_event_date(id, **kwargs):
     db.session.commit()
     
     if "description" in kwargs:
-        update_event_date_translation.delay(event_date.id)
+        event_date_id = event_date.id
+        from pmapi.tasks import update_event_date_translation
+        update_event_date_translation.delay(event_date_id)
 
     return event_date
 

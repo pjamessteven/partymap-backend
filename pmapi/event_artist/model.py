@@ -2,8 +2,8 @@ from datetime import datetime
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.dialects.postgresql import UUID, HSTORE
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import and_, join
-from sqlalchemy import select, func
+from sqlalchemy import and_, join, event, select, func
+
 from sqlalchemy_utils import TranslationHybrid
 from sqlalchemy.ext.mutable import MutableDict
 from pmapi.utils import get_locale
@@ -14,7 +14,6 @@ translation_hybrid = TranslationHybrid(
     current_locale=get_locale,
     default_locale='en'
 )
-
 
 class Artist(db.Model):
     __tablename__ = "artists"
@@ -94,7 +93,6 @@ class Artist(db.Model):
             )
             .select_from(j)
         )
-
 
 class ArtistUrl(db.Model):
     __tablename__ = "artist_urls"

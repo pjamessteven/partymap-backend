@@ -19,18 +19,27 @@ from flask import current_app
 
 DEV_ENVIRON = get_debug_flag()
 
-class ContextTask(Celery.Task):
-    """An abstract Celery Task that ensures that the connection the the
-    database is closed on task completion"""
-    abstract = True
+# Correct way to define the ContextTask
+def make_celery(app=None):
+    celery = Celery(__name__, task_cls='celery.app.task.Task')
 
-    def __call__(self, *args, **kwargs):
-        with current_app.app_context():
-            return super().__call__(*args, **kwargs)
-        
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        db.session.remove()
+    class ContextTask(celery.Task):
+        abstract = True
+        """An abstract Celery Task that ensures that the connection to the
+        database is closed on task completion"""
+        def __call__(self, *args, **kwargs):
 
+            db._set_celery_task_context(True)
+            try:
+                with (app or current_app).app_context():
+                    return self.run(*args, **kwargs)
+            finally:
+                db._set_celery_task_context(False)
+                db.remove()
+
+    celery.Task = ContextTask
+    celery.config_from_object('celeryconfig')
+    return celery
 
 allowed_origins = [
     "http://localhost:9000",
@@ -47,21 +56,14 @@ flask_plugin = FlaskPlugin()
 mail = Mailer()
 apidocs = FlaskApiSpec()
 tracker = TrackUsage()
-celery = Celery(
-    __name__,
-    task_cls=ContextTask
-)
+celery = make_celery()
+
 engine = create_engine(BaseConfig.SQLALCHEMY_DATABASE_URI, 
             pool_size=4,  # Match with celery concurrency
             max_overflow=0  # Prevent excessive connections
         )
 Session = sessionmaker(engine)  # import when you want to manually create a session
 babel = Babel()
-
-
-def configure_celery(app, celery):
-    celery.config_from_object('celeryconfig')
-    return celery
 
 
 def get_locale():

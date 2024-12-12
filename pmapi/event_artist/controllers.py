@@ -23,7 +23,6 @@ from pmapi.config import BaseConfig
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 from pmapi.common.controllers import paginated_results
-from pmapi.tasks import refresh_artist_info, update_artist_translation
 
 Activity = activity_plugin.activity_cls
 
@@ -276,8 +275,6 @@ def add_artist(name, mbid=None):
     )
     db.session.add(artist)
     db.session.flush()
-    refresh_artist_info.delay(artist.id)
-
     return artist
 
 
@@ -303,7 +300,7 @@ def add_artist_to_date(
                 # update existing artist with mbid
                 artist.mbid = mbid
                 db.session.flush()
-                refresh_artist_info.delay(artist.id)
+
 
     elif id:
         artist = get_artist_by_id(id)
@@ -696,10 +693,11 @@ def get_artist_image_from_deezer(artist):
 def add_tags_to_artist(tags, artist, activity=True):
     for t in tags:
         # check if tag is already in db
-        if db.session.query(Tag).filter(Tag.tag == t.lower()).count():
-            tag = db.session.query(Tag).filter(Tag.tag == t.lower()).one()
-        else:
+        tag = db.session.query(Tag).filter_by(tag=t.lower()).first()
+        if not tag:
+            # If not, create it
             tag = Tag(tag=t.lower())
+            db.session.add(tag)
 
         existing_tag = (
             db.session.query(ArtistTag)
@@ -834,7 +832,10 @@ def delete_artist(id):
 def refresh_info(id):
 
     artist = get_artist_or_404(id)
-
+    
+    # disable after_commit listener action that triggers refresh_info
+    artist.after_commit = False
+    
     if artist.mbid:
 
         # music brainz search
