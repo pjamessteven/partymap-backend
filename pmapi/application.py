@@ -67,7 +67,6 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     extensions.lm.login_view = "auth.LoginResource"
     register_errorhandlers(app)
     register_docs(app)
-    print('MEDIA UPLOAD FOLDER', CONFIG.MEDIA_UPLOAD_FOLDER)
 
     @app.route('/oauth_redirect')
     def index():

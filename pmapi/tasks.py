@@ -1,3 +1,4 @@
+from psycopg2 import OperationalError
 import time
 import os
 from flask.helpers import get_debug_flag
@@ -6,14 +7,14 @@ from pmapi.event.model import Event
 from pmapi.event_artist.model import Artist
 from pmapi.event_date.model import EventDate
 from pmapi.event_review.model import EventReview
-from pmapi.extensions import configure_celery, mail, celery
+from pmapi.extensions import mail, celery
 from ffmpy import FFmpeg
-from flask.helpers import get_debug_flag
 from .config import DevConfig
 from .config import ProdConfig
 from requests.exceptions import RequestException
 from pmapi.extensions import db
 from pmapi.utils import SUPPORTED_LANGUAGES, get_translation
+from flask import g
 
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
@@ -22,19 +23,12 @@ def _create_app():
     from pmapi.application import create_app
     return create_app(config=CONFIG)
 
-class SqlAlchemyTask(celery.Task):
-    """An abstract Celery Task that ensures that the connection the the
-    database is closed on task completion"""
-    abstract = True
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        db.session.remove()
-
 
 @celery.task(ignore_result=True)
 def background_send_mail(
     to, subject, content, content_type, from_=None, msg_type="unknown"
 ):
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
     result = mail.send(to, subject, content, content_type, from_)
     logging.info(
         "send.mail",
@@ -95,60 +89,51 @@ def get_video_thumbnail(
     ff.run()
 
 
-@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(autoretry_for=(RequestException, OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def refresh_artist_info(artist_id):
-    app = _create_app()
-    with app.app_context():
-        from pmapi.event_artist.controllers import refresh_info
-        refresh_info(artist_id)
-        db.session.close()
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
+    from pmapi.event_artist.controllers import refresh_info
+    refresh_info(artist_id)
 
-@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(autoretry_for=(RequestException, OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def update_event_translation(event_id):
-    app = _create_app()
-    with app.app_context():
-        event = db.session.query(Event).filter(Event.id == event_id).first()
-        event.description_translations = update_translation_field(event.description_translations, event.description)
-        event.full_description_translations = update_translation_field(event.full_description_translations, event.full_description)
-        db.session.commit()
-        db.session.close()
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
+    event = db.session.query(Event).filter(Event.id == event_id).first()
+    event.description_translations = update_translation_field(event.description_translations, event.description)
+    event.full_description_translations = update_translation_field(event.full_description_translations, event.full_description)
+    db.session.commit()
+    db.session.close()
 
-@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(autoretry_for=(RequestException,OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def update_event_date_translation(id):
-    app = _create_app()
-    with app.app_context():
-        event_date = db.session.query(EventDate).filter(EventDate.id == id).first()
-        event_date.description_translations = update_translation_field(event_date.description_translations, event_date.description)
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
+    event_date = db.session.query(EventDate).filter(EventDate.id == id).first()
+    event_date.description_translations = update_translation_field(event_date.description_translations, event_date.description)
+    db.session.commit()
 
-        db.session.commit()
-        db.session.close()
-
-@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(autoretry_for=(RequestException,OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def update_artist_translation(id):
-    app = _create_app()
-    with app.app_context():
-        artist = db.session.query(Artist).filter(Artist.id == id).first()
-        if (artist.disambiguation):
-            artist.description_translations = update_translation_field(artist.disambiguation_translations, artist.disambiguation)
-        if (artist.description):
-            artist.description_translations = update_translation_field(artist.description_translations, artist.description)
-        db.session.commit()
-        db.session.close()
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
+    artist = db.session.query(Artist).filter(Artist.id == id).first()
+    if (artist.disambiguation):
+        artist.description_translations = update_translation_field(artist.disambiguation_translations, artist.disambiguation)
+    if (artist.description):
+        artist.description_translations = update_translation_field(artist.description_translations, artist.description)
+    db.session.commit()
 
 
-@celery.task(base=SqlAlchemyTask, autoretry_for=(RequestException,), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
+@celery.task(autoretry_for=(RequestException,OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
 def update_review_translation(id):
-    app = _create_app()
-    with app.app_context():
-        review = db.session.query(EventReview).filter(EventReview.id == id).first()
-        review.text_translations = update_translation_field(review.text_translations, review.text)
-        db.session.commit()
-        db.session.close()
+    g.celery_task = True  # Use custom_sqlalchemy scoped session
+    review = db.session.query(EventReview).filter(EventReview.id == id).first()
+    review.text_translations = update_translation_field(review.text_translations, review.text)
+    db.session.commit()
+
 
 
 def update_translation_field(translation_field, input_text, onlyMissing=False):
