@@ -1,7 +1,6 @@
 from pmapi.event_artist.model import Artist
 from sqlalchemy.orm import Session 
 from sqlalchemy import event
-from pmapi.tasks import refresh_artist_info
 
 # The artist info refresh had to be implented with a listener
 # Reason: When I create the artist then commit (so the celery worker can find the artist), 
@@ -33,6 +32,7 @@ def process_objects_after_commit(session):
             # refresh artist info in background after create or update
             if isinstance(instance, Artist):
                 artist_id = instance.id
+                from pmapi.tasks import refresh_artist_info
                 refresh_artist_info.delay(artist_id)
                 print(f"Artist instance committed or updated: {instance}")
         session._pending_objects.clear()
