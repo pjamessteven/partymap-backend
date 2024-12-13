@@ -91,7 +91,12 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
                 response.headers['Set-Cookie'] = [h + '; Partitioned' for h in cookie_header]
         return response
 
-
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        if exception:
+            db.session.rollback()  # Rollback any uncommitted transaction
+        db.session.remove()
+        
     with app.app_context():
         from pmapi import event_listeners  # Import here to avoid circular imports
         # create and set anonymous user
