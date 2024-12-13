@@ -59,8 +59,10 @@ tracker = TrackUsage()
 celery = make_celery()
 
 engine = create_engine(BaseConfig.SQLALCHEMY_DATABASE_URI, 
-            pool_size=4,  # Match with celery concurrency
-            max_overflow=0  # Prevent excessive connections
+            pool_size=10,
+            max_overflow=20,
+            pool_recycle=300,
+            pool_pre_ping=True
         )
 Session = sessionmaker(engine)  # import when you want to manually create a session
 babel = Babel()
