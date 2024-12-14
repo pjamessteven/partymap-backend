@@ -227,7 +227,7 @@ def register_blueprints(app):
     app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
     app.register_blueprint(services_blueprint, url_prefix="/api/services")
-    app.register_blueprint(sitemap_blueprint, url_prefix="/api/sitemap")
+    app.register_blueprint(sitemap_blueprint, url_prefix="/sitemap.xml")
 
 
 def register_blueprints_with_tracker(app):
