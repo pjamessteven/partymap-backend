@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, render_template, redirect, url_for, make_response
 from flask_login import logout_user, current_user, AnonymousUserMixin
 from flask_apispec import doc
 from flask_apispec import marshal_with
@@ -39,20 +39,57 @@ class LoginResource(MethodResource):
             "token": fields.String(required=False),
         },
     )
-    @marshal_with(PrivateUserSchema(), code=200)
     def post(self, **kwargs):
-        return authenticate_user(**kwargs)
+       # If it's a browser request
+        if not request.is_json and request.method == 'POST':
+            # Extract form data for browser login
+            kwargs = {
+                'identifier': request.form.get('identifier'),
+                'password': request.form.get('password'),
+                'remember': request.form.get('remember', False)
+            }
+        
+        try:
+            user = authenticate_user(**kwargs)
+            
+            # If it's a browser request, redirect
+            if not request.is_json:
+                next_url = request.args.get('next') or request.form.get('next') or url_for('admin.index')
+                return redirect(next_url)
+            else:
+                return marshal_with(PrivateUserSchema(), code=200)(lambda: user)()     
+        
+        except exc.NotAuthenticated:
+            # Handle authentication failure
+            if not request.is_json:
+                response = make_response(render_template('login.html', error='Invalid credentials'))
+                response.headers['Content-Type'] = 'text/html'
+                return response, 401
+            raise
 
     @doc(
-        summary="Get current user info.",
+        summary="Get login page or current user info if already authenticated.",
     )
-    @marshal_with(PrivateUserSchema(), code=200)
     def get(self):
+
+        # Check if it's a browser request
+        if not request.is_json:
+            # If not authenticated, show login page
+            if not current_user.is_authenticated:
+                response = make_response(render_template('login.html'))
+                response.headers['Content-Type'] = 'text/html'
+                return response
+
+            else:
+                next_url = request.args.get('next') or url_for('admin.index')
+                return redirect(next_url)        
+                    
         if current_user.is_authenticated:
-            return current_user
+            return marshal_with(PrivateUserSchema(), code=200)(lambda: current_user)()
+
         else:
             raise exc.NotAuthenticated()
-
+        
 
 auth_blueprint.add_url_rule(
     "/login/", view_func=LoginResource.as_view("LoginResource"))

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 300px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        input { 
+            width: 100%; 
+            margin: 10px 0; 
+            padding: 5px; 
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Login</h2>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+        {% if request.args.get('next') %}
+        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+        {% endif %}
+        <input type="text" name="identifier" placeholder="Username or Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <label>
+            <input type="checkbox" name="remember" value="true"> Remember me
+        </label>
+        <input type="submit" value="Login">
+    </form>
+</body>
+</html>
