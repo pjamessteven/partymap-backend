@@ -36,10 +36,6 @@ def update_translations():
 
     artists = db.session.query(Artist).all()
 
-
-    print(BaseConfig.DIFY_TRANSLATE_TAG_KEY, BaseConfig.DIFY_TRANSLATE_KEY)
-    print('tags', tags)
-
     for tag in tags.all()[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if not onlyMissing or lang not in tag.tag_translations:

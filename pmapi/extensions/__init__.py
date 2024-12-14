@@ -3,7 +3,8 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from flask_login import LoginManager
-from pmapi.custom_sqlalchemy import CustomSQLAlchemy
+from pmapi.admin.views import SecureAdminIndexView
+from pmapi.extensions.custom_sqlalchemy import CustomSQLAlchemy
 
 from sqlalchemy_continuum.plugins import ActivityPlugin, FlaskPlugin
 from pmapi.mail import Mailer
@@ -47,7 +48,7 @@ allowed_origins = [
 ] if DEV_ENVIRON else [ "https://partymap.com"]
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
-admin = Admin(name="PARTYMAP", template_mode="bootstrap3")
+admin = Admin(name="PARTYMAP", template_mode="bootstrap3", index_view=SecureAdminIndexView())
 db = CustomSQLAlchemy()
 cors = CORS(resources={r"/api/*": {"origins": allowed_origins, "supports_credentials": True}})
 lm = LoginManager()

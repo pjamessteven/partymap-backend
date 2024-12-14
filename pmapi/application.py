@@ -3,18 +3,18 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask, session, render_template, request, g, jsonify
+from flask import Flask,  render_template, request, g, jsonify
 from flask_cors import cross_origin
 from flask.helpers import get_debug_flag
-import psycopg2
-# from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
-# from flask_dance.contrib.facebook import make_facebook_blueprint, facebook
-# from sqlalchemy_continuum import make_versioned
 from flask_login import current_user, AnonymousUserMixin
 from datetime import datetime
 from flask_migrate import Migrate
 
 from pmapi import extensions
+from pmapi.admin.views import EventDateModelView, EventLocationModelView, EventModelView, LogoutMenuLink, UserModelView
+from pmapi.event.model import Event
+from pmapi.event_date.model import EventDate
+from pmapi.event_location.model import EventLocation
 from pmapi.user.model import User
 
 from .exceptions import DatabaseConnectionError
@@ -63,6 +63,7 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     app.config.from_object(config)
     register_blueprints(app)
     register_extensions(app)
+    register_admin_views()
     register_blueprints_with_tracker(app)
     extensions.lm.login_view = "auth.LoginResource"
     register_errorhandlers(app)
@@ -162,8 +163,6 @@ def register_extensions(app):
     extensions.cors.init_app(app)
     extensions.mail.init_app(app)
     extensions.apidocs.init_app(app)
-    # extensions.babel.init_app(app)
-   #  extensions.babel.localeselector(get_locale)
 
     with app.app_context():
         try:
@@ -177,6 +176,13 @@ def register_extensions(app):
             print("Error initiating tracker, likely due to db problem.")
             pass
 
+
+def register_admin_views():
+    extensions.admin.add_view(UserModelView(User, extensions.db.session))
+    extensions.admin.add_view(EventModelView(Event, extensions.db.session))
+    extensions.admin.add_view(EventDateModelView(EventDate, extensions.db.session))
+    extensions.admin.add_view(EventLocationModelView(EventLocation, extensions.db.session))
+    extensions.admin.add_view(LogoutMenuLink(name='Logout', endpoint='logout'))
 
 def register_blueprints(app):
     from pmapi.auth.oauth_fb_resource import oauth_fb_blueprint
@@ -193,12 +199,11 @@ def register_blueprints(app):
     from pmapi.suggestions.resource import suggestions_blueprint
     from pmapi.event_artist.resource import artists_blueprint
     from pmapi.services.resource import services_blueprint
-
     from pmapi.event_review.resource import event_review_blueprint
     from pmapi.search.resource import search_blueprint
-
     # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
+    from pmapi.sitemap.resource import sitemap_blueprint
 
     # auth endpoint is /api/oauth/google
     app.register_blueprint(oauth_google_blueprint, url_prefix="/api/oauth")
@@ -222,6 +227,7 @@ def register_blueprints(app):
     app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
     app.register_blueprint(services_blueprint, url_prefix="/api/services")
+    app.register_blueprint(sitemap_blueprint, url_prefix="/api/sitemap")
 
 
 def register_blueprints_with_tracker(app):
@@ -284,6 +290,7 @@ def register_docs(app):
         ArtistResource,
     )
     from pmapi.services.resource import IpLookupResource
+    from pmapi.sitemap.resource import SiteMapResource
 
     extensions.apidocs.register(LoginResource, "auth.LoginResource")
     extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
@@ -306,6 +313,7 @@ def register_docs(app):
     )
     extensions.apidocs.register(ArtistResource, "artists.ArtistResource")
     extensions.apidocs.register(IpLookupResource, "service.IpLookupResource")
+    extensions.apidocs.register(SiteMapResource, 'sitemap.SiteMapResource')
 
 
 def register_errorhandlers(app):
