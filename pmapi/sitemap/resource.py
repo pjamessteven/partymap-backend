@@ -1,43 +1,52 @@
-from flask import Blueprint, request, make_response, render_template, current_app
+from flask import Blueprint, make_response, render_template, current_app
 
 from flask_apispec import doc
-from flask_apispec import marshal_with
 from flask_apispec import MethodResource
 
-from urllib.parse import urlparse
-from pmapi.exceptions import InvalidUsage
-from pmapi.common.controllers import paginated_view_args
+from pmapi.event.model import Event
+from pmapi.event_artist.model import Artist
+from pmapi.extensions import db
+from pmapi.utils import SUPPORTED_LANGUAGES 
 
 sitemap_blueprint = Blueprint("sitemap", __name__)
 
 @doc(tags=["sitemap"])
 class SiteMapResource(MethodResource):
     @doc(
-        summary="Sitemap for SEO",
+        summary="Sitemap for SEO purposes",
     )
     def get(self, **kwargs):
-        host_components = urlparse(request.host_url)
-        host_base = host_components.scheme + "://" + host_components.netloc
-        
-        # Collect URLs
+
         urls = []
-        for rule in current_app.url_map.iter_rules():
-            if "GET" in rule.methods and len(rule.arguments) == 0:
-                urls.append(host_base + str(rule.rule))
+
+        events = db.session.query(Event).all()
+        artists = db.session.query(Artist).all()
+
+        urls.append({"loc": '/browse'})
+        urls.append({"loc": '/?view=nearby'})
+        urls.append({"loc": '/?view=explore'})
+        urls.append({"loc": '/privacy_policy'})
+        urls.append({"loc": '/support'})
+        urls.append({"loc": '/terms_and_conditions'})
+        urls.append({"loc": '/login'})
+        urls.append({"loc": '/register'})
+        urls.append({"loc": '/forgot'})
+        urls.append({"loc": '/add/public_event/'})
+    
+        for event in events:
+            urls.append({"loc": '/event/' + str(event.id) +  '?name=' + event.name,
+                        "lastmod": event.updated_at.strftime("%Y-%m-%d")})
+        for artist in artists:
+            urls.append({"loc": '/artist/' + str(artist.id) +  '?name=' + artist.name})
         
-        # Add dynamic content URLs here
-        # For example, if you have blog posts:
-        # posts = get_all_blog_posts()
-        # for post in posts:
-        #     urls.append({"loc": host_base + url_for("blog_post", post_id=post.id),
-        #                  "lastmod": post.modified_date.strftime("%Y-%m-%d")})
-        
-        sitemap_xml = render_template("sitemap.xml", urls=urls)
+        base_url = current_app.config["WEBSITE_URL"]
+
+        sitemap_xml = render_template("sitemap.xml", urls=urls, base_url=base_url, supported_languages=SUPPORTED_LANGUAGES)
         response = make_response(sitemap_xml)
         response.headers["Content-Type"] = "application/xml"
         
         return response
 
 sitemap_blueprint.add_url_rule(
-    "/", view_func=SiteMapResource.as_view("SiteMapResource")
+    "", view_func=SiteMapResource.as_view("SiteMapResource")
 )
