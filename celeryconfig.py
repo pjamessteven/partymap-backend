@@ -8,7 +8,7 @@ broker_url = "amqp://%s:%s@%s:%s//" % (os.getenv("RABBITMQ_DEFAULT_USER", ""), o
 result_backend = "rpc://"
 
 # List of modules to import when the Celery worker starts
-imports = ('pmapi.tasks',)
+imports = ('pmapi.celery_tasks',)
 
 # Celery prefetches tasks by default, which can cause it to hold open database connections even if concurrency is low. Limit the prefetch multiplier:
 worker_prefetch_multiplier = 1
