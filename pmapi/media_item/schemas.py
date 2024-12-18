@@ -6,7 +6,14 @@ import os
 from typemallow2 import ts_interface
 from pprint import pprint
 
-
+@ts_interface
+class MediaItemUploadSchema(Schema):
+    caption = fields.Str(required=False, allow_none=True)
+    base64File = fields.Str(required=False) # upload image 
+    url = fields.Str(required=False) # or alternatively specify URL to get from
+    mimeType = fields.Str(required=False)
+    fileName = fields.Str(required=False)
+    
 @ts_interface()
 class MediaItemSchema(Schema):
     id = fields.Int()

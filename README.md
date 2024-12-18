@@ -146,6 +146,9 @@ How to restore a backup (in docker container)
 2) Run: psql -h db -U partymap -p 5432 partymap < snapshot_prod_23_7_22/partymap_23_jul_22.sql
 3) Move static folder to root (for media)
 
+Purge celery tasks:
+
+-A pmapi.celery_worker.celery worker purge
 
 UWSGI command for production:
 (Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env

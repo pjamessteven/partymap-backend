@@ -78,12 +78,18 @@ class EventsResource(MethodResource):
             "next_event_date_artists": fields.List(
                 fields.Dict(), required=False, allow_none=True
             ),
-            "next_event_date_lineup_images": fields.List(fields.Dict(), required=False, allow_none=True),
+            "next_event_date_lineup_images": fields.Nested(
+                "MediaItemUploadSchema", many=True, allow_none=True
+            ),
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
-            "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
-            "logo": fields.Dict(required=False, allow_none=True),
+            "media_items": fields.Nested(
+                "MediaItemUploadSchema", many=True
+            ),
+            "logo": fields.Nested(
+                "MediaItemUploadSchema", many=False
+            ),
             "rrule": fields.Dict(),
             "host": fields.Boolean(),
             "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
@@ -92,7 +98,6 @@ class EventsResource(MethodResource):
     )
     @marshal_with(EventSchema(), code=200)
     def post(self, **kwargs):
-
         return events.add_event(**kwargs, creator=current_user)
 
 

@@ -9,12 +9,14 @@ from flask.helpers import get_debug_flag
 from flask_login import current_user, AnonymousUserMixin
 from datetime import datetime
 from flask_migrate import Migrate
+from celery.app.control import Control
 
 from pmapi import extensions
 from pmapi.admin.views import EventDateModelView, EventLocationModelView, EventModelView, LogoutMenuLink, UserModelView
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation
+from pmapi.services.goabase import fetch_events_from_goabase
 from pmapi.user.model import User
 
 from .exceptions import DatabaseConnectionError
@@ -39,7 +41,7 @@ from .config import DevConfig, ProdConfig
 import os
 import logging
 from pmapi.utils import ROLES, SUPPORTED_LANGUAGES
-from pmapi.scripts import update_translations
+from pmapi.services.translations import update_translations
 # ONLY FOR TESTING !!
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -147,7 +149,14 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     def update_translation():
         return update_translations()
 
+    @app.cli.command("goabase-sync")
+    def pull_goabase_events():
+        return fetch_events_from_goabase()
 
+    @app.cli.command("purge-tasks")
+    def purge_tasks():
+        pass
+    
     return app
 
 

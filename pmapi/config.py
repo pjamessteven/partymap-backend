@@ -40,6 +40,7 @@ class BaseConfig(object):
     LAST_FM_API_KEY = os.getenv("LAST_FM_API_KEY")
     SPOTIFY_API_KEY = os.getenv("SPOTIFY_API_KEY")
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+    GMAPS_API_KEY = os.getenv("GMAPS_API_KEY")
 
     TRACK_USAGE_FREEGEOIP_ENDPOINT = (
         "http://extreme-ip-lookup.com/json/{ip}?key=" + os.getenv("EXTREME_IP_LOOKUP_KEY")
@@ -54,6 +55,7 @@ class BaseConfig(object):
     DIFY_USER = os.getenv("DIFY_USER")
     DIFY_TRANSLATE_KEY = os.getenv("DIFY_TRANSLATE_KEY")
     DIFY_TRANSLATE_TAG_KEY = os.getenv("DIFY_TRANSLATE_TAG_KEY")
+    DIFY_LINEUP_KEY = os.getenv("DIFY_LINEUP_KEY")
     
 class DevConfig(BaseConfig):
     DEBUG = True

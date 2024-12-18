@@ -96,7 +96,7 @@ def get_event(id):
     if event:
         # increment page views
         user_id = None
-        if current_user.is_authenticated:
+        if current_user and current_user.is_authenticated:
             user_id = current_user.id
         event.increment_page_views(user_id)
         return event
@@ -178,7 +178,7 @@ def add_event(**kwargs):
     rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
     tags = kwargs.pop("tags", None)
-    media = kwargs.pop("media_items", None)
+    media = kwargs.pop("media_items", None) 
     logo = kwargs.pop("logo", None)
     tickets = kwargs.pop("tickets", None)
     ticket_url = kwargs.pop("ticket_url", None)
@@ -191,16 +191,18 @@ def add_event(**kwargs):
 
     event = Event(
         name=name,
-        creator_id=creator.id,
+        creator_id=creator.id if creator else None,
         host_id=creator.id if host is True else None,
         description=description,
         description_attribute=description_attribute,
         full_description=full_description,
         full_description_attribute=full_description_attribute,
-        youtube_url=youtube_url
+        youtube_url=youtube_url,
     )
+    print('event', event)
     db.session.add(event)
     db.session.flush()
+    print('added event!')
 
     # separation count of 0 means no recurrance
     if rrule and rrule["separationCount"] > 0:
@@ -265,17 +267,17 @@ def add_event(**kwargs):
                 url=ticket.get("url"), description=ticket.get("description"), price_min=ticket.get("price_min"), price_max=ticket.get("price_max"), price_currency_code=ticket.get("price_currency_code"), event_date=next_event_date, event=event)
             db.session.add(ed_ticket) 
             
+
+    event.after_commit = True # trigger translation update in event_listeners.py
+
     db.session.commit()
 
-    event_id = event.id
-    from pmapi.tasks import update_event_translation
-    update_event_translation.delay(event_id)
     # send notification
-    if creator.role < 30:
+    if creator and creator.role < 30:
         send_new_event_notification(
             event, creator.username if creator is not None and creator.id != CONFIG.ANON_USER_ID else None
         )
-    
+    print('added!!')
     return event
 
 
@@ -454,9 +456,7 @@ def update_event(event_id, **kwargs):
     db.session.commit()
 
     if description is not None or full_description is not None:
-        event_id = event.id
-        from pmapi.tasks import update_event_translation
-        update_event_translation.delay(event_id)
+        event.after_commit = True # trigger translation update in event_listeners.py
 
     return event
 

@@ -1,4 +1,6 @@
+import mimetypes
 import os
+from typing import Optional
 import uuid
 import re
 import subprocess
@@ -12,8 +14,9 @@ from mimetypes import guess_extension
 from flask_login import current_user
 from ffmpy import FFprobe
 from datetime import datetime
-import os
+import os, logging
 # import magic
+import requests
 
 from .model import MediaItem
 from pmapi.extensions import db, activity_plugin
@@ -207,7 +210,15 @@ def upload_user_avatar(item, user, creator=current_user):
     return None
 
 
-def add_media_item(file, path):
+def add_media_item(path, file=None, url=None):
+
+    if url and file is None:
+        # get media from url
+        try:
+            file = download_image_as_base64(url)
+        except:
+            raise exc.InvalidAPIRequest("media_item.add_media_to_event: Couldn't fetch image from URL")
+
     (
         thumb_xxs_filename,
         thumb_xs_filename,
@@ -241,15 +252,16 @@ def add_media_item(file, path):
 
 def add_lineup_images_to_event_date(images, event, event_date, creator=current_user):
     for i in images:
-        file = i["base64File"]
+        file = i.get("base64File")
+        url = i.get("url")
         path = os.path.join(
             current_app.config["MEDIA_UPLOAD_FOLDER"] +
             str("event/") + str(event.id)
         )
         media_item = add_media_item(
-            file, path)
+            path, file=file, url=url)
 
-        media_item.creator_id = creator.id
+        media_item.creator_id = creator.id if creator else None
         media_item.attributes = {'isLineupImage': True}
         media_item.event = event
         media_item.event_date = event_date
@@ -267,7 +279,8 @@ def add_lineup_images_to_event_date(images, event, event_date, creator=current_u
 
 
 def add_logo_to_event(image, event, creator=current_user):
-    file = image["base64File"]
+    file = image.get("base64File")
+    url = image.get('url')
     path = os.path.join(
         current_app.config["MEDIA_UPLOAD_FOLDER"] +
         str("event/") + str(event.id)
@@ -279,9 +292,9 @@ def add_logo_to_event(image, event, creator=current_user):
             delete_item(item)
 
     media_item = add_media_item(
-        file, path)
+        path, url=url, file=file)
 
-    media_item.creator_id = creator.id
+    media_item.creator_id = creator.id if creator else None
     media_item.attributes = {'isEventLogo': True}
 
     db.session.flush()
@@ -302,17 +315,19 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
     media_items = []
 
     for i in items:
-        file = i["base64File"]
 
         path = os.path.join(
             current_app.config["MEDIA_UPLOAD_FOLDER"] +
             str("event/") + str(event.id)
         )
 
-        media_item = add_media_item(file, path)
+        url = i.get('url')
+        file = i.get('base64File')
+
+        media_item = add_media_item(path, file=file, url=url)
         media_item.event = event
         media_item.event_date = event_date
-        media_item.creator_id = creator.id
+        media_item.creator_id = creator.id if creator else None
         media_item.caption = i.get("caption", None)
 
         if media_item:
@@ -350,9 +365,11 @@ def save_media_item(file, path):
     # this gets the main base64 string
     base64_string = re.search(r"base64,(.*)", file).group(1)
 
+    mimetypes.add_type('image/webp', '.webp') # this version of python is OLD
+
     file_extension = guess_extension(mimetype)
     if file_extension == ".jpeg":
-        file_extension = ".jpg"
+        file_extension = ".jpg" # jpg got swag
 
     unique_filename = str(uuid.uuid4())
 
@@ -462,7 +479,7 @@ def save_media_item(file, path):
         thumb_width, thumb_height = get_new_video_dimensions(
             width, height, max_width=512, max_height=512
         )
-        from pmapi.tasks import get_video_thumbnail, run_video_conversion
+        from pmapi.celery_tasks import get_video_thumbnail, run_video_conversion
 
         get_video_thumbnail(
             input_filepath=filepath,
@@ -551,3 +568,39 @@ def get_new_video_dimensions(width, height, max_width, max_height):
     new_height = height * best_ratio
 
     return int(new_width), int(new_height)
+
+
+def download_image_as_base64(url: str) -> Optional[str]:
+    """
+    Download an image from a given URL and convert it to a base64-encoded string.
+    
+    :param url: URL of the image to download
+    :return: Base64 encoded image string or None if download fails
+    """
+    try:
+        # Send a GET request to download the image
+        response = requests.get(url, timeout=10)
+        
+        # Raise an exception for bad status codes
+        response.raise_for_status()
+        
+        # Check if the content is an image
+        content_type = response.headers.get('Content-Type', '').lower()
+        if not content_type.startswith('image/'):
+            logging.warning(f"URL did not return an image. Content-Type: {content_type}")
+            return None
+        
+        # Encode the image content to base64
+        base64_image = base64.b64encode(response.content).decode('utf-8')
+        
+        # Create a data URI with the appropriate MIME type
+        data_uri = f"data:{content_type};base64,{base64_image}"
+        
+        return data_uri
+    
+    except requests.RequestException as e:
+        logging.error(f"Error downloading image from {url}: {e}")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error processing image from {url}: {e}")
+        return None

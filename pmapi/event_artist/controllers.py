@@ -1,3 +1,4 @@
+import re
 import pytz
 from datetime import datetime
 from pmapi.media_item.controllers import add_media_to_artist
@@ -275,6 +276,7 @@ def add_artist(name, mbid=None):
     )
     db.session.add(artist)
     db.session.flush()
+    artist.after_commit = True # get artist details after commit (event_listeners.py)
     return artist
 
 
@@ -336,7 +338,7 @@ def add_artist_to_date(
         artist=artist,
         stage=stage,
         event_date=event_date,
-        creator_id=current_user.id,
+        creator_id=current_user.id if current_user else None,
         start=start_utc,
         start_naive=start_naive,
     )
@@ -347,6 +349,8 @@ def add_artist_to_date(
          verb=u"create", object=event_date_artist, target=event_date
     )
     db.session.add(activity)
+
+    artist.after_commit = True # update artist details after commit (event_listeners.py)
 
     return event_date_artist
 
@@ -393,37 +397,59 @@ def save_artist_image_from_wikimedia_url(url, artist):
         )
 
 
-def get_artist_details_from_music_brainz(mbid, attempt=5):
+def get_artist_details_from_music_brainz(mbid=None, name=None, attempt=5):
     if attempt > 0:
-        # wait  (musicbrainz api limited to one req/sec)
         try:
+            # Determine URL based on input type
+            if mbid:
+                url = f"https://musicbrainz.org/ws/2/artist/{mbid}?inc=url-rels&fmt=json"
+            elif name:
+                url = f"https://musicbrainz.org/ws/2/artist/?query=artist:{name}&fmt=json"
+            else:
+                logging.error("No valid identifier (mbid or name) provided.")
+                return None
+
+            # Wait (musicbrainz API limited to one request per second)
             response = requests.get(
-                url="https://musicbrainz.org/ws/2/artist/"
-                + mbid
-                + "?inc=url-rels&fmt=json",
+                url=url,
                 headers={"Accept": "application/json"},
                 timeout=TIMEOUT,
             )
+
+            # Retry on failure
+            if response.status_code != 200:
+                time.sleep(2)
+                return get_artist_details_from_music_brainz(mbid=mbid, name=name, attempt=attempt - 1)
+
+            data = response.json()
+
+            # Handle search-by-name case
+            if name and not mbid:
+                # Look for exact name match (case-insensitive)
+                name_lower = name.lower()
+                for artist in data.get("artists", []):
+                    if artist.get("name", "").lower() == name_lower:
+                        return artist
+                logging.warning(f"No exact match found for artist name: {name}")
+                return None
+
+            # If fetching by MBID, return the result directly
+            return data
+
         except RequestException as e:
             logging.error(
                 "event_artist.get_artist_details_from_music_brainz.request_error",
-                status_code=response.status_code,
-                error_body="", 
+                error_body="",
                 exception=e,
             )
-
-        if response.status_code != 200:
             time.sleep(2)
-            return get_artist_details_from_music_brainz(mbid, attempt-1)
-        return response.json()
-    
+            return get_artist_details_from_music_brainz(mbid=mbid, name=name, attempt=attempt - 1)
+
     logging.error(
         "event_artist.get_artist_details_from_music_brainz.max_retries_reached",
-        status_code=response.status_code,
-        error_body="max retries reached for getting artist details " + mbid, 
-        exception=e,
+        error_body="Max retries reached for getting artist details.",
     )
-
+    return None
 def get_artist_details_from_last_fm(mbid, retries=5):
     if retries > 0:
         url = (
@@ -466,7 +492,7 @@ def get_artist_details_from_last_fm(mbid, retries=5):
     )
 
 
-def refresh_spotify_data_for_artist(artist):
+def refresh_spotify_data_for_artist(artist, spotify_id=None):
     # GET ACCESS TOKEN
     AUTH_URL = "https://accounts.spotify.com/api/token"
     try:
@@ -494,108 +520,133 @@ def refresh_spotify_data_for_artist(artist):
         "Authorization": "Bearer {token}".format(token=access_token),
         "Accept": "application/json",
     }
-    url = "https://api.spotify.com/v1/search?type=artist&q=" + artist.name
 
-    try:
-        response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
-    except RequestException as e:
-        logging.error(
-            "event_artist.refresh_spotify_data_for_artist.main_request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
-        )
+    spotify_artist = None
 
-    response = response.json()
-    items = response.get("artists", {}).get("items", [])
 
-    if len(items) > 0:
-        # try to get the right artist from the deezer response
-        # make sure artist name exists in response
-        spotify_artist_names = []
-        for item in items:
-            spotify_artist_names.append(item.get("name"))
-        close_matches = difflib.get_close_matches(
-            artist.name, spotify_artist_names)
-        spotify_artist_name = None
-        spotify_artist = None
-        if len(close_matches) > 0:
-            spotify_artist_name = close_matches[0]
-        # get the right artist from response
-        for item in sorted(items, key=lambda d: d.get("popularity"), reverse=True):
-            if item.get("name") == spotify_artist_name:
-                spotify_artist = item
-                break
+    if spotify_id:
+        print('SPOTIFY refreshing for spotify_id: ' + spotify_id)
+        url = f"https://api.spotify.com/v1/artists/{spotify_id}",
 
-        # get artist image
-        if spotify_artist:
-            # get tags too, why not
-            if len(spotify_artist.get("genres", [])) > 0:
-                add_tags_to_artist(spotify_artist.get("genres"), artist, False)
+        try:
+            response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
+        except RequestException as e:
+            logging.error(
+                "event_artist.refresh_spotify_data_for_artist.main_request_error",
+                status_code="",
+                error_body="",  # TODO: proper status code here
+                exception=e,
+            )
+        if response.status_code == 200:
+            spotify_artist = response.json()
+        else:
+            print(f"Error fetching data from Spotify: {response.status_code}")
+            return None
 
-            # delete existing spotify url
-            for url in artist.urls:
-                if "spotify" in url.url.lower():
-                    db.session.delete(url)
 
-            # save url
-            url = spotify_artist.get("external_urls", {}).get("spotify", None)
-            if url:
-                add_artist_url(url, "spotify", artist)
+    else:
+        print('SPOTIFY refreshing for artist name: ' + artist.name)
+        url = "https://api.spotify.com/v1/search?type=artist&q=" + artist.name
 
-            # save popularity
-            artist.popularity = spotify_artist.get("popularity", 0)
+        try:
+            response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
+        except RequestException as e:
+            logging.error(
+                "event_artist.refresh_spotify_data_for_artist.main_request_error",
+                status_code="",
+                error_body="",  # TODO: proper status code here
+                exception=e,
+            )
 
-            # now save image
-            images = spotify_artist.get("images")
-            if len(images) > 0:
-                # sort images by biggest first
-                images_sorted = sorted(
-                    images, key=lambda d: d.get("height"), reverse=True
+        response = response.json()
+        items = response.get("artists", {}).get("items", [])
+
+        if len(items) > 0:
+            # try to get the right artist from the deezer response
+            # make sure artist name exists in response
+            spotify_artist_names = []
+            for item in items:
+                spotify_artist_names.append(item.get("name"))
+            close_matches = difflib.get_close_matches(
+                artist.name, spotify_artist_names)
+            spotify_artist_name = None
+            if len(close_matches) > 0:
+                spotify_artist_name = close_matches[0]
+            # get the right artist from response
+            for item in sorted(items, key=lambda d: d.get("popularity"), reverse=True):
+                if item.get("name") == spotify_artist_name:
+                    spotify_artist = item
+                    break
+
+    # get artist image
+    if spotify_artist:
+        # get tags too, why not
+        if len(spotify_artist.get("genres", [])) > 0:
+            add_tags_to_artist(spotify_artist.get("genres"), artist, False)
+
+        # delete existing spotify url
+        for url in artist.urls:
+            if "spotify" in url.url.lower():
+                db.session.delete(url)
+
+        # save url
+        url = spotify_artist.get("external_urls", {}).get("spotify", None)
+        if url:
+            add_artist_url(url, "spotify", artist)
+
+        # save popularity
+        artist.popularity = spotify_artist.get("popularity", 0)
+
+        # now save image
+        images = spotify_artist.get("images")
+        if len(images) > 0:
+            # sort images by biggest first
+            images_sorted = sorted(
+                images, key=lambda d: d.get("height"), reverse=True
+            )
+            image_url = images_sorted[0].get("url")
+            try:
+                headers = {
+                    "Accept": "image/*",
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
+                }
+                r = requests.get(
+                    image_url, headers=headers, timeout=TIMEOUT)
+            except RequestException as e:
+                logging.error(
+                    "event_artist.refresh_spotify_data_for_artist.image_request_error",
+                    status_code="",
+                    error_body="",  # TODO: proper status code here
+                    exception=e,
                 )
-                image_url = images_sorted[0].get("url")
-                try:
-                    headers = {
-                        "Accept": "image/*",
-                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
-                    }
-                    r = requests.get(
-                        image_url, headers=headers, timeout=TIMEOUT)
-                except RequestException as e:
-                    logging.error(
-                        "event_artist.refresh_spotify_data_for_artist.image_request_error",
-                        status_code="",
-                        error_body="",  # TODO: proper status code here
-                        exception=e,
-                    )
-                    print("error getting artist image from spotify")
-                # add to db
-                try:
-                    uri = (
-                        "data:"
-                        + r.headers["Content-Type"]
-                        + ";"
-                        + "base64,"
-                        + base64.b64encode(r.content).decode("utf-8")
-                    )
-                except Exception:
-                    logging.error(
-                        "event_artist.refresh_spotify_data_for_artist.base_64_encode",
-                    )
-                    print("error encoding spotify artist image as uri")
-                items = [
-                    {
-                        "base64File": uri,
-                        "caption": "Artist image from Spotify",
-                    }
-                ]
-                try:
-                    add_media_to_artist(items, artist)
-                except Exception:
-                    logging.error(
-                        "event_artist.refresh_spotify_data_for_artist.add_media_to_artist",
-                    )
-                return True
+                print("error getting artist image from spotify")
+            # add to db
+            try:
+                uri = (
+                    "data:"
+                    + r.headers["Content-Type"]
+                    + ";"
+                    + "base64,"
+                    + base64.b64encode(r.content).decode("utf-8")
+                )
+            except Exception:
+                logging.error(
+                    "event_artist.refresh_spotify_data_for_artist.base_64_encode",
+                )
+                print("error encoding spotify artist image as uri")
+            items = [
+                {
+                    "base64File": uri,
+                    "caption": "Artist image from Spotify",
+                }
+            ]
+            try:
+                add_media_to_artist(items, artist)
+            except Exception:
+                logging.error(
+                    "event_artist.refresh_spotify_data_for_artist.add_media_to_artist",
+                )
+            return True
 
     return False  # couldn't get image
 
@@ -830,20 +881,31 @@ def delete_artist(id):
     db.session.flush()
 
 def refresh_info(id):
-
     artist = get_artist_or_404(id)
     
     # disable after_commit listener action that triggers refresh_info
     artist.after_commit = False
     
-    if artist.mbid:
+    # music brainz search
+    musicbrainz_response = get_artist_details_from_music_brainz(
+        mbid=artist.mbid, name=artist.name)
+    
+    mbid = musicbrainz_response.get('id', None) if musicbrainz_response else None
+    spotify_id = None
 
-        # music brainz search
-        musicbrainz_response = get_artist_details_from_music_brainz(
-            artist.mbid)
+    spotify_artist_regex = r'https://open.spotify.com/artist/([a-zA-Z0-9]{22})'
 
+    # check if there's a spotify ID 
+    for artist_url in artist.urls:
+        match = re.match(spotify_artist_regex, artist_url.url)
+        if match:
+            # The artist ID is captured in the first group of the regex match
+            spotify_id = match.group(1)
+
+    if musicbrainz_response and mbid:
+        print('refreshing with mbid ', mbid)
         # last.fm search
-        lastfm_bio, lastfm_tags = get_artist_details_from_last_fm(artist.mbid)
+        lastfm_bio, lastfm_tags = get_artist_details_from_last_fm(mbid)
 
         area = musicbrainz_response.get("area", None)
         if area:
@@ -860,6 +922,11 @@ def refresh_info(id):
             add_musicbrainz_urls_to_artist(
                 musicbrainz_response["relations"], artist)
 
+            for rel in musicbrainz_response["relations"]:
+                if rel.get("type") == "streaming music" and "spotify.com" in rel.get("url", {}).get("resource", ""):
+                    spotify_url = rel["url"]["resource"]
+                    spotify_id = spotify_url.split("/")[-1]  # Extract Spotify Artist ID
+                
     # get images from external services
     # only use deezer as fallback
 
@@ -870,7 +937,7 @@ def refresh_info(id):
             db.session.delete(image)
     db.session.flush()
 
-    spotify_image_found = refresh_spotify_data_for_artist(artist)
+    refresh_spotify_data_for_artist(artist, spotify_id)
 
     # DISABLED BECAUSE DEEZER MOSTLY RETURNS BLANK AVATARS
     # if not spotify_image_found:

@@ -135,11 +135,10 @@ def add_event_date_with_datetime(
             ticket_url=ticket_url,
             artists=artists,
         )
+
+
         db.session.commit()
 
-        from pmapi.tasks import update_event_date_translation
-        event_date_id = event_date.id
-        update_event_date_translation.delay(event_date_id)
 
         return event
 
@@ -224,6 +223,7 @@ def add_event_date(
         date_confirmed=date_confirmed
     )
     db.session.add(event_date)
+    event_date.after_commit = True
 
     db.session.flush()
 
@@ -396,12 +396,11 @@ def update_event_date(id, **kwargs):
                         target=event_date.event)
     db.session.add(activity)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
-    db.session.commit()
     
     if "description" in kwargs:
-        event_date_id = event_date.id
-        from pmapi.tasks import update_event_date_translation
-        update_event_date_translation.delay(event_date_id)
+        event_date.after_commit = True
+
+    db.session.commit()
 
     return event_date
 
