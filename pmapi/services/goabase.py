@@ -224,7 +224,7 @@ class GoabaseEventFetcher:
                 lineup_text = performers  + ' ' + event.get('description', '') 
                 image_url = event.get('logo', {}).get('url', '')
                 # get location after pre-existing check
-                event.update('location',  self._get_location(event.get('location')))
+                event.update({'location': self._get_location(event.get('location'))})
 
                 event = events.add_event(**event)
                 if event.settings is None:
