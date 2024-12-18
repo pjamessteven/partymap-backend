@@ -56,7 +56,7 @@ def get_locale():
     return request.accept_languages.best_match(SUPPORTED_LANGUAGES)
 
 
-def dify_request(inputs, workflow_key):
+def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
     url = f'{BaseConfig.DIFY_URL}/workflows/run'
     
     data = {
@@ -66,27 +66,30 @@ def dify_request(inputs, workflow_key):
     }
     
     headers = {
-        'Authorization': 'Bearer ' + workflow_key
+        'Authorization': f'Bearer {workflow_key}'
     }
 
     try:
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
-        json =  response.json()
-        print('json', json)
-        text = json['data']['outputs']['text']
+        json_response = response.json()
+        print('Response JSON:', json_response)
+        text = json_response['data']['outputs']['text']
         return text
-    
+
     except Exception as e:
-        # Handle any request exceptions
-        print(e)
-        return None
+        print(f'Attempt {attempt} failed: {e}')
+        if attempt < max_attempts:
+            return dify_request(inputs, workflow_key, attempt=attempt + 1, max_attempts=max_attempts)
+        else:
+            print('Max attempts reached. Failing.')
+            return None
 
 
 def get_description_translation(text, target_lang):
     result = dify_request({'text': text, 'target_lang': target_lang}, CONFIG.DIFY_TRANSLATE_KEY)
 
-    if 'TRANSLATION_ERROR' in result:
+    if result and 'TRANSLATION_ERROR' in result:
         print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
         return None 
 
