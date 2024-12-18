@@ -35,7 +35,7 @@ def update_translations():
     tags = tags.filter(Tag.count > 2)
 
     artists = db.session.query(Artist).all()
-
+    """
     for tag in tags.all()[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if not onlyMissing or lang not in tag.tag_translations:
@@ -44,8 +44,8 @@ def update_translations():
         print('translated ' + tag.tag)
         print(tag.tag_translations)
         db.session.commit()
-
-    for event in event_query[:10]:
+    """
+    for event in event_query:
         for lang in SUPPORTED_LANGUAGES:
             if lang not in event.description_translations:
                 event.description_translations[lang] = get_description_translation(event.description, lang)
@@ -56,6 +56,7 @@ def update_translations():
         print('translated ' + event.name)
         db.session.commit()
 
+    """
     for artist in artists[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if artist.description and len(artist.description) > 0:
@@ -68,3 +69,4 @@ def update_translations():
             print('translated ' + artist.name)
         else: 
             print('skipped ' + artist.name + ' - no content to translate')
+    """
