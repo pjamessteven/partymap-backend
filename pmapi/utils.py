@@ -1,9 +1,15 @@
 from datetime import time
+import json
 import random
 import string
 from pmapi.config import BaseConfig
 import requests
 from flask import request, g
+from flask.helpers import get_debug_flag
+from .config import DevConfig, ProdConfig
+DEV_ENVIRON = get_debug_flag()
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+
 
 
 ROLES = {"UNPRIVILIGED_USER": 0, "HOST": 10, "STAFF": 20, "ADMIN": 30}
@@ -50,19 +56,11 @@ def get_locale():
     return request.accept_languages.best_match(SUPPORTED_LANGUAGES)
 
 
-def get_translation_for_all_languages(text, target_translation_dict):
-    for lang in SUPPORTED_LANGUAGES:
-        if lang not in target_translation_dict:
-            target_translation_dict[lang] = get_translation(text, lang, BaseConfig.DIFY_TRANSLATE_TAG_KEY)
-            time.sleep(1.5)
-    print('translation complete:', target_translation_dict)
-    return target_translation_dict
-
-def get_translation(text, target_lang, workflow_key):
+def dify_request(inputs, workflow_key):
     url = f'{BaseConfig.DIFY_URL}/workflows/run'
     
     data = {
-        'inputs': {'text': text, 'target_lang': target_lang},
+        'inputs': inputs,
         'response_mode': 'blocking',
         'user': BaseConfig.DIFY_USER
     }
@@ -75,14 +73,39 @@ def get_translation(text, target_lang, workflow_key):
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         json =  response.json()
+        print('json', json)
         text = json['data']['outputs']['text']
-        print('text', json, text)
-        if 'TRANSLATION_ERROR' in text:
-            print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
-            return None 
         return text
     
     except Exception as e:
         # Handle any request exceptions
         print(e)
         return None
+
+
+def get_description_translation(text, target_lang):
+    result = dify_request({'text': text, 'target_lang': target_lang}, CONFIG.DIFY_TRANSLATE_KEY)
+
+    if 'TRANSLATION_ERROR' in result:
+        print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
+        return None 
+
+    return result    
+
+
+def get_lineup_from_text(text):
+    result = dify_request({'lineup_text': text }, CONFIG.DIFY_LINEUP_KEY)
+    if result:
+        result = json.loads(result)
+        return result.get('items', [])
+    else: 
+        return []
+
+def get_lineup_from_image(image):
+    # can accept base64 or image URL
+    result = dify_request({'lineup_image': image}, CONFIG.DIFY_LINEUP_KEY)
+    if result:
+        result = json.loads(result)
+        return result.get('items', [])
+    else: 
+        return []

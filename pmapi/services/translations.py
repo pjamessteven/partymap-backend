@@ -1,7 +1,7 @@
 from pmapi.extensions import db
 from pmapi.event.model import Event
 from sqlalchemy import and_, not_, or_
-from pmapi.utils import SUPPORTED_LANGUAGES, get_translation
+from pmapi.utils import SUPPORTED_LANGUAGES, get_description_translation
 from datetime import datetime
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import  Tag
@@ -39,7 +39,7 @@ def update_translations():
     for tag in tags.all()[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if not onlyMissing or lang not in tag.tag_translations:
-                tag.tag_translations[lang] = get_translation(tag.tag, lang, BaseConfig.DIFY_TRANSLATE_TAG_KEY)
+                tag.tag_translations[lang] = get_description_translation(tag.tag, lang)
                 time.sleep(1.5)
         print('translated ' + tag.tag)
         print(tag.tag_translations)
@@ -48,10 +48,10 @@ def update_translations():
     for event in event_query[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if lang not in event.description_translations:
-                event.description_translations[lang] = get_translation(event.description, lang, BaseConfig.DIFY_TRANSLATE_KEY)
+                event.description_translations[lang] = get_description_translation(event.description, lang)
                 time.sleep(1.5)
             if lang not in event.full_description_translations and event.full_description and len(event.full_description) > 0 :
-                event.full_description_translations[lang] = get_translation(event.full_description, lang, BaseConfig.DIFY_TRANSLATE_KEY)
+                event.full_description_translations[lang] = get_description_translation(event.full_description, lang)
                 time.sleep(1.5)
         print('translated ' + event.name)
         db.session.commit()
@@ -59,10 +59,10 @@ def update_translations():
     for artist in artists[:10]:
         for lang in SUPPORTED_LANGUAGES:
             if artist.description and len(artist.description) > 0:
-                artist.description_translations[lang] = get_translation(artist.description, lang, BaseConfig.DIFY_TRANSLATE_KEY)
+                artist.description_translations[lang] = get_description_translation(artist.description, lang)
                 time.sleep(1.5)
             if artist.disambiguation and len(artist.disambiguation) > 0:
-                artist.disambiguation_translations[lang] = get_translation(artist.disambiguation, lang, BaseConfig.DIFY_TRANSLATE_KEY)
+                artist.disambiguation_translations[lang] = get_description_translation(artist.disambiguation, lang)
                 time.sleep(1.5)
         if artist.description or artist.disambiguation:
             print('translated ' + artist.name)

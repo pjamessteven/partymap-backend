@@ -1,13 +1,13 @@
 from flask import Blueprint
 from flask_apispec import doc
 from flask_apispec import MethodResource
-import pmapi.services.controllers as services
+import pmapi.services.ip_location as services
 
 
 services_blueprint = Blueprint("service", __name__)
 
 
-@doc(tags=["reports"])
+@doc(tags=["services"])
 class IpLookupResource(MethodResource):
     @doc(
         summary="Get location from IP.",
@@ -19,3 +19,4 @@ class IpLookupResource(MethodResource):
 services_blueprint.add_url_rule(
     "/ip_lookup", view_func=IpLookupResource.as_view("IpLookupResource")
 )
+
