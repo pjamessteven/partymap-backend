@@ -45,7 +45,7 @@ class GoabaseEventFetcher:
             self.logger.error(f"Error fetching event list: {e}")
             return []
 
-    def _extract_hashtags(text):
+    def _extract_hashtags(self, text):
         # Use a regular expression to find all words that start with a hashtag (#)
         hashtags = re.findall(r'(?<=#)\w+', text)
         return hashtags
@@ -67,9 +67,8 @@ class GoabaseEventFetcher:
 
             json = response.json().get('party', {})
             json_ld = responseld.json()
-            lineup = json_ld.get('performers')
+            lineup = json_ld.get('performers', None)
             full_description = self._parse_description(json_ld.get('description'), lineup)
-            print('DEWSC', full_description)
             name_type = json_ld.get('nameType', None)
             tags = ['goabase', 'psy']
 
@@ -84,10 +83,10 @@ class GoabaseEventFetcher:
             # Transform event data to desired schema
             transformed_event = {
                 'name': json_ld.get('name', None),
-                'description': self._parse_summary(full_description, lineup),
+                'description': self._parse_summary(full_description),
                 'full_description': full_description,
                 'date_time': {'start': self._parse_datetime(json_ld.get('startDate')), 'end': self._parse_datetime(json_ld.get('endDate'))},
-                'location': self._get_location(json_ld.get('location')),
+                'location':json_ld.get('location'),
                 'url': json_ld.get('url', ''),
                 'performers': json_ld.get('performers', None),
                 'tags': tags,
@@ -209,7 +208,7 @@ class GoabaseEventFetcher:
             existing_event = db.session.query(Event).join(Event.event_dates).filter(EventDate.url == goabase_url).first()   
 
             if existing_event:
-                print('Event already in db')
+                print('Event already in db: ', existing_event.name)
                 existing_modified = existing_event.settings.get('goabase_modified', None) if existing_event.settings else None
                 if existing_modified:
                     existing_modified_parsed = parser.parse(existing_modified)
@@ -224,6 +223,9 @@ class GoabaseEventFetcher:
                 performers = event.get('performers', '')
                 lineup_text = performers  + ' ' + event.get('description', '') 
                 image_url = event.get('logo', {}).get('url', '')
+                # get location after pre-existing check
+                event.update('location',  self._get_location(event.get('location')))
+
                 event = events.add_event(**event)
                 if event.settings is None:
                     event.settings = {}  # Initialize as an empty dict if None
