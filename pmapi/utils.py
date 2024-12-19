@@ -73,8 +73,10 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
         response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         json_response = response.json()
-        print('Response JSON:', json_response)
-        text = json_response['data']['outputs']['text']
+        try:
+            text = json_response['data']['outputs']['text']
+        except (KeyError, TypeError):
+            text = None
         return text
 
     except Exception as e:
@@ -92,6 +94,8 @@ def get_description_translation(text, target_lang):
     if result and 'TRANSLATION_ERROR' in result:
         print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
         return None 
+
+    print(target_lang + ' description: ')
 
     return result    
 
