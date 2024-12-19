@@ -26,11 +26,12 @@ def get_lineup_from_image(image_url):
     # can accept base64 or image URL
     if (image_url):
         result = dify_request(CONFIG.DIFY_LINEUP_KEY, {'lineup_image': [{'type': 'image', 'transfer_method': 'remote_url', 'url': image_url}]})
-    if result:
-        result = json.loads(result)
-        return result.get('items', [])
-    else: 
-        return []
+
+        if result:
+            result = json.loads(result)
+            return result.get('items', [])
+        
+    return []
     
 def get_lineup_from_image_and_text(event_id, lineup_text, lineup_image_url):
     event = get_event_or_404(event_id)
