@@ -70,7 +70,7 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
     }
 
     try:
-        response = requests.post(url, data=json.dumps(data), headers=headers)
+        response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         json_response = response.json()
         
@@ -84,5 +84,9 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
             return dify_request(inputs, workflow_key, attempt=attempt + 1, max_attempts=max_attempts)
         else:
             print('Max attempts reached. Failing.')
+            print('request url: ' + url )
+            print('headers: ', headers)
+            print('data:')
+            print(data)
             return None
 
