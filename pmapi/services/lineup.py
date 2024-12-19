@@ -14,7 +14,7 @@ CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
 
 def get_lineup_from_text(text):
-    result = dify_request({'lineup_text': text }, CONFIG.DIFY_LINEUP_KEY)
+    result = dify_request(CONFIG.DIFY_LINEUP_KEY, {'lineup_text': text })
     if result:
         result = json.loads(result)
         result =  result.get('items', [])
@@ -22,9 +22,10 @@ def get_lineup_from_text(text):
     else: 
         return []
 
-def get_lineup_from_image(image):
+def get_lineup_from_image(image_url):
     # can accept base64 or image URL
-    result = dify_request({'lineup_image': image}, CONFIG.DIFY_LINEUP_KEY)
+    if (image_url):
+        result = dify_request(CONFIG.DIFY_LINEUP_KEY, {'lineup_image': [{'type': 'image', 'transfer_method': 'remote_url', 'url': image_url}]})
     if result:
         result = json.loads(result)
         return result.get('items', [])

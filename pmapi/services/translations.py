@@ -17,7 +17,7 @@ CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
 
 
 def get_description_translation(text, target_lang):
-    result = dify_request({'text': text, 'target_lang': target_lang}, CONFIG.DIFY_TRANSLATE_KEY)
+    result = dify_request(CONFIG.DIFY_TRANSLATE_KEY, {'text': text, 'target_lang': target_lang})
 
     if result and 'TRANSLATION_ERROR' in result:
         print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
