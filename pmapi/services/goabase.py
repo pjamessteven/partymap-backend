@@ -285,7 +285,8 @@ def update_goabase_lineup():
         if next_date:
             if next_date.artists is None or (isinstance(next_date.artists, (list)) and len(next_date.artists) == 0):       
                 print('processing lineup for: ' + event.name)
-                print('event.cover_image.url', event.cover_image.url)
-                get_lineup_from_image_and_text(event.id, event.full_description, event.cover_image.url)
+                cover_image_url = event.cover_image.url if event.cover_image else None
+                print('event.cover_image.url', cover_image_url)
+                get_lineup_from_image_and_text(event.id, event.full_description, cover_image_url)
             else:
                 print('lineup already exists:.')
