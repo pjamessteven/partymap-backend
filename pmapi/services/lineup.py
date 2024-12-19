@@ -36,7 +36,7 @@ def get_lineup_from_image_and_text(event_id, lineup_text, lineup_image_url):
     event = get_event_or_404(event_id)
     next_ed = event.next_event()
     
-    lineup = get_lineup_from_text(lineup_text)
+    lineup = get_lineup_from_text("event name: " + event.name + "/ndescription: " + lineup_text)
 
     if not lineup or lineup and len(lineup) == 0:
         print('LINEUP getting from img')
