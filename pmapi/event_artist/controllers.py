@@ -303,6 +303,11 @@ def add_artist_to_date(
                 artist.mbid = mbid
                 db.session.flush()
 
+        elif artist and (len(artist.urls) == 0 or len(artist.media_items) == 0):
+            # refresh artist info if suspected missing
+            from pmapi.celery_tasks import refresh_artist_info
+            artist_id = artist.id
+            refresh_artist_info.delay(artist_id)
 
     elif id:
         artist = get_artist_by_id(id)

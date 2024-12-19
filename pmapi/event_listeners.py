@@ -37,6 +37,7 @@ def process_objects_after_commit(session):
         for instance in session._pending_objects:
             # refresh artist info in background after create or update
             if isinstance(instance, Artist):
+                print('after_commit: refreshing artist')
                 artist_id = instance.id
                 from pmapi.celery_tasks import refresh_artist_info
                 refresh_artist_info.delay(artist_id)
