@@ -87,34 +87,3 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
             print('Max attempts reached. Failing.')
             return None
 
-
-def get_description_translation(text, target_lang):
-    result = dify_request({'text': text, 'target_lang': target_lang}, CONFIG.DIFY_TRANSLATE_KEY)
-
-    if result and 'TRANSLATION_ERROR' in result:
-        print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
-        return None 
-
-    if result:
-        print(target_lang + ' description: ' + result)
-
-    return result    
-
-
-def get_lineup_from_text(text):
-    result = dify_request({'lineup_text': text }, CONFIG.DIFY_LINEUP_KEY)
-    if result:
-        result = json.loads(result)
-        result =  result.get('items', [])
-        return result
-    else: 
-        return []
-
-def get_lineup_from_image(image):
-    # can accept base64 or image URL
-    result = dify_request({'lineup_image': image}, CONFIG.DIFY_LINEUP_KEY)
-    if result:
-        result = json.loads(result)
-        return result.get('items', [])
-    else: 
-        return []
