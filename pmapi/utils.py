@@ -66,7 +66,8 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
     }
     
     headers = {
-        'Authorization': f'Bearer {workflow_key}'
+        'Authorization': f'Bearer {workflow_key}',
+        'Content-Type': 'application/json'
     }
 
     try:

@@ -11,6 +11,7 @@ from pmapi.event_date.model import EventDate
 from pmapi.extensions import db
 from pmapi.services.gmaps import get_best_location_result
 from pmapi.services.lineup import get_lineup_from_image_and_text
+from sqlalchemy import and_, not_, or_, func
 
 from flask.helpers import get_debug_flag
 from pmapi.config import DevConfig, ProdConfig
@@ -269,13 +270,22 @@ def fetch_events_from_goabase():
 # this function allows processing them all manually if something went wrong with 
 # the automatic process
 def update_goabase_lineup():
-    events = db.query(Event).filter(Event.default_url.ilike('%goabase%')).all()
-    # TODO only update future events
-    for event in events:
+    event_query = db.session.query(Event).join(Event.event_dates).filter(EventDate.url.ilike('%goabase%'))
+    # only update future events
+    event_query = event_query.filter(
+        or_(
+            and_(EventDate.end.is_(None), EventDate.start > func.now()),  # Event.end is NULL and Event.start > NOW()
+            EventDate.end > func.now()  # Event.end is in the future
+        )
+    )
+    event_query = event_query.group_by(Event.id)
+
+    for event in event_query:
         next_date = event.next_event()
         if next_date:
             if next_date.artists is None or (isinstance(next_date.artists, (list)) and len(next_date.artists) == 0):       
                 print('processing lineup for: ' + event.name)
-                get_lineup_from_image_and_text(event.id, event.full_description, event.cover_image.url())
+                print('event.cover_image.url', event.cover_image.url)
+                get_lineup_from_image_and_text(event.id, event.full_description, event.cover_image.url)
             else:
                 print('lineup already exists:.')
