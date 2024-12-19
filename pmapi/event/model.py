@@ -131,6 +131,11 @@ class Event(db.Model):
         Index("idx_events_fts", __ts_vector__, postgresql_using="gin"),)
 
     @property
+    def cover_image(self):
+        # return first item as cover image
+        return self.media_items[0]
+
+    @property
     def cover_items(self):
         # return first item as cover image
         return self.media_items[0:1]

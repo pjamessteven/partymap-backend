@@ -1,4 +1,5 @@
 from datetime import datetime
+from pmapi.media_item.schemas import generate_filepath
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 import uuid
@@ -69,6 +70,12 @@ class MediaItem(db.Model):
     )
 
     reports = db.relationship("Report", back_populates="media_item")
+
+    @property
+    def url(self):
+        # return first item as cover image
+        return generate_filepath(self, self.image_filename)
+
 
     """
     status = db.Column(db.SmallInteger, default=1)

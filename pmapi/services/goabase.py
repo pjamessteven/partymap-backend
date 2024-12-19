@@ -6,6 +6,7 @@ from dateutil import parser
 from typing import List, Dict, Any
 import logging
 import time
+from pmapi.celery_tasks import get_lineup_from_image_and_text
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.extensions import db
@@ -256,3 +257,18 @@ def fetch_events_from_goabase():
     import json
     if all_events:
         print(json.dumps(all_events[0], indent=2))
+
+# this is automatically done when adding goabase events
+# this function allows processing them all manually if something went wrong with 
+# the automatic process
+def update_goabase_lineup():
+    events = db.query(Event).filter(Event.default_url.ilike('%goabase%')).all()
+    # TODO only update future events
+    for event in events:
+        next_date = event.next_event()
+        if next_date:
+            if next_date.artists is None or (isinstance(next_date.artists, (list)) and len(next_date.artists) == 0):       
+                print('processing lineup for: ' + event.name)
+                get_lineup_from_image_and_text(event.id, event.full_description, event.cover_image.url())
+            else:
+                print('lineup already exists:.')

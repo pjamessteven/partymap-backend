@@ -151,13 +151,13 @@ def get_lineup_from_image_and_text(event_id, lineup_text, lineup_image_url):
     
     lineup = get_lineup_from_text(lineup_text)
 
-    print('LINEUP', lineup)
     if not lineup or lineup and len(lineup) == 0:
         print('LINEUP getting from img')
         lineup = get_lineup_from_image(lineup_image_url)
 
+    print('LINEUP result: ', lineup)
+
     if lineup: 
-        print('LINEUP in img or description', lineup)
         add_artists_to_date(next_ed, lineup)
         db.session.commit()
     else:
