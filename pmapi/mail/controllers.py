@@ -4,7 +4,7 @@ from datetime import datetime
 
 def send_mail(to, subject, content, content_type, from_=None, msg_type="unknown"):
     """Send mail asynchronously."""
-    from pmapi.tasks import background_send_mail
+    from pmapi.celery_tasks import background_send_mail
 
     background_send_mail(
         to, subject, content, content_type, from_=None, msg_type="unknown"

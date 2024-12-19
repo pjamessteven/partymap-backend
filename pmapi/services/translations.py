@@ -1,7 +1,7 @@
 from pmapi.extensions import db
 from pmapi.event.model import Event
 from sqlalchemy import and_, not_, or_, func
-from pmapi.utils import SUPPORTED_LANGUAGES, get_description_translation
+from pmapi.utils import SUPPORTED_LANGUAGES, dify_request
 from datetime import datetime
 from pmapi.event_date.model import EventDate
 from pmapi.event_tag.model import  Tag
@@ -9,6 +9,26 @@ from pmapi.event_artist.model import  Artist
 from pmapi.config import BaseConfig
 
 import time
+
+from flask.helpers import get_debug_flag
+from pmapi.config import DevConfig, ProdConfig
+DEV_ENVIRON = get_debug_flag()
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+
+
+def get_description_translation(text, target_lang):
+    result = dify_request({'text': text, 'target_lang': target_lang}, CONFIG.DIFY_TRANSLATE_KEY)
+
+    if result and 'TRANSLATION_ERROR' in result:
+        print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
+        return None 
+
+    if result:
+        print(target_lang + ' description: ' + result)
+
+    return result    
+
+
 def update_translations():
     print('update_translations:')
 

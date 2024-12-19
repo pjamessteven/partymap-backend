@@ -10,11 +10,13 @@ from pmapi.event_date.model import EventDate
 from pmapi.event_review.model import EventReview
 from pmapi.extensions import mail
 from ffmpy import FFmpeg
-from pmapi.services.goabase import GoabaseEventFetcher, fetch_events_from_goabase
+from pmapi.services.goabase import fetch_events_from_goabase
+from pmapi.services.lineup import get_lineup_from_image_and_text
+from pmapi.services.translations import get_description_translation
 from .config import DevConfig, ProdConfig
 from requests.exceptions import RequestException
 from pmapi.extensions import db
-from pmapi.utils import SUPPORTED_LANGUAGES, get_description_translation, get_lineup_from_image, get_lineup_from_text
+from pmapi.utils import SUPPORTED_LANGUAGES
 from flask import g
 
 
@@ -145,23 +147,9 @@ def update_translation_field(translation_field, input_text, onlyMissing=False):
 
 @celery.task(autoretry_for=(RequestException,OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )
-def get_lineup_from_image_and_text(event_id, lineup_text, lineup_image_url):
-    event = get_event_or_404(event_id)
-    next_ed = event.next_event()
-    
-    lineup = get_lineup_from_text(lineup_text)
+def get_lineup(event_id, lineup_text, lineup_image_url):
+    get_lineup_from_image_and_text(event_id, lineup_text, lineup_image_url)
 
-    if not lineup or lineup and len(lineup) == 0:
-        print('LINEUP getting from img')
-        lineup = get_lineup_from_image(lineup_image_url)
-
-    print('LINEUP result: ', lineup)
-
-    if lineup: 
-        add_artists_to_date(next_ed, lineup)
-        db.session.commit()
-    else:
-        print('LINEUP not found for ' + event.name)
 
 @celery.task(autoretry_for=(RequestException,OperationalError), retry_backoff=True, retry_backoff_max=120, rate_limit="30/m"
 )

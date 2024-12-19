@@ -6,11 +6,18 @@ from dateutil import parser
 from typing import List, Dict, Any
 import logging
 import time
-from pmapi.celery_tasks import get_lineup_from_image_and_text
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.extensions import db
 from pmapi.services.gmaps import get_best_location_result
+from pmapi.services.lineup import get_lineup_from_image_and_text
+
+from flask.helpers import get_debug_flag
+from pmapi.config import DevConfig, ProdConfig
+DEV_ENVIRON = get_debug_flag()
+CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
+
+
 class GoabaseEventFetcher:
     def __init__(self, base_url: str = "https://www.goabase.net/api/party/"):
         """
@@ -235,8 +242,8 @@ class GoabaseEventFetcher:
                 db.session.commit()
                 event_id = event.id
                 if lineup_text and len(lineup_text) > 0 and performers != 'tba':
-                    from pmapi.celery_tasks import get_lineup_from_image_and_text
-                    get_lineup_from_image_and_text.delay(event_id, lineup_text, image_url)
+                    from pmapi.celery_tasks import get_lineup
+                    get_lineup.delay(event_id, lineup_text, image_url)
             except Exception as e:
                 print('failed to add event:')
                 print(event) 

@@ -1,4 +1,3 @@
-from pmapi.event.controllers import delete_event
 from sqlalchemy import or_
 from flask_login import current_user, logout_user, login_user
 from werkzeug.security import generate_password_hash
@@ -334,6 +333,7 @@ def delete_user(user_id):
     if user.created_events:
         for event in user.created_events:
             if event.host_id == user.id:
+                from pmapi.event.controllers import delete_event
                 # only delete events that the user is the host of
                 delete_event(event.id)
             else:
