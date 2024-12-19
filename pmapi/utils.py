@@ -95,7 +95,7 @@ def get_description_translation(text, target_lang):
         print('TRANSLATION_ERROR (already in target lang or do not translate) for: (' + target_lang + ') ' + text)
         return None 
 
-    print(target_lang + ' description: ', + result)
+    print(target_lang + ' description: ' + result)
 
     return result    
 
@@ -105,7 +105,7 @@ def get_lineup_from_text(text):
     if result:
         result = json.loads(result)
         result =  result.get('items', [])
-        print('lineup result: ', + result)
+        print('lineup result: ' + result)
         return result
     else: 
         return []
