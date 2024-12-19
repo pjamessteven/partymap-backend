@@ -133,7 +133,10 @@ class Event(db.Model):
     @property
     def cover_image(self):
         # return first item as cover image
-        return self.media_items[0]
+         if len(self.media_items) > 0:
+             return self.media_items[0]  
+         else:
+             return None
 
     @property
     def cover_items(self):

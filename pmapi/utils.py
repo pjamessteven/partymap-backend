@@ -56,15 +56,15 @@ def get_locale():
     return request.accept_languages.best_match(SUPPORTED_LANGUAGES)
 
 
-def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
+def dify_request(workflow_key, inputs, attempt=1, max_attempts=5):
     url = f'{BaseConfig.DIFY_URL}/workflows/run'
     
     data = {
         'inputs': inputs,
         'response_mode': 'blocking',
-        'user': BaseConfig.DIFY_USER
+        'user': BaseConfig.DIFY_USER, 
     }
-    
+
     headers = {
         'Authorization': f'Bearer {workflow_key}',
         'Content-Type': 'application/json'
@@ -82,7 +82,7 @@ def dify_request(inputs, workflow_key, attempt=1, max_attempts=5):
         print(f'Attempt {attempt} failed: {e}')
         if attempt < max_attempts:
             time.sleep(1.5)
-            return dify_request(inputs, workflow_key, attempt=attempt + 1, max_attempts=max_attempts)
+            return dify_request(workflow_key, inputs, attempt=attempt + 1, max_attempts=max_attempts)
         else:
             print('Max attempts reached. Failing.')
             print('request url: ' + url )
