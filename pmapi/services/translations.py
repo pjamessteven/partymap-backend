@@ -79,18 +79,29 @@ def update_translations():
     print(str(event_query.count()) + ' events missing translations.')
     for event in event_query:
         print('translating ' + event.name)
+
+        DESCRIPTION_AS_SUMMARY = True # set when you want to save tokens by using the description as the summary
         for lang in SUPPORTED_LANGUAGES:
             if event.description_translations is None: 
                 event.description_translations = {}
-            if lang not in event.description_translations:
+
+            if not DESCRIPTION_AS_SUMMARY and lang not in event.description_translations:
                 event.description_translations[lang] = get_description_translation(event.description, lang)
                 event.updated_at = datetime.now()
                 time.sleep(1.5)
 
             if event.full_description_translations is None: 
                 event.full_description_translations = {}
+
             if lang not in event.full_description_translations and event.full_description and len(event.full_description) > 0 :
                 event.full_description_translations[lang] = get_description_translation(event.full_description, lang)
+                
+                if DESCRIPTION_AS_SUMMARY and event.full_description_translations[lang]:
+                    summary = event.full_description_translations[lang][0:297]
+                    if len(summary) > 297:
+                        summary += '...'
+                    event.description_translations[lang] = summary
+
                 event.updated_at = datetime.now()
                 time.sleep(1.5)
         
