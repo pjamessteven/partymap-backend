@@ -16,7 +16,7 @@ from pmapi.admin.views import EventDateModelView, EventLocationModelView, EventM
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation
-from pmapi.services.goabase import fetch_events_from_goabase
+from pmapi.services.goabase import fetch_events_from_goabase, update_goabase_lineup
 from pmapi.user.model import User
 
 from .exceptions import DatabaseConnectionError
@@ -149,6 +149,10 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     def update_translation():
         return update_translations()
 
+    @app.cli.command("goabase-sync-lineup")
+    def update_translation():
+        return update_goabase_lineup()
+
     @app.cli.command("goabase-sync")
     def pull_goabase_events():
         return fetch_events_from_goabase()
@@ -156,7 +160,7 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     @app.cli.command("purge-tasks")
     def purge_tasks():
         pass
-    
+
     return app
 
 
