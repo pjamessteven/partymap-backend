@@ -165,19 +165,21 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
 
 
 def register_extensions(app):
-    extensions.cache.init_app(app)
-    try:
-        extensions.db.init_app(app)
-    except:
-        print("Error initiating db extension")
-        pass
-    extensions.admin.init_app(app)
-    extensions.lm.init_app(app)
-    extensions.cors.init_app(app)
-    extensions.mail.init_app(app)
-    extensions.apidocs.init_app(app)
 
     with app.app_context():
+        extensions.cache.init_app(app)
+        try:
+            extensions.db.init_app(app)
+        except Exception as e:
+            print("Error initiating db extension")
+            print(e)
+            pass
+        extensions.admin.init_app(app)
+        extensions.lm.init_app(app)
+        extensions.cors.init_app(app)
+        extensions.mail.init_app(app)
+        extensions.apidocs.init_app(app)
+
         try:
             extensions.tracker.init_app(
                 app,
@@ -185,8 +187,9 @@ def register_extensions(app):
                     SQLStorage(db=db),
                 ],
             )
-        except:
+        except Exception as e:
             print("Error initiating tracker, likely due to db problem.")
+            print(e)
             pass
 
 
