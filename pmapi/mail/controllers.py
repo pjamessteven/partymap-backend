@@ -111,7 +111,8 @@ def send_password_reset_email(user, action_id):
     )
 
 
-def send_new_event_notification(event, username="anon"):
+def send_new_event_notification(event, username=None):
+    username = username or "anon"
     template = "email/new_event.html"
     subject = "New event submitted by " + username
 

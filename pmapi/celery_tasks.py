@@ -18,6 +18,7 @@ from requests.exceptions import RequestException
 from pmapi.extensions import db
 from pmapi.utils import SUPPORTED_LANGUAGES
 from flask import g
+import logging
 
 
 DEV_ENVIRON = get_debug_flag()
