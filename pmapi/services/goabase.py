@@ -12,7 +12,7 @@ from pmapi.extensions import db
 from pmapi.services.gmaps import get_best_location_result
 from pmapi.services.lineup import get_lineup_from_image_and_text
 from sqlalchemy import and_, not_, or_, func
-
+import html
 from flask.helpers import get_debug_flag
 from pmapi.config import DevConfig, ProdConfig
 DEV_ENVIRON = get_debug_flag()
@@ -129,7 +129,7 @@ class GoabaseEventFetcher:
             # in the case of no description use the lineup
             return lineup 
         elif (description and len(description) > 3): 
-            description = description
+            description = html.unescape(description)
             if description and lineup and len(lineup) > 1:
                 description = description + '/n/n' + lineup
             return description
