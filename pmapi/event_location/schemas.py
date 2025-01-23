@@ -43,10 +43,11 @@ class RegionSchema(Schema):
     id = fields.Str()
     short_name = fields.Str()
     long_name = fields.Str()
-    country = fields.Nested("CountrySchema", only=["short_name", "long_name"])
     localities = fields.Nested(
         "LocalitySchema", many=True, only=["short_name", "long_name", "id"]
     )
+    event_count = fields.Int()
+
 
 class ExtendedRegionSchema(RegionSchema):
     lat = fields.Float()
@@ -56,9 +57,7 @@ class ExtendedRegionSchema(RegionSchema):
 class CountrySchema(Schema):
     short_name = fields.Str()
     long_name = fields.Str()
-    regions = fields.Nested(
-        "RegionSchema", many=True, only=["short_name", "long_name", "id", "localities"]
-    )
+    event_count = fields.Int()
 
 @ts_interface()
 class PointSchema(Schema):

@@ -71,7 +71,6 @@ class LoginResource(MethodResource):
         summary="Get login page or current user info if already authenticated.",
     )
     def get(self):
-
         # Check if it's a browser request
         if not request.is_json:
             # If not authenticated, show login page

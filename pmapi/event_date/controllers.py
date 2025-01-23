@@ -19,7 +19,7 @@ from pmapi.common.controllers import paginated_results
 import pmapi.event_location.controllers as event_locations
 import pmapi.user.controllers as users
 from pmapi.extensions import db, activity_plugin
-from pmapi.event_location.model import EventLocation
+from pmapi.event_location.model import EventLocation, Region
 from pmapi.event_tag.model import EventTag
 from pmapi.event_artist.model import EventDateArtist
 from pmapi.event_date.model import EventDateTicket
@@ -942,6 +942,8 @@ def query_event_dates(**kwargs):
     bounds = kwargs.get("bounds", None)
     lat, lng = None, None
     radius = kwargs.get("radius", None)
+    country_id = kwargs.get("country_id", None)
+    region_name = kwargs.get("region_name", None)
 
     creator_user = kwargs.get("creator_user", None)
     host_user = kwargs.get("host_user", None)
@@ -965,7 +967,8 @@ def query_event_dates(**kwargs):
     distance_expression = None
 
     # Distance filter if location is provided
-    if location_filters:
+    if location_filters and location_filters["lat"] and location_filters["lng"]:
+        print('LOCATION FILTERS')
         lat = float(location_filters["lat"])
         lng = float(location_filters["lng"])
         if lat is None or lng is None:
@@ -1040,12 +1043,13 @@ def query_event_dates(**kwargs):
         if radius:
             query = query.filter(distance_expression <= radius)
 
+    # location not provided
+    else:
+        query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+        query = query.join(Event, EventDateAlias.event_id == Event.id)
 
     if bounds:
         # Ensure EventLocation is joined if not already
-        if location_filters is None:
-            query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
-            query = query.join(Event, EventDateAlias.event_id == Event.id)
 
         # Bounds filter
         northEast = bounds["_northEast"]
@@ -1057,7 +1061,12 @@ def query_event_dates(**kwargs):
 
         query = query.filter(func.ST_Intersects(EventLocation.geo, bbox))
 
+    if country_id:
+        query = query.filter(EventLocation.country_id == country_id)
 
+    if region_name:
+        query = query.join(Region, EventLocation.region_id == Region.id)
+        query = query.filter(Region.long_name == region_name)
 
     # Date filters
     if date_min := kwargs.get("date_min"):

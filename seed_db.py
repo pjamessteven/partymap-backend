@@ -1,11 +1,8 @@
 from flask_script import Manager, Command
 import os
-import psycopg2
 from pmapi.config import BaseConfig
-import shutil
 import pexpect
 from pmapi.extensions import db
-import sys
 import tarfile
 from datetime import datetime
 

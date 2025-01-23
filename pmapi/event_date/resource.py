@@ -47,7 +47,7 @@ class DatesResource(MethodResource):
             "duration_options": fields.List(fields.Integer(), required=False),
             "size_options": fields.List(fields.String(), required=False),
             "country_id": fields.Str(),
-            "region_id": fields.Str(),
+            "region_name": fields.Str(),
             "locality_id": fields.Str(),
             "favorites": fields.Boolean(),
             "sort_option": fields.Str(),
