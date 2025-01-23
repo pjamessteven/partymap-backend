@@ -1,13 +1,13 @@
 import reverse_geocode
 import pygeohash as pgh
 from flask_login import current_user
-
+from sqlalchemy.sql import union_all
 from sqlalchemy.orm import with_expression
 from sqlalchemy.orm import subqueryload, selectinload, joinedload, Bundle
 from sqlalchemy import select, func, distinct, asc, String, Text, join
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy import or_, and_
-
+from sqlalchemy.sql.expression import literal
 from pmapi.event_location.model import (
     EventLocation,
     EventLocationType,
@@ -160,6 +160,117 @@ def get_location_or_404(place_id):
 
 def get_all_countries():
     return db.session.query(Country).order_by(Country.short_name.asc()).all()
+
+def get_all_countries_with_future_event_count():
+
+    # Query for individual countries
+    country_query = (
+        db.session.query(
+            Country.short_name.label("short_name"),  # Ensure this matches "name" label in `all_countries_query`
+            func.count(func.distinct(EventDate.event_id)).label("event_count")  # Correct distinct counting
+        )
+        .join(EventLocation, EventDate.location_id == EventLocation.id)  # Adjust FK column names
+        .join(Country, EventLocation.country_id == Country.short_name)  # Ensure proper FK relationship
+        .join(Event, Event.id == EventDate.event_id)  # Join Event with EventDate
+        .filter(
+            or_(
+                and_(
+                    EventDate.end.is_(None),  # Event.end is NULL
+                    EventDate.start > func.now()  # Event.start > NOW()
+                ),
+                EventDate.end > func.now()  # Event.end is in the future
+            )
+        )
+        .group_by(Country.short_name)
+        .order_by(func.count(func.distinct(EventDate.event_id)).desc())  # Sort by event count in descending order
+    )
+
+    # Query for all countries combined
+    all_countries_query = (
+        db.session.query(
+            literal("ALL_COUNTRIES").label("short_name"),  # Label for 'all countries'
+            func.count(func.distinct(EventDate.event_id)).label("event_count")  # Correct distinct counting
+        )
+        .join(EventLocation, EventDate.location_id == EventLocation.id)  # Adjust FK column names
+        .join(Event, Event.id == EventDate.event_id)  # Join Event with EventDate
+        .filter(
+            or_(
+                and_(
+                    EventDate.end.is_(None),  # Event.end is NULL
+                    EventDate.start > func.now()  # Event.start > NOW()
+                ),
+                EventDate.end > func.now()  # Event.end is in the future
+            )
+        )
+    )
+
+    # Combine the two queries using UNION ALL
+    combined_query = union_all(all_countries_query, country_query)
+
+    # Execute the combined query
+    result = db.session.execute(combined_query).all()
+
+    return result
+
+def get_all_country_regions_with_future_event_count(country_id):
+
+    region_query = (
+        db.session.query(
+            Region.short_name.label("short_name"),  # Replace with the actual column for region name
+            Region.long_name.label("long_name"),  # Replace with the actual column for region name
+            Country.short_name.label("country"),  # Include country for context
+            func.count(func.distinct(EventDate.event_id)).label("event_count")  # Count distinct events
+        )
+        .join(EventLocation, EventDate.location_id == EventLocation.id)  # Adjust FK column names
+        .join(Region, EventLocation.region_id == Region.id)  # Join EventLocation with Region
+        .join(Country, Region.country_id == Country.short_name)  # Ensure Region is associated with Country
+        .join(Event, Event.id == EventDate.event_id)  # Join Event with EventDate
+        .filter(Country.short_name == country_id)
+        .filter(
+            or_(
+                and_(
+                    EventDate.end.is_(None),  # Event.end is NULL
+                    EventDate.start > func.now()  # Event.start > NOW()
+                ),
+                EventDate.end > func.now()  # Event.end is in the future
+            )
+        )
+        .group_by(Region.short_name, Region.long_name, Country.short_name)  # Group by region and country
+        .order_by(func.count(func.distinct(EventDate.event_id)).desc())  # Sort by event count in descending order
+    )
+
+    # Query for all countries combined
+    all_regions_query = (
+        db.session.query(
+            literal("ALL_REGIONS").label("short_name"),  # Label for 'all countries'
+            literal("ALL_REGIONS").label("long_name"),  # Label for 'all countries'
+            Country.short_name.label("country"),  # Include country for context
+            func.count(func.distinct(EventDate.event_id)).label("event_count")  # Correct distinct counting
+        )
+        .join(EventLocation, EventDate.location_id == EventLocation.id)  # Adjust FK column names
+        .join(Region, EventLocation.region_id == Region.id)  # Join EventLocation with Region
+        .join(Country, Region.country_id == Country.short_name)  # Ensure Region is associated with Country
+        .join(Event, Event.id == EventDate.event_id)  # Join Event with EventDate
+        .filter(Country.short_name == country_id)
+        .filter(
+            or_(
+                and_(
+                    EventDate.end.is_(None),  # Event.end is NULL
+                    EventDate.start > func.now()  # Event.start > NOW()
+                ),
+                EventDate.end > func.now()  # Event.end is in the future
+            )
+        )
+        .group_by(Country.short_name)
+    )
+
+    # Combine the two queries using UNION ALL
+    combined_query = union_all(all_regions_query, region_query)
+
+    # Execute the combined query
+    result = db.session.execute(combined_query).all()
+
+    return result
 
 
 def get_country(short_name):

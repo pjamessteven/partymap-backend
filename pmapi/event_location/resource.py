@@ -109,7 +109,7 @@ class CountriesResource(MethodResource):
     )
     @marshal_with(CountrySchema(many=True), code=200)
     def get(self, **kwargs):
-        return event_locations.get_all_countries()
+        return event_locations.get_all_countries_with_future_event_count()
 
 
 locations_blueprint.add_url_rule(
@@ -134,7 +134,7 @@ class RegionsResource(MethodResource):
     )
     @marshal_with(RegionSchema(many=True), code=200)
     def get(self, country_short_name):
-        return event_locations.get_country(country_short_name)
+        return event_locations.get_all_country_regions_with_future_event_count(country_short_name)
 
 
 locations_blueprint.add_url_rule(
