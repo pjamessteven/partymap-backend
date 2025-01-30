@@ -17,6 +17,7 @@ from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation
 from pmapi.services.goabase import fetch_events_from_goabase, update_goabase_lineup
+from pmapi.services.ip_location import get_location_from_ip
 from pmapi.user.model import User
 
 from .exceptions import DatabaseConnectionError
@@ -186,7 +187,9 @@ def register_extensions(app):
                 [
                     SQLStorage(db=db),
                 ],
+                get_location_from_ip
             )
+
         except Exception as e:
             print("Error initiating tracker, likely due to db problem.")
             print(e)
