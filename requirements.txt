@@ -51,7 +51,7 @@ Flask-Migrate==2.5.3
 Flask-RESTful==0.3.10
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.4.4
-Flask-Track-Usage @ git+https://github.com/ashcrow/flask-track-usage@baeec4d1c5decc6e3d604b722e8bb6aa7db0bc1d
+Flask-Track-Usage @ git+https://github.com/pjamessteven/flask-track-usage
 fonttools==4.29.0
 frozenlist==1.5.0
 GeoAlchemy2==0.8.4
