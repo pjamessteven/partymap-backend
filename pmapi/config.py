@@ -22,9 +22,8 @@ class BaseConfig(object):
     SENDGRID_DEFAULT_FROM = "noreply@partymap.com"
     SUPPORT_EMAIL = "info@partymap.com"
     
-    TRACK_USAGE_USE_FREEGEOIP = True
+    TRACK_USAGE_USE_FREEGEOIP = False
     TRACK_USAGE_INCLUDE_OR_EXCLUDE_VIEWS = "include"  # include all views
-    TRACK_USAGE_COOKIE = True
 
     ANON_USER_ID = "ac858dc2-2018-4de2-9975-3d716030eb72"
     SYSTEM_USER_ID = "803bbeba-0c37-47fd-a218-969774d54c5d"
@@ -41,10 +40,6 @@ class BaseConfig(object):
     SPOTIFY_API_KEY = os.getenv("SPOTIFY_API_KEY")
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
     GMAPS_API_KEY = os.getenv("GMAPS_API_KEY")
-
-    TRACK_USAGE_FREEGEOIP_ENDPOINT = (
-        "http://extreme-ip-lookup.com/json/{ip}?key=" + os.getenv("EXTREME_IP_LOOKUP_KEY")
-    )
 
     # This indicates that it's OK for Google to return different OAuth scopes than requested; Google does that sometimes.
     OAUTHLIB_RELAX_TOKEN_SCOPE = True

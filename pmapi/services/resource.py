@@ -10,10 +10,10 @@ services_blueprint = Blueprint("service", __name__)
 @doc(tags=["services"])
 class IpLookupResource(MethodResource):
     @doc(
-        summary="Get location from IP.",
+        summary="Get location from requesting users IP.",
     )
-    def get(self, **kwargs):
-        return services.get_location_from_ip(**kwargs)
+    def get(self):
+        return services.get_location_from_ip()
 
 
 services_blueprint.add_url_rule(
