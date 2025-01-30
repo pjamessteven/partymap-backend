@@ -18,7 +18,7 @@ ACCOUNT_STATUSES = ["active", "disabled", "pending"]
 
 chars = string.ascii_letters + string.digits
 
-SUPPORTED_LANGUAGES = ['en', 'zh-tw', 'zh-cn', 'ru', 'ja', 'fr', 'es', 'it', 'de', 'pt', 'pt-br', 'nl', 'pl', 'hi'] 
+SUPPORTED_LANGUAGES = ['en', 'zh-tw', 'zh-cn', 'ru', 'ja', 'fr', 'es', 'it', 'de', 'pt', 'nl', 'pl', 'hi', 'cz'] 
 
 def random_string(length=32):
     return "".join(random.SystemRandom().choice(chars) for _ in range(length))
