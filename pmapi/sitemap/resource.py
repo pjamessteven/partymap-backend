@@ -7,6 +7,7 @@ from pmapi.event.model import Event
 from pmapi.event_artist.model import Artist
 from pmapi.extensions import db
 from pmapi.utils import SUPPORTED_LANGUAGES 
+import pycountry
 
 sitemap_blueprint = Blueprint("sitemap", __name__)
 
@@ -23,6 +24,9 @@ class SiteMapResource(MethodResource):
         artists = db.session.query(Artist).all()
 
         urls.append({"loc": '/browse'})
+        urls.append({"loc": '/browse/all'})
+        for country in pycountry.countries:
+            urls.append({"loc": f"/browse/{country.alpha_2}"})
         urls.append({"loc": '/?view=nearby'})
         urls.append({"loc": '/?view=explore'})
         urls.append({"loc": '/privacy_policy'})
