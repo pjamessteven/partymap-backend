@@ -316,6 +316,8 @@ def add_artist_to_date(
         if artist is None:
             # create new artist record
             artist = add_artist(name)
+            
+    artist.after_commit = True # update artist details after commit (event_listeners.py)
 
     db.session.flush()
 
@@ -354,8 +356,6 @@ def add_artist_to_date(
          verb=u"create", object=event_date_artist, target=event_date
     )
     db.session.add(activity)
-
-    artist.after_commit = True # update artist details after commit (event_listeners.py)
 
     return event_date_artist
 

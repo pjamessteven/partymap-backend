@@ -20,7 +20,6 @@ def track_objects(session, flush_context, instances):
         session._pending_objects = set()
     session._pending_objects.update(session.new)
     session._pending_objects.update(session.dirty)
-
     # exclude objects if flagged to not process
     session._pending_objects = {obj for obj in session._pending_objects if not should_exclude(obj)}
 
@@ -34,7 +33,10 @@ def should_exclude(obj):
 @event.listens_for(Session, "after_commit")
 def process_objects_after_commit(session):
     if hasattr(session, '_pending_objects'):
+        print('PENDING', session._pending_objects)
+
         for instance in session._pending_objects:
+
             # refresh artist info in background after create or update
             if isinstance(instance, Artist):
                 print('after_commit: refreshing artist')
@@ -45,6 +47,7 @@ def process_objects_after_commit(session):
 
             # refresh event description in background after create or update
             if isinstance(instance, Event):
+
                 # dont burn tokens in DEV
                 if not DEV_ENVIRON:
                     event_id = instance.id

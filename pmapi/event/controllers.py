@@ -199,6 +199,7 @@ def add_event(**kwargs):
         full_description_attribute=full_description_attribute,
         youtube_url=youtube_url,
     )
+    event.after_commit = True # trigger translation update in event_listeners.py
     print('event', event)
     db.session.add(event)
     db.session.flush()
@@ -268,7 +269,6 @@ def add_event(**kwargs):
             db.session.add(ed_ticket) 
             
 
-    event.after_commit = True # trigger translation update in event_listeners.py
 
     db.session.commit()
 
@@ -447,16 +447,21 @@ def update_event(event_id, **kwargs):
                 event, date_time, rrule.default_location, rrule, activity=False
             )
 
+    if description is not None or full_description is not None:
+        print('trigger translation')
+        event.after_commit = True # trigger translation update in event_listeners.py
+        
+
     # add activity
     db.session.flush()
     activity = Activity(verb=u"update", object=event, target=event)
     db.session.add(activity)
 
 
-    db.session.commit()
 
-    if description is not None or full_description is not None:
-        event.after_commit = True # trigger translation update in event_listeners.py
+
+    db.session.flush()
+    db.session.commit()
 
     return event
 
