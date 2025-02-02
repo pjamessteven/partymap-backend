@@ -43,8 +43,8 @@ class GoabaseEventFetcher:
             
             # Extract URLs from the list
             event_urls = [
-                item['url'] for item in event_list.get('itemListElement', [])
-                if 'url' in item
+                item['urlPartyJson'] for item in event_list.get('partyList', [])
+                if 'urlPartyJson' in item
             ]
             
             self.logger.info(f"Fetched {len(event_urls)} event URLs")
