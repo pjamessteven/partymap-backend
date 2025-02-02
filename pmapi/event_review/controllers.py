@@ -84,7 +84,7 @@ def add_review(event_id, creator=current_user, **kwargs):
 
     db.session.commit()
     review_id = review.id
-    from pmapi.tasks import update_review_translation
+    from pmapi.celery_tasks import update_review_translation
     update_review_translation.delay(review_id)
 
     return review
