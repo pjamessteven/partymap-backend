@@ -43,7 +43,7 @@ class GoabaseEventFetcher:
             
             # Extract URLs from the list
             event_urls = [
-                item['urlPartyJson'] for item in event_list.get('partyList', [])
+                item['urlPartyJson'] for item in event_list.get('partylist', [])
                 if 'urlPartyJson' in item
             ]
             
@@ -69,8 +69,8 @@ class GoabaseEventFetcher:
         try:
             # data is served in two formats
 
-            response = requests.get(event_url.replace('jsonld', 'json'))
-            responseld = requests.get(event_url)
+            responseld = requests.get(event_url.replace('json', 'jsonld'))
+            response = requests.get(event_url)
             response.raise_for_status()
             responseld.raise_for_status()
 
@@ -79,7 +79,7 @@ class GoabaseEventFetcher:
             lineup = json_ld.get('performers', None)
             full_description = self._parse_description(json_ld.get('description'), lineup)
             name_type = json_ld.get('nameType', None)
-            tags = ['goabase', 'psy']
+            tags = ['goabase']
 
             if name_type is not None:
                 tags.append(name_type)
@@ -111,10 +111,10 @@ class GoabaseEventFetcher:
         
         except requests.RequestException as e:
             self.logger.error(f"Error fetching event details from {event_url}: {e}")
-            return {}
+            raise e
         except Exception as e:
             self.logger.error(f"Unexpected error processing event: {e}")
-            return {}
+            raise e
 
     def _parse_summary(self, description: str) -> str:
         if (description and len(description) > 0): 
@@ -127,7 +127,7 @@ class GoabaseEventFetcher:
     def _parse_description(self, description: str, lineup: str) -> str:
         if not description or len(description) == 0 or description == 'coming':
             # in the case of no description use the lineup
-            return lineup 
+            return html.unescape(lineup)
         elif (description and len(description) > 3): 
             description = html.unescape(description)
             if description and lineup and len(lineup) > 1:
@@ -198,7 +198,6 @@ class GoabaseEventFetcher:
         return None  # Return empty string if image is neither a list nor a dictionary
 
     def get_all_events(self) -> List[Dict[str, Any]]:
-
         import pmapi.event.controllers as events
         """
         Fetch and transform all events
@@ -207,31 +206,70 @@ class GoabaseEventFetcher:
         """
         event_urls = self.fetch_event_list()
         added_events = []
-        
-        for url in event_urls:
+        total_events = len(event_urls)
+        progress_bar_width = 50  # Width of the progress bar in characters
 
-            event = self.fetch_event_details(url)
+        print("Processing events:")
+        for i, url in enumerate(event_urls, 1):
+            # Calculate progress percentage
+            progress = i / total_events
+            filled_length = int(progress_bar_width * progress)
+            bar = '█' * filled_length + '-' * (progress_bar_width - filled_length)
+            print(f"\r[{bar}] {int(progress * 100)}% ({i}/{total_events})", end="", flush=True)
 
+            # Retry mechanism for fetch_event_details
+            max_retries = 3  # Maximum number of retries
+            retry_delay = 3  # Delay between retries in seconds
+            event = None
+
+            for attempt in range(max_retries):
+                try:
+                    event = self.fetch_event_details(url)
+                    break  # Exit the retry loop if successful
+                except Exception as e:
+                    print(f"\nAttempt {attempt + 1} failed for URL: {url}")
+                    print(f"Error: {e}")
+                    if attempt < max_retries - 1:  # Don't wait on the last attempt
+                        time.sleep(retry_delay)
+                    else:
+                        print(f"Max retries reached for URL: {url}. Skipping this event.")
+                        continue  # Skip to the next URL if all retries fail
+
+            if not event:
+                continue  # Skip to the next URL if event fetching failed
+            
             goabase_url = event.get('url', '')
             goabase_modified = event.get('modified', '')
+            performers = event.get('performers', '')
+            lineup_text = performers  + ' ' + event.get('description', '') 
+            image_url = event.get('logo', {}).get('url', '')
+
             existing_event = db.session.query(Event).join(Event.event_dates).filter(EventDate.url == goabase_url).first()   
 
             if existing_event:
-                print('Event already in db: ', existing_event.name)
+                print(f"\nEvent already in db: {existing_event.name}  (#{existing_event.id})")
                 existing_modified = existing_event.settings.get('goabase_modified', None) if existing_event.settings else None
                 if existing_modified:
                     existing_modified_parsed = parser.parse(existing_modified)
                     goabase_modified_parsed = parser.parse(goabase_modified)
                     if existing_modified_parsed < goabase_modified_parsed:
-                        print('Updating existing goabase event:')
-                        # TODO
+                        print(f"Updating existing goabase event: {existing_event.name} (#{existing_event.id})")
+                        event.update({'location': self._get_location(event.get('location'))})
+                        existing_event.settings = {**event.settings, "goabase_modified": goabase_modified}
+                        events.update_event(existing_event.id, **event)
+                        event_id = event.id
+                        if lineup_text and len(lineup_text) > 0 and performers != 'tba':
+                            from pmapi.celery_tasks import get_lineup
+                            get_lineup.delay(event_id, lineup_text, image_url)
+                        print(f"Updated existing goabase event: {existing_event.name} (#{existing_event.id})")
+
+                    else:
+                        print("No updates... skipping.")
                 else:
-                    print('No updates... skipping.')
+                    print("No modification date found... skipping.")
                 continue
+
             try: 
-                performers = event.get('performers', '')
-                lineup_text = performers  + ' ' + event.get('description', '') 
-                image_url = event.get('logo', {}).get('url', '')
                 # get location after pre-existing check
                 event.update({'location': self._get_location(event.get('location'))})
 
@@ -239,21 +277,22 @@ class GoabaseEventFetcher:
                 if event.settings is None:
                     event.settings = {}  # Initialize as an empty dict if None
                 event.settings = {**event.settings, "goabase_modified": goabase_modified}
+                event.hidden = False
                 db.session.add(event)
                 db.session.commit()
                 event_id = event.id
                 if lineup_text and len(lineup_text) > 0 and performers != 'tba':
                     from pmapi.celery_tasks import get_lineup
                     get_lineup.delay(event_id, lineup_text, image_url)
+                
+                print(f"\nSuccessfully added event: {event.name}")
+                added_events.append(event)
             except Exception as e:
-                print('failed to add event:')
-                print(event) 
-                print(e)
+                print(f"\nFailed to add event: {event.get('name', 'Unnamed Event')}")
+                print(f"Error: {e}")
                 traceback.print_exc()  # Prints the detailed stack trace to the console
 
-            if event:
-                added_events.append(event)
-        
+        print(f"\nCompleted processing. Total events added: {len(added_events)}")
         self.logger.info(f"Successfully processed {len(added_events)} events")
         return added_events
 
@@ -264,6 +303,9 @@ def fetch_events_from_goabase():
     # Pretty print first event for demonstration
     import json
     if all_events:
+        print(
+            'first event:'
+        )
         print(json.dumps(all_events[0], indent=2))
 
 # this is automatically done when adding goabase events
