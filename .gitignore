@@ -11,3 +11,6 @@ static/
 env/
 .env.prd
 .env.dev
+.env.local_dev
+.env
+geoip-data/
