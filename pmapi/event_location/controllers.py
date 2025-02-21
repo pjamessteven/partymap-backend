@@ -486,7 +486,11 @@ def get_all_locations(**kwargs):
     query = query.filter(
         or_(
                     Event.hidden == False,
-                    Event.hidden == True and Event.creator_id == current_user.id,
+                    and_(
+                        Event.hidden == True,
+                        Event.creator_id is not None, 
+                        Event.creator_id == current_user.id
+                    )
                 ))
     
     return query.options(

@@ -1097,7 +1097,11 @@ def query_event_dates(**kwargs):
     query = query.filter(
         or_(
                     Event.hidden == False,
-                    Event.hidden == True and Event.creator_id == user.id,
+                    and_(
+                        Event.hidden == True,
+                        Event.creator_id is not None, 
+                        Event.creator_id == current_user.id
+                    )
                 ))
 
     # User related filters

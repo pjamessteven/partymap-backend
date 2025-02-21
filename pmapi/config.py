@@ -57,7 +57,7 @@ class DevConfig(BaseConfig):
 
     # This indicates that you're doing local testing, and it's OK to use HTTP instead of HTTPS for OAuth.
     OAUTHLIB_INSECURE_TRANSPORT = True
-    TRACK_USAGE_USE_FREEGEOIP = False
+
 
 
 class ProdConfig(BaseConfig):
