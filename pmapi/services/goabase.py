@@ -240,7 +240,7 @@ class GoabaseEventFetcher:
                 continue  # Skip to the next URL if event fetching failed
             
             start_time = event.get('date_time', {}).get('start', None) 
-
+            start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
             if start_time < datetime.now():
                 print('Ignoring past event. Start time: ' + start_time)
                 # ignore past events
