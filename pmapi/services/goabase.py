@@ -269,7 +269,7 @@ class GoabaseEventFetcher:
                     event.update({'location': self._get_location(event.get('location'))})
                     if existing_event.settings is None:
                         existing_event.settings = {}  # Initialize as an empty dict if None
-                    existing_event.settings = {**event.settings, "goabase_modified": goabase_modified}
+                    existing_event.settings = {**existing_event.settings, "goabase_modified": goabase_modified}
                     events.update_event(existing_event.id, **event)
                     event_id = event.id
                     if lineup_text and len(lineup_text) > 0 and performers != 'tba':
