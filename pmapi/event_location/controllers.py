@@ -299,10 +299,11 @@ def get_all_localities_of_region_of_country(country_short_name, region_short_nam
 
 def get_locality_of_region_of_country(short_name, region, country):
     for reg in country.regions:
-        if reg.short_name == region.short_name:
-            for loc in reg.localities:
-                if loc.short_name == short_name:
-                    return loc
+        if reg:
+            if (reg.short_name == region.short_name) or (reg.long_name == region.long_name):
+                for loc in reg.localities:
+                    if loc.short_name == short_name:
+                        return loc
     return None
 
 

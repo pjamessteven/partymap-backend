@@ -91,11 +91,11 @@ class GoabaseEventFetcher:
 
             # Transform event data to desired schema
             transformed_event = {
-                'name': json_ld.get('name', None),
+                'name': html.unescape(json_ld.get('name', None)),
                 'description': self._parse_summary(full_description),
                 'full_description': full_description,
                 'date_time': {'start': self._parse_datetime(json_ld.get('startDate')), 'end': self._parse_datetime(json_ld.get('endDate'))},
-                'location':json_ld.get('location'),
+                'location': json_ld.get('location'),
                 'url': json_ld.get('url', ''),
                 'performers': json_ld.get('performers', None),
                 'tags': tags,
@@ -239,13 +239,15 @@ class GoabaseEventFetcher:
             if not event:
                 continue  # Skip to the next URL if event fetching failed
             
+            """
             start_str = event.get('date_time', {}).get('start', None) 
             start_time = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
             if start_time < datetime.now():
                 print('Ignoring past event. Start time: ' + start_str)
                 # ignore past events
                 continue
-
+            """
+            
             goabase_url = event.get('url', '')
             goabase_modified = event.get('modified', '')
             performers = event.get('performers', '')
