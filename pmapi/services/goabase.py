@@ -267,6 +267,8 @@ class GoabaseEventFetcher:
                     print(f"existing_modified: {existing_modified}")
                     print(f"remote_modified: {goabase_modified}")
                     event.update({'location': self._get_location(event.get('location'))})
+                    if event.settings is None:
+                        event.settings = {}  # Initialize as an empty dict if None
                     existing_event.settings = {**event.settings, "goabase_modified": goabase_modified}
                     events.update_event(existing_event.id, **event)
                     event_id = event.id
