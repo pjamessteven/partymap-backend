@@ -271,10 +271,9 @@ class GoabaseEventFetcher:
                         existing_event.settings = {}  # Initialize as an empty dict if None
                     existing_event.settings = {**existing_event.settings, "goabase_modified": goabase_modified}
                     events.update_event(existing_event.id, **event)
-                    event_id = event.id
                     if lineup_text and len(lineup_text) > 0 and performers != 'tba':
                         from pmapi.celery_tasks import get_lineup
-                        get_lineup.delay(event_id, lineup_text, image_url)
+                        get_lineup.delay(existing_event.id, lineup_text, image_url)
                     print(f"Updated existing goabase event: {existing_event.name} (#{existing_event.id})")
                 else:
                     print("No updates since last sync. Skipping.")
