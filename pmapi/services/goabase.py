@@ -125,13 +125,14 @@ class GoabaseEventFetcher:
             return summary
         
     def _parse_description(self, description: str, lineup: str) -> str:
+        lineup = html.unescape(lineup)
+        description = html.unescape(description)
         if not description or len(description) == 0 or description == 'coming':
             # in the case of no description use the lineup
-            return html.unescape(lineup)
+            return lineup
         elif (description and len(description) > 3): 
-            description = html.unescape(description)
             if description and lineup and len(lineup) > 1:
-                description = description + '/n/n' + lineup
+                description = description + '\n\n' + lineup
             return description
         else:
             return 'Description coming soon...'
