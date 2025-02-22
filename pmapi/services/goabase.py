@@ -249,24 +249,33 @@ class GoabaseEventFetcher:
             if existing_event:
                 print(f"\nEvent already in db: {existing_event.name}  (#{existing_event.id})")
                 existing_modified = existing_event.settings.get('goabase_modified', None) if existing_event.settings else None
-                if existing_modified:
+            
+                should_update = False
+
+                if existing_modified is not None:
                     existing_modified_parsed = parser.parse(existing_modified)
                     goabase_modified_parsed = parser.parse(goabase_modified)
                     if existing_modified_parsed < goabase_modified_parsed:
-                        print(f"Updating existing goabase event: {existing_event.name} (#{existing_event.id})")
-                        event.update({'location': self._get_location(event.get('location'))})
-                        existing_event.settings = {**event.settings, "goabase_modified": goabase_modified}
-                        events.update_event(existing_event.id, **event)
-                        event_id = event.id
-                        if lineup_text and len(lineup_text) > 0 and performers != 'tba':
-                            from pmapi.celery_tasks import get_lineup
-                            get_lineup.delay(event_id, lineup_text, image_url)
-                        print(f"Updated existing goabase event: {existing_event.name} (#{existing_event.id})")
+                        should_update = True
 
-                    else:
-                        print("No updates... skipping.")
+                else: 
+                    should_update = True
+                    print("No modification date found... updating event.")
+
+                if should_update:
+                    print(f"Updating existing goabase event: {existing_event.name} (#{existing_event.id})")
+                    print(f"existing_modified: {existing_modified}")
+                    print(f"remote_modified: {goabase_modified}")
+                    event.update({'location': self._get_location(event.get('location'))})
+                    existing_event.settings = {**event.settings, "goabase_modified": goabase_modified}
+                    events.update_event(existing_event.id, **event)
+                    event_id = event.id
+                    if lineup_text and len(lineup_text) > 0 and performers != 'tba':
+                        from pmapi.celery_tasks import get_lineup
+                        get_lineup.delay(event_id, lineup_text, image_url)
+                    print(f"Updated existing goabase event: {existing_event.name} (#{existing_event.id})")
                 else:
-                    print("No modification date found... skipping.")
+                    print("No updates since last sync. Skipping.")
                 continue
 
             try: 
