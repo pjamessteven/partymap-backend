@@ -46,7 +46,7 @@ allowed_origins = [
     "http://localhost:9000",
     "https://partymap.com",
     "https://www.partymap.com"
-] if DEV_ENVIRON else [ "https://partymap.com"]
+] if DEV_ENVIRON else [ "https://partymap.com", "https://www.partymap.com"]
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
 admin = Admin(name="PARTYMAP", template_mode="bootstrap3", index_view=SecureAdminIndexView())
