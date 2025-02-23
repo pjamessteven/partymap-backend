@@ -44,7 +44,8 @@ def make_celery(app=None):
 
 allowed_origins = [
     "http://localhost:9000",
-    "https://partymap.com"
+    "https://partymap.com",
+    "https://www.partymap.com"
 ] if DEV_ENVIRON else [ "https://partymap.com"]
 
 cache = Cache(config={"CACHE_TYPE": "simple"})
