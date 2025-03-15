@@ -77,8 +77,6 @@ class Event(db.Model):
 
     user_following = query_expression()
 
-    # deleted = db.Column(db.Boolean, nullable=False, default=False)
-
     name = db.Column(db.Text, nullable=False)
     name_translations = db.Column(MutableDict.as_mutable(HSTORE))
     name_t = translation_hybrid(name_translations)
