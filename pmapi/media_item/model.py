@@ -1,11 +1,12 @@
 from datetime import datetime
-from pmapi.media_item.schemas import generate_filepath
+from pmapi.media_item.schemas import generate_filepath, generate_local_filepath
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import event
 import os
 import uuid
 from pmapi.extensions import db
-from pmapi import app
+import logging
+
 
 """
 media_item_upvotes = db.Table(
@@ -89,21 +90,14 @@ class MediaItem(db.Model):
         for field in file_fields:
             filename = getattr(self, field)
             if filename:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file_path = generate_local_filepath(self, filename)
                 try:
                     if os.path.exists(file_path):
                         os.remove(file_path)
                 except OSError as e:
-                    app.logger.error(f"Error deleting file {file_path}: {str(e)}")
+                    logging.error(f"Error deleting file {file_path}: {str(e)}")
 
 @event.listens_for(MediaItem, 'after_delete')
 def delete_media_files(mapper, connection, target):
     """SQLAlchemy event listener to delete files after model deletion"""
     target.delete_files()
-
-
-    """
-    status = db.Column(db.SmallInteger, default=1)
-
-    score = db.Column(db.Integer, default=0)
-    hotness = db.Column(db.Float(15, 6), default=0.00) """

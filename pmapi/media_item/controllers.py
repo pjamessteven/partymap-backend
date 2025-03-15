@@ -33,19 +33,7 @@ def delete_item(item):
     MediaItemVersion = version_class(MediaItem)
     db.session.query(MediaItemVersion).filter_by(id=item.id).delete()
     activities.delete_activities_for_item(item)
-
-    # Delete files from disk
-    files_names = [item.thumb_xxs_filename, item.thumb_xs_filename, item.thumb_filename, item.image_med_filename, item.image_filename, item.video_low_filename, item.video_med_filename,item.video_high_filename, item.video_poster_filename]
-    for file_name in files_names:
-        if file_name:
-            file_path = generate_local_filepath(item, file_name)
-             # Check if the file exists before attempting to delete it
-            print('path', file_path)
-            if os.path.exists(file_path):
-                print('removed')
-                os.remove(file_path)
-
-
+    # files are deleted from disk in event listener on MediaItem model 
     db.session.flush()
 
 
