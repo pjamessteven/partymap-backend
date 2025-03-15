@@ -22,10 +22,21 @@ class Artist(db.Model):
     mbid = db.Column(db.String(100))
     name = db.Column(db.String(50), nullable=False)
     events_with_artist = db.relationship(
-        "EventDateArtist", back_populates="artist")
+        "EventDateArtist", 
+        back_populates="artist",
+        cascade="all, delete-orphan"
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    suggestions = db.relationship("SuggestedEdit", back_populates="artist")
-    artist_tags = db.relationship("ArtistTag", back_populates="artist")
+    suggestions = db.relationship(
+        "SuggestedEdit", 
+        back_populates="artist",
+        cascade="all, delete-orphan"
+    )
+    artist_tags = db.relationship(
+        "ArtistTag", 
+        back_populates="artist",
+        cascade="all, delete-orphan"
+    )
     popularity = db.Column(db.Integer)
 
     description = db.Column(db.Text)
@@ -37,12 +48,16 @@ class Artist(db.Model):
     disambiguation_t = translation_hybrid(disambiguation_translations)
 
     area = db.Column(db.Text)
-    urls = db.relationship("ArtistUrl")
+    urls = db.relationship(
+        "ArtistUrl",
+        cascade="all, delete-orphan"
+    )
     media_items = db.relationship(
         "MediaItem",
         back_populates="artist",
         order_by="MediaItem.position",
         collection_class=ordering_list("position"),
+        cascade="all, delete-orphan"
     )
 
     @property
