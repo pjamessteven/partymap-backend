@@ -1,9 +1,11 @@
 from datetime import datetime
 from pmapi.media_item.schemas import generate_filepath
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-
+from sqlalchemy import event
+import os
 import uuid
 from pmapi.extensions import db
+from pmapi import app
 
 """
 media_item_upvotes = db.Table(
@@ -75,6 +77,29 @@ class MediaItem(db.Model):
     def url(self):
         # return first item as cover image
         return generate_filepath(self, self.image_filename)
+
+    def delete_files(self):
+        """Delete all associated media files"""
+        file_fields = [
+            'thumb_xxs_filename', 'thumb_xs_filename', 'thumb_filename',
+            'image_med_filename', 'image_filename', 'video_low_filename',
+            'video_med_filename', 'video_high_filename', 'video_poster_filename'
+        ]
+        
+        for field in file_fields:
+            filename = getattr(self, field)
+            if filename:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except OSError as e:
+                    app.logger.error(f"Error deleting file {file_path}: {str(e)}")
+
+@event.listens_for(MediaItem, 'after_delete')
+def delete_media_files(mapper, connection, target):
+    """SQLAlchemy event listener to delete files after model deletion"""
+    target.delete_files()
 
 
     """
