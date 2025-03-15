@@ -67,7 +67,6 @@ class Artist(db.Model):
 
     @hybrid_property
     def event_count(self):
-
         query = (
             db.session.query(EventDateArtist)
             .join(EventDate)
