@@ -469,52 +469,22 @@ def update_event(event_id, **kwargs):
 def delete_event(event_id):
     event = get_event_or_404(event_id)
 
-    # delete shit
-    for event_tag in event.event_tags:
-        db.session.delete(event_tag)
-    for event_date in event.event_dates:
-        for artist in event_date.artists:
-            db.session.delete(artist)
-        for suggestion in event_date.suggestions:
-            db.session.delete(suggestion)
-        db.session.delete(event_date)
-    for media_item in event.media_items:
-        db.session.delete(media_item)
-    for suggestion in event.suggestions:
-        db.session.delete(suggestion)
-    for review in event.event_reviews:
-        db.session.delete(review)
-    for report in event.reports:
-        db.session.delete(report)
-    for ticket in event.event_tickets:
-        db.session.delete(ticket)
-    if event.rrule:
-        db.session.delete(event.rrule)
-
     # delete page views
     db.engine.execute(
         event_page_views_table.delete(
             event_page_views_table.c.event_id == event_id)
     )
 
-    db.session.commit()
-    db.session.delete(event)
-
     # delete all activity
-
-    # Query all activities where the target object is either the object or the target
     activities = db.session.query(Activity).filter(
         or_(
             Activity.object == event,
             Activity.target == event
         )
-    ).all()
+    ).delete()
 
-    # Delete the found activities
-    for activity in activities:
-        db.session.delete(activity)
-    
-
+    # delete event and all related objects through cascade
+    db.session.delete(event)
     db.session.commit()
 
 

@@ -102,24 +102,42 @@ class Event(db.Model):
     event_tickets = db.relationship(
         "EventDateTicket", back_populates="event")
     event_dates = db.relationship(
-        "EventDate", back_populates="event", order_by="EventDate.start"
+        "EventDate", 
+        back_populates="event", 
+        order_by="EventDate.start",
+        cascade="all, delete-orphan"
     )
     event_tags = db.relationship(
-        "EventTag", back_populates="event", order_by="EventTag.tag_id"
+        "EventTag", 
+        back_populates="event", 
+        order_by="EventTag.tag_id",
+        cascade="all, delete-orphan"
     )
     event_reviews = db.relationship(
-        "EventReview", back_populates="event")
+        "EventReview", 
+        back_populates="event",
+        cascade="all, delete-orphan"
+    )
 
     media_items = db.relationship(
         "MediaItem",
         back_populates="event",
         order_by="MediaItem.position",
         collection_class=ordering_list("position"),
+        cascade="all, delete-orphan"
     )
 
     settings = db.Column(JSONB)
-    suggestions = db.relationship("SuggestedEdit", back_populates="event")
-    reports = db.relationship("Report", back_populates="event")
+    suggestions = db.relationship(
+        "SuggestedEdit", 
+        back_populates="event",
+        cascade="all, delete-orphan"
+    )
+    reports = db.relationship(
+        "Report", 
+        back_populates="event",
+        cascade="all, delete-orphan"
+    )
     hidden = db.Column(db.Boolean, default=True)
 
     __ts_vector__ = create_tsvector(name, description)
