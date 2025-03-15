@@ -10,6 +10,7 @@ class ArtistSchema(Schema):
     name = fields.Str()
     area = fields.Str()
     mbid = fields.Str()
+    created_at = fields.DateTime()
     description = fields.Str()
     popularity = fields.Int()
     disambiguation = fields.Str()

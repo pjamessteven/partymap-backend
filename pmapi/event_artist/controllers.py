@@ -128,10 +128,12 @@ def get_artists(**kwargs):
         search = "%{}%".format(kwargs.pop("query"))
         query = query.filter(Artist.name.ilike(search))
 
-    if kwargs.pop("sort") == "event_count":
+    if kwargs.get("sort") == "event_count":
         # IDK why but if this order_by filter is passed to paginated_results it fucks up hard
         # possibly doesn't exist on model because it's a dynamic field?
         # ** all is well **
+        kwargs.pop("sort")
+
         if kwargs.pop("desc") is True:
             query = query.order_by(desc(Artist.event_count))
         else:
@@ -370,9 +372,6 @@ def save_artist_image_from_wikimedia_url(url, artist):
     except RequestException as e:
         logging.error(
             "event_artist.save_artist_image_from_wikimedia_url.request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
         )
 
     try:
@@ -464,16 +463,15 @@ def get_artist_details_from_last_fm(mbid, retries=5):
             + mbid
             + "&format=json"
         )
+        print(url)
         try:
             response = requests.get(
                 url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
             )
+            print('response', response)
         except RequestException as e:
             logging.error(
                 "event_artist.get_artist_details_from_last_fm.request_error",
-                status_code="",
-                error_body=response.status_code,  # TODO: proper status code here
-                exception=e,
             )
 
         if response.status_code != 200:
@@ -512,9 +510,7 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
     except RequestException as e:
         logging.error(
             "event_artist.refresh_spotify_data_for_artist.auth_token_request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
+
         )
 
     auth_response_data = auth_response.json()
@@ -525,21 +521,18 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
         "Authorization": "Bearer {token}".format(token=access_token),
         "Accept": "application/json",
     }
-
     spotify_artist = None
 
 
     if spotify_id:
         print('SPOTIFY refreshing for spotify_id: ' + spotify_id)
-        url = f"https://api.spotify.com/v1/artists/{spotify_id}",
-
+        url = f"https://api.spotify.com/v1/artists/{spotify_id}"
         try:
             response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
         except RequestException as e:
+            print(f"Error occurred: {e}")
             logging.error(
                 "event_artist.refresh_spotify_data_for_artist.main_request_error",
-                status_code="",
-                error_body="",  # TODO: proper status code here
                 exception=e,
             )
         if response.status_code == 200:
@@ -558,9 +551,6 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
         except RequestException as e:
             logging.error(
                 "event_artist.refresh_spotify_data_for_artist.main_request_error",
-                status_code="",
-                error_body="",  # TODO: proper status code here
-                exception=e,
             )
 
         response = response.json()
@@ -620,9 +610,6 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
             except RequestException as e:
                 logging.error(
                     "event_artist.refresh_spotify_data_for_artist.image_request_error",
-                    status_code="",
-                    error_body="",  # TODO: proper status code here
-                    exception=e,
                 )
                 print("error getting artist image from spotify")
             # add to db
@@ -670,9 +657,6 @@ def get_artist_image_from_deezer(artist):
     except RequestException as e:
         logging.error(
             "event_artist.get_artist_image_from_deezer.search_request_error",
-            status_code="",
-            error_body="",  # TODO: proper status code here
-            exception=e,
         )
 
     response = response.json()
@@ -713,9 +697,6 @@ def get_artist_image_from_deezer(artist):
         except RequestException as e:
             logging.error(
                 "event_artist.get_artist_image_from_deezer.artist_request_error",
-                status_code="",
-                error_body="",  # TODO: proper status code here
-                exception=e,
             )
             print("error getting artist image from deezer")
         # add to db
@@ -867,6 +848,7 @@ def delete_artist_url(id, activity=True):
 
 def delete_artist(id):
     artist = get_artist_or_404(id)
+    """
     if artist.artist_tags:
         for tag in artist.artist_tags:
             db.session.delete(tag)
@@ -878,7 +860,8 @@ def delete_artist(id):
             db.session.delete(suggestion)
     if artist.media_items:
         for media_item in artist.media_items:
-            db.session.delete(media_item)
+            db.session.delete(media_item)"
+    """
     db.session.flush()
 
     db.session.delete(artist)
