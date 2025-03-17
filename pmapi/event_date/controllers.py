@@ -956,7 +956,9 @@ def query_event_dates(**kwargs):
     empty_lineup = kwargs.get("empty_lineup", None)
     date_unconfirmed = kwargs.get("date_unconfirmed", None)
 
-    sort_option = kwargs.get("sort_option", None)
+    sort_option = kwargs.pop("sort", None)
+    if sort_option is None:
+        sort_option = kwargs.pop('sort_option', None) # deprecate this
 
     # Create an alias for EventDate that we'll use throughout
     EventDateAlias = aliased(EventDate)
@@ -1216,8 +1218,23 @@ def query_event_dates(**kwargs):
             func.coalesce(EventDateAlias.distance, 0).asc(), 
             EventDateAlias.start.asc()
         )
+    elif sort_option:
+        if sort_option == 'date':
+            sort_option = 'start' # deprecate this
+
+        desc = kwargs.pop('desc', False)
+        sort_field = getattr(EventDateAlias, sort_option)
+        if sort_field and desc:
+            from sqlalchemy import desc
+            sort_field = desc(sort_field)
+        query = query.order_by(sort_field)
     else:
-        query = query.order_by(EventDateAlias.start.asc())
+        desc = kwargs.pop('desc', False)
+        sort_field = getattr(EventDateAlias, 'start')
+        if desc:
+            from sqlalchemy import desc
+            sort_field = desc(sort_field)
+        query = query.order_by(sort_field)
 
     # Paginate results
     results = paginated_results(EventDate, query, **kwargs)

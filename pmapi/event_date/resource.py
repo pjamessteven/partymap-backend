@@ -61,7 +61,7 @@ class DatesResource(MethodResource):
             "all_related_to_user": fields.Str(),
             "empty_lineup": fields.Boolean(),
             "date_unconfirmed": fields.Boolean(),
-            **paginated_view_args(sort_options=["created_at"]),
+            **paginated_view_args(sort_options=["created_at", "distance", "start"]),
         },
         location="query"
     )
