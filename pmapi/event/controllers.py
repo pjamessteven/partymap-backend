@@ -46,7 +46,8 @@ def get_event_or_404(id):
 
 def get_event(id):
 
-    query = Event.query.join(EventDate)
+    # query = Event.query.join(EventDate)
+    query = Event.query.outerjoin(EventDate)
 
     if current_user:
         following_expression = (
@@ -60,34 +61,10 @@ def get_event(id):
             .exists()
         )
 
-        going_expression = (
-            db.session.query(user_event_date_going_table)
-            .filter(
-                and_(
-                    user_event_date_going_table.c.user_id == current_user.id,
-                    user_event_date_going_table.c.event_date_id == EventDate.id,
-                )
-            )
-            .exists()
-        )
-
-        interested_expression = (
-            db.session.query(user_event_date_interested_table)
-            .filter(
-                and_(
-                    user_event_date_interested_table.c.user_id == current_user.id,
-                    user_event_date_interested_table.c.event_date_id == EventDate.id,
-                )
-            )
-            .exists()
-        )
 
         query = (query
                 .options(
-                    with_expression(
-                        Event.user_following,
-                        following_expression,
-                    ),
+                    with_expression(Event.user_following, following_expression)
                     )
                 )
 
@@ -467,8 +444,9 @@ def update_event(event_id, **kwargs):
 
 
 def delete_event(event_id):
-    event = get_event_or_404(event_id)
 
+    event = get_event_or_404(event_id)
+    
     # delete page views
     db.engine.execute(
         event_page_views_table.delete(
@@ -476,7 +454,7 @@ def delete_event(event_id):
     )
 
     # delete all activity
-    activities = db.session.query(Activity).filter(
+    db.session.query(Activity).filter(
         or_(
             Activity.object == event,
             Activity.target == event
