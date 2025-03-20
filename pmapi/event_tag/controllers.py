@@ -1,4 +1,5 @@
 from pmapi.extensions import db, activity_plugin
+from pmapi.exceptions import InvalidAPIRequest
 from pmapi.common.controllers import paginated_results
 from sqlalchemy import or_, and_, cast
 from geoalchemy2 import func, Geography
@@ -119,3 +120,32 @@ def get_event_tags(**kwargs):
             )
 
     return paginated_results(Tag, query.distinct(), **kwargs)
+
+
+def update_tag_translations(tag_name, translations):
+    """Update translations for a tag"""
+    if not translations or not isinstance(translations, dict):
+        raise InvalidAPIRequest("Translations must be a non-empty dictionary")
+        
+    tag = Tag.query.get(tag_name)
+    if not tag:
+        raise InvalidAPIRequest("Tag not found")
+        
+    tag.tag_translations = translations
+    db.session.commit()
+    return tag
+
+
+def delete_tag(tag_name):
+    """Delete a tag and all its associations"""
+    tag = Tag.query.get(tag_name)
+    if not tag:
+        raise InvalidAPIRequest("Tag not found")
+        
+    # Delete associated event tags
+    EventTag.query.filter_by(tag_id=tag_name).delete()
+    
+    # Delete the tag itself
+    db.session.delete(tag)
+    db.session.commit()
+    return True
