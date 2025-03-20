@@ -23,6 +23,7 @@ class TagsResource(MethodResource):
             "date_max": fields.DateTime(required=False),
             "radius": fields.Int(),
             "location": fields.Str(),
+            "has_translation": fields.Boolean(),
             **paginated_view_args(sort_options=["count", "created_at"]),
         },
         location="query"
