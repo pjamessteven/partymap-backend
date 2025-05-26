@@ -557,32 +557,25 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
         items = response.get("artists", {}).get("items", [])
 
         if len(items) > 0:
-            # try to get the right artist from the deezer response
-            # make sure artist name exists in response
-            spotify_artist_names = []
-            for item in items:
-                spotify_artist_names.append(item.get("name"))
-            close_matches = difflib.get_close_matches(
-                artist.name, spotify_artist_names)
-            spotify_artist_name = None
-            if len(close_matches) > 0:
-                spotify_artist_name = close_matches[0]
-            # get the right artist from response
-            for item in sorted(items, key=lambda d: d.get("popularity"), reverse=True):
-                if item.get("name") == spotify_artist_name:
+            spotify_artist_name = artist.name.lower()
+            # Find an exact match (case-insensitive) and sort by popularity
+            spotify_artist = None
+            for item in sorted(items, key=lambda d: d.get("popularity", 0), reverse=True):
+                if item.get("name", "").lower() == spotify_artist_name:
                     spotify_artist = item
                     break
+
+
+    # delete existing spotify url
+    for url in artist.urls:
+        if "spotify" in url.url.lower():
+            db.session.delete(url)
 
     # get artist image
     if spotify_artist:
         # get tags too, why not
         if len(spotify_artist.get("genres", [])) > 0:
             add_tags_to_artist(spotify_artist.get("genres"), artist, False)
-
-        # delete existing spotify url
-        for url in artist.urls:
-            if "spotify" in url.url.lower():
-                db.session.delete(url)
 
         # save url
         url = spotify_artist.get("external_urls", {}).get("spotify", None)
@@ -881,6 +874,12 @@ def refresh_info(id):
     mbid = musicbrainz_response.get('id', None) if musicbrainz_response else None
     spotify_id = None
 
+    # delete existing tags
+    # remove this if at any point users can manually add tags
+    for tag in artist.tags:
+        db.session.delete(tag)
+    db.session.flush()
+
     spotify_artist_regex = r'https://open.spotify.com/artist/([a-zA-Z0-9]{22})'
 
     # check if there's a spotify ID 
@@ -901,6 +900,7 @@ def refresh_info(id):
 
         # update artist
         artist.disambiguation =  musicbrainz_response.get("disambiguation", None)
+        artist.name = musicbrainz_response.get("name", None)
         artist.description = lastfm_bio
         artist.area = area
         if lastfm_tags and len(lastfm_tags) > 0:
