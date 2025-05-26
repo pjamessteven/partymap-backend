@@ -80,7 +80,7 @@ def update_translations():
     for event in event_query:
         print('translating ' + event.name)
 
-        DESCRIPTION_AS_SUMMARY = True # set when you want to save tokens by using the description as the summary
+        DESCRIPTION_AS_SUMMARY = event.description[:20] == event.description[:20] # save tokens when the description as the summary
         for lang in SUPPORTED_LANGUAGES:
             if event.description_translations is None: 
                 event.description_translations = {}
