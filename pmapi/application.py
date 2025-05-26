@@ -37,6 +37,7 @@ from werkzeug.exceptions import UnprocessableEntity
 from werkzeug.routing import RequestRedirect
 
 from flask_track_usage.storage.sql import SQLStorage
+from flask_track_usage.summarization import sumRemote, sumLanguage, sumUrl, sumUserAgent, sumServer
 from .config import DevConfig, ProdConfig
 
 import os
@@ -223,6 +224,7 @@ def register_blueprints(app):
     # from pmapi.favorite_events.resource import favorites_blueprint
     from pmapi.activity.resource import activity_blueprint
     from pmapi.sitemap.resource import sitemap_blueprint
+    from pmapi.metrics.resource import metrics_blueprint
 
     # auth endpoint is /api/oauth/google
     app.register_blueprint(oauth_google_blueprint, url_prefix="/api/oauth")
@@ -247,6 +249,7 @@ def register_blueprints(app):
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
     app.register_blueprint(services_blueprint, url_prefix="/api/services")
     app.register_blueprint(sitemap_blueprint, url_prefix="/sitemap.xml")
+    app.register_blueprint(metrics_blueprint, url_prefix="/api/metrics")
 
 
 def register_blueprints_with_tracker(app):

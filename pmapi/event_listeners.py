@@ -49,7 +49,7 @@ def process_objects_after_commit(session):
             if isinstance(instance, Event):
 
                 # dont burn tokens in DEV
-                if not DEV_ENVIRON:
+                if not DEV_ENVIRON or True:
                     event_id = instance.id
                     from pmapi.celery_tasks import update_event_translation
                     update_event_translation.delay(event_id)
