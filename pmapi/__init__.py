@@ -17,6 +17,7 @@ from pmapi.event_review.model import EventReview, event_review_downvotes, event_
 from pmapi.notification.model import Notification, UserNotification
 from pmapi.event_location.model import EventLocation
 from pmapi.suggestions.model import SuggestedEdit
+# from pmapi.metrics.model import FlaskUsage
 
 # then we configure mappers
 sa.orm.configure_mappers()

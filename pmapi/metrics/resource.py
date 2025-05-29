@@ -7,7 +7,7 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 from flask_login import login_required
 from pmapi.common.controllers import paginated_view_args
-from .schemas import PageViewSummarySchema, CountryPageViewSummarySchema
+from .schemas import UrlSummarySortableSchema, CountryVisitorSummarySchema
 from . import permissions as metrics_permissions
 import pmapi.metrics.controllers as metrics
 
@@ -26,6 +26,7 @@ class UrlMetricResource(MethodResource):
     )
     @use_kwargs(
         {
+            "country": fields.String(required=False),
             "start_time": fields.DateTime(),
             "end_time": fields.DateTime(),
             "limit": fields.Integer(required=False),
@@ -33,9 +34,9 @@ class UrlMetricResource(MethodResource):
         },         
         location="query"
     )
-    @marshal_with(PageViewSummarySchema(), code=200)
-    @login_required
-    @metrics_permissions.view_metrics
+    @marshal_with(UrlSummarySortableSchema(), code=200)
+   # @login_required
+   # @metrics_permissions.view_metrics
     def get(self, **kwargs):
         return metrics.get_url_summary_sortable(**kwargs)
 
@@ -57,9 +58,9 @@ class CountryMetricResource(MethodResource):
         },         
         location="query"
     )
-    @marshal_with(CountryPageViewSummarySchema(), code=200)
+    @marshal_with(CountryVisitorSummarySchema(), code=200)
     def get(self, **kwargs):
-        return metrics.get_country_page_view_summary(**kwargs)
+        return metrics.get_country_visitor_summary(**kwargs)
 
 metrics_blueprint.add_url_rule(
     "/countries", view_func=CountryMetricResource.as_view("CountryMetricResource")

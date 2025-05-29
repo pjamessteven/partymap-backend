@@ -6,6 +6,7 @@ import os
 import uuid
 from pmapi.extensions import db
 import logging
+from sqlalchemy.dialects import postgresql 
 
 
 class FlaskUsage(db.Model):
@@ -24,7 +25,7 @@ class FlaskUsage(db.Model):
     remote_addr = db.Column(db.String(24))
     xforwardedfor = db.Column(db.String(24))
     authorization = db.Column(db.Boolean)
-    ip_info = db.Column(db.String(2048)) # Use String for VARCHAR, even if it's JSON-like
+    ip_info = db.Column(postgresql.JSONB) 
     path = db.Column(db.String(128))
     speed = db.Column(db.Float) # double precision maps to Float
     datetime = db.Column(db.DateTime) # timestamp without time zone maps to DateTime

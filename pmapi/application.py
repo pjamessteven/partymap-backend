@@ -186,7 +186,7 @@ def register_extensions(app):
             extensions.tracker.init_app(
                 app,
                 [
-                    SQLStorage(db=db),
+                    SQLStorage(db=db, hooks=[sumRemote, sumLanguage, sumUrl, sumUserAgent, sumServer]),
                 ],
                 get_location_from_ip
             )
