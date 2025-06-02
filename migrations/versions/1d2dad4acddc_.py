@@ -118,7 +118,7 @@ def upgrade():
     )
     op.create_table('flask_usage_useragent_monthly',
     sa.Column('date', sa.DateTime(), nullable=False),
-    sa.Column('useragent', sa.String(length=128), nullable=True),
+    sa.Column('useragent', sa.String(length=512), nullable=True),
     sa.Column('hits', sa.Integer(), nullable=True),
     sa.Column('transfer', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('date')

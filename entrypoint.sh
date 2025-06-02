@@ -22,6 +22,7 @@ python manage.py db upgrade
 # increase default character limit for flask_usage (flask-track-usage) table
 psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "ALTER TABLE flask_usage ALTER COLUMN url TYPE varchar(512);"
 psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "ALTER TABLE flask_usage ALTER COLUMN blueprint TYPE varchar(64);"
+psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "ALTER TABLE flask_usage_useragent_monthly ALTER COLUMN useragent TYPE varchar(512);"
 
 
 if [ "$FLASK_ENV" = "development" ]
