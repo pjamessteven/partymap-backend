@@ -179,7 +179,6 @@ def register_extensions(app):
         extensions.admin.init_app(app)
         extensions.lm.init_app(app)
         extensions.cors.init_app(app)
-        extensions.mail.init_app(app)
         extensions.apidocs.init_app(app)
 
         try:

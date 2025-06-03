@@ -35,7 +35,6 @@ class BaseConfig(object):
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 
     HCPATCHA_KEY = os.getenv("HCPATCHA_KEY")
-    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
     LAST_FM_API_KEY = os.getenv("LAST_FM_API_KEY")
     SPOTIFY_API_KEY = os.getenv("SPOTIFY_API_KEY")
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
@@ -52,6 +51,11 @@ class BaseConfig(object):
     DIFY_TRANSLATE_TAG_KEY = os.getenv("DIFY_TRANSLATE_TAG_KEY")
     DIFY_LINEUP_KEY = os.getenv("DIFY_LINEUP_KEY")
     
+    ZOHO_CLIENT_ID = os.environ.get("ZOHO_CLIENT_ID")
+    ZOHO_CLIENT_SECRET = os.environ.get("ZOHO_CLIENT_SECRET")
+    ZOHO_ACCOUNT_ID = os.environ.get("ZOHO_ACCOUNT_ID") 
+
+
 class DevConfig(BaseConfig):
     DEBUG = True
 

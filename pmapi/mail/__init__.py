@@ -86,13 +86,12 @@ class Mailer:
         """
         from_address = from_ or self.default_from
 
-        # Basic email validation (you'll need to adapt your 'validate.email'
-        # or implement a simple regex/format check here if not already available)
-        # try:
-        #     validate.email(from_address)
-        #     validate.email(to)
-        # except InvalidAPIRequest:
-        #     raise SystemError(f"Not a valid email address: From: {from_address}, To: {to}")
+        # Basic email validation 
+        try:
+             validate.email(from_address)
+             validate.email(to)
+        except InvalidAPIRequest:
+             raise SystemError(f"Not a valid email address: From: {from_address}, To: {to}")
 
         access_token = self._get_zoho_access_token()
         url = f"https://mail.zoho.com.au/api/accounts/{self.account_id}/messages" # Adjust for your Zoho region

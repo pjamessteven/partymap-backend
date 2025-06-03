@@ -55,7 +55,13 @@ cors = CORS(resources={r"/api/*": {"origins": allowed_origins, "supports_credent
 lm = LoginManager()
 activity_plugin = ActivityPlugin()
 flask_plugin = FlaskPlugin()
-mail = Mailer()
+mail = Mailer(
+    client_id=BaseConfig.ZOHO_CLIENT_ID,
+    client_secret=BaseConfig.ZOHO_CLIENT_SECRET,
+    account_id=BaseConfig.ZOHO_ACCOUNT_ID,
+    default_from="noreply@partymap.com",
+    testing=False
+)
 apidocs = FlaskApiSpec()
 tracker = TrackUsage()
 celery = make_celery()
