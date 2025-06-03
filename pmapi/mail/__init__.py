@@ -23,9 +23,21 @@ class Mailer:
         self.testing = testing
         self._access_token = None # Store access token after fetching
 
+    def __init__(self, client_id, client_secret, account_id, default_from, testing=False):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.account_id = account_id
+        self.default_from = default_from
+        self.testing = testing
+        self._access_token = None
+        self._token_expiry = None  # Track when token expires
+
     def _get_zoho_access_token(self, scope="ZohoMail.messages.CREATE"):
         """Fetches the Zoho Mail API access token using client credentials."""
-        if self._access_token:
+        from time import time
+        
+        # Return existing token if it's still valid (with 60 second buffer)
+        if self._access_token and self._token_expiry and time() < self._token_expiry - 60:
             return self._access_token
 
         token_url = "https://accounts.zoho.com.au/oauth/v2/token" # Adjust for your Zoho region
@@ -48,6 +60,9 @@ class Mailer:
             response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
             data = response.json()
             self._access_token = data.get("access_token")
+            expires_in = data.get("expires_in", 3600)  # Default to 1 hour if not provided
+            self._token_expiry = time() + expires_in
+            
             if not self._access_token:
                 raise SystemError("Failed to fetch Zoho access token: No access_token in response")
             return self._access_token
