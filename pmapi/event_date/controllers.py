@@ -171,7 +171,7 @@ def add_event_date(
     if it not provided"""
 
     if not event_location:
-        # get EventLocation from location object place_id
+        # get EventLocation from geobject place_id
         if not location:
             raise exc.InvalidAPIRequest("Location required")
         event_location = event_locations.get_location(location["place_id"])
@@ -968,87 +968,6 @@ def query_event_dates(**kwargs):
     # Initialize distance_expression as None
     distance_expression = None
 
-    # Distance filter if location is provided
-    if location_filters and location_filters["lat"] and location_filters["lng"]:
-        print('LOCATION FILTERS')
-        lat = float(location_filters["lat"])
-        lng = float(location_filters["lng"])
-        if lat is None or lng is None:
-            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
-
-        distance_expression = func.ST_Distance(
-            cast(EventLocation.geo, Geography(srid=4326)),
-            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
-        )
-
-        query = (
-            query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
-            .join(Event, EventDateAlias.event_id == Event.id)
-            .options(with_expression(EventDateAlias.distance, distance_expression))
-        )
-
-        if bounds is None and radius == 0:
-            # used on the home page of partyman
-            # to return a list of events in proximity of point/users location
-            # and return the radius in response
-            radii = [
-                10000,
-                20000,
-                50000,
-                100000,
-                200000,
-                500000,
-                1000000,
-                2000000,
-                5000000,
-                10000000,
-                20000000,
-            ]
-
-            # Add row_number for distinct filtering
-            row_number_column = func.row_number().over(
-                partition_by=EventDateAlias.event_id, 
-                order_by=EventDateAlias.start.asc()
-            ).label("row_number")
-
-            # Create subquery including all columns from EventDateAlias
-            subquery = query.add_columns(row_number_column).subquery()
-            
-            # Create new query from subquery using alias
-            CountEventDateAlias = aliased(EventDate, subquery)
-            count_query = db.session.query(CountEventDateAlias).join(EventLocation, CountEventDateAlias.location_id == EventLocation.id).filter(
-                subquery.c.row_number == 1
-            )
-
-            for r in radii:               
-                count = (
-                    count_query
-                    .filter(
-                        func.ST_DWithin(
-                            cast(EventLocation.geo, Geography(srid=4326)),
-                            cast(
-                                "SRID=4326;POINT(%f %f)" % (lng, lat),
-                                Geography(srid=4326),
-                            ),
-                            r,
-                        )
-                    )
-                    .from_self()
-                    .count()
-                )
-                # threshold of events required before trying the next radius
-                if count >= 4:
-                    radius = r
-                    break
-
-        # Apply radius filter
-        if radius:
-            query = query.filter(distance_expression <= radius)
-
-    # location not provided
-    else:
-        query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
-        query = query.join(Event, EventDateAlias.event_id == Event.id)
 
     if bounds:
         # Ensure EventLocation is joined if not already
@@ -1105,6 +1024,90 @@ def query_event_dates(**kwargs):
                         Event.creator_id == current_user.id
                     )
                 ))
+
+    # Distance filter if location is provided
+    if location_filters and location_filters["lat"] and location_filters["lng"]:
+        print('LOCATION FILTERS')
+        lat = float(location_filters["lat"])
+        lng = float(location_filters["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
+
+        distance_expression = func.ST_Distance(
+            cast(EventLocation.geo, Geography(srid=4326)),
+            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+        )
+
+        query = (
+            query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+            .join(Event, EventDateAlias.event_id == Event.id)
+            .options(with_expression(EventDateAlias.distance, distance_expression))
+        )
+
+        if bounds is None and radius == 0:
+            # used on the home page of partyman
+            # to return a list of events in proximity of point/users location
+            # and return the radius in response
+            radii = [
+                10000,
+                20000,
+                50000,
+                100000,
+                200000,
+                500000,
+                1000000,
+                2000000,
+                5000000,
+                10000000,
+                20000000,
+            ]
+
+            # Add row_number for distinct filtering
+            row_number_column = func.row_number().over(
+                partition_by=EventDateAlias.event_id, 
+                order_by=EventDateAlias.start.asc()
+            ).label("row_number")
+
+            # Create subquery including all columns from EventDateAlias
+            subquery = query.add_columns(row_number_column).subquery()
+            
+            # Create new query from subquery using alias
+            CountEventDateAlias = aliased(EventDate, subquery)
+            count_query = db.session.query(CountEventDateAlias).join(EventLocation, CountEventDateAlias.location_id == EventLocation.id).filter(
+                subquery.c.row_number == 1
+            )
+
+            for r in radii:               
+                count = (   
+                    count_query
+                    .filter(
+                        func.ST_DWithin(
+                            cast(EventLocation.geo, Geography(srid=4326)),
+                            cast(
+                                "SRID=4326;POINT(%f %f)" % (lng, lat),
+                                Geography(srid=4326),
+                            ),
+                            r,
+                        )
+                    )
+                    .from_self()
+                    .count()
+                )
+
+                # threshold of events required before trying the next radius
+                if count >= 4:
+                    radius = r
+                    break
+
+        # Apply radius filter
+        if radius:
+            query = query.filter(distance_expression <= radius)
+
+    # location not provided
+    else:
+        query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+        query = query.join(Event, EventDateAlias.event_id == Event.id)
+
 
     # User related filters
     if creator_user:
