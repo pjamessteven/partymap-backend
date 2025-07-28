@@ -982,12 +982,6 @@ def query_event_dates(**kwargs):
 
         query = query.filter(func.ST_Intersects(EventLocation.geo, bbox))
 
-    if country_id:
-        query = query.filter(EventLocation.country_id == country_id)
-
-    if region_name:
-        query = query.join(Region, EventLocation.region_id == Region.id)
-        query = query.filter(Region.long_name == region_name)
 
     # Date filters
     if date_min := kwargs.get("date_min"):
@@ -1107,6 +1101,14 @@ def query_event_dates(**kwargs):
     else:
         query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
         query = query.join(Event, EventDateAlias.event_id == Event.id)
+
+
+    if country_id:
+        query = query.filter(EventLocation.country_id == country_id)
+
+    if region_name:
+        query = query.join(Region, EventLocation.region_id == Region.id)
+        query = query.filter(Region.long_name == region_name)
 
 
     # User related filters
