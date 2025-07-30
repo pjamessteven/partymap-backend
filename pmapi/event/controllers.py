@@ -11,6 +11,7 @@ from sqlalchemy_continuum import version_class, transaction_class
 from sqlalchemy import cast, or_, and_, func, select, join
 from sqlalchemy.orm import with_expression
 from pmapi.event_date.model import EventDate, EventDateTicket, user_event_date_going_table, user_event_date_interested_table
+from pmapi.event_location.model import EventLocation
 from pmapi.user.model import User
 import pmapi.event_tag.controllers as event_tags
 import pmapi.media_item.controllers as media_items
@@ -133,18 +134,57 @@ def search_events(created_by_user, **kwargs):
 
 def featured_events(**kwargs):
 
-    query = db.session.query(Event).filter(Event.featured) 
+    now = datetime.utcnow()
 
-    location = kwargs.pop('location')
-    if location:
-        lat = float(location["lat"])
-        lng = float(location["lng"])
-        if lat is None or lng is None:
-            raise exc.InvalidAPIRequest(
-                "lat and lng are required for nearby search.")
-        
-        # join with event_dates, and order by the distance of the next/upcoming event date
-        query.order_by(func.ST_Distance(EventDate.location, location))
+    # Subquery to get the next upcoming event date for each event
+    next_event_date_subquery = (
+        db.session.query(
+            EventDate.id.label("id"),
+            EventDate.event_id.label("event_id"),
+            func.row_number()
+            .over(
+                partition_by=EventDate.event_id,
+                order_by=EventDate.start.asc(),
+            )
+            .label("rn"),
+        )
+        .filter(EventDate.start >= now)
+        .subquery("next_event_date")
+    )
+
+    query = db.session.query(Event).filter(Event.featured)
+
+    # Join with next event date subquery
+    # this filters out events that have no future dates
+    query = query.join(
+        next_event_date_subquery,
+        Event.id == next_event_date_subquery.c.event_id,
+    ).filter(next_event_date_subquery.c.rn == 1)
+
+    # Join with EventDate table to get the full object
+    query = query.join(EventDate, EventDate.id == next_event_date_subquery.c.id)
+
+    location = kwargs.pop("location", None)
+    if location and location.get("lat") is not None and location.get("lng") is not None:
+        try:
+            lat = float(location["lat"])
+            lng = float(location["lng"])
+        except (ValueError, TypeError):
+            raise exc.InvalidAPIRequest("lat and lng must be valid numbers.")
+
+        # This will join with EventLocation model via the relationship
+        query = query.join(EventDate.location)
+
+        # Assuming EventLocation has lat/lng columns.
+        # We create points and calculate distance.
+        event_location_point = func.ST_MakePoint(EventLocation.lng, EventLocation.lat)
+        user_location_point = func.ST_MakePoint(lng, lat)
+
+        # Order by distance.
+        query = query.order_by(func.ST_Distance(event_location_point, user_location_point))
+    else:
+        # If no location, order by the start time of the next event.
+        query = query.order_by(EventDate.start.asc())
 
     return paginated_results(Event, query=query, **kwargs)
 
