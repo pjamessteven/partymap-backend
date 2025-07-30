@@ -131,6 +131,22 @@ def search_events(created_by_user, **kwargs):
 
     return paginated_results(Event, query=query, **kwargs)
 
+def featured_events(**kwargs):
+
+    query = db.session.query(Event).filter(Event.featured) 
+
+    location = kwargs.pop('location')
+    if location:
+        lat = float(location["lat"])
+        lng = float(location["lng"])
+        if lat is None or lng is None:
+            raise exc.InvalidAPIRequest(
+                "lat and lng are required for nearby search.")
+        
+        # join with event_dates, and order by the distance of the next/upcoming event date
+        query.order_by(func.ST_Distance(EventDate.location, location))
+
+    return paginated_results(Event, query=query, **kwargs)
 
 def add_event(**kwargs):
     creator = kwargs.pop("creator", None)
