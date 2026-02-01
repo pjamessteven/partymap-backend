@@ -1,10 +1,13 @@
 from marshmallow import fields
 from marshmallow import Schema
 from typemallow2 import ts_interface
-from pmapi.common.schemas import TranslationHybridField
+from pmapi.common.schemas import PaginatedSchema, TranslationHybridField
 
 # from pmapi.event.schemas import EventSchema
 
+@ts_interface()
+class EventReviewListSchema(PaginatedSchema):
+    items = fields.Nested("EventReviewSchema", many=True)
 
 @ts_interface()
 class EventReviewSchema(Schema):
@@ -18,7 +21,8 @@ class EventReviewSchema(Schema):
     created_at = fields.DateTime()
     score = fields.Integer()
     rating = fields.Integer()
-
+    children = fields.Nested("self", many=True) # This is the crucial line
+    
 @ts_interface()
 class EventReviewVersionSchema(Schema):
     text = fields.Str()

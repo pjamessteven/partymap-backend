@@ -5,28 +5,30 @@ from flask_apispec import use_kwargs
 from flask_apispec import doc
 from marshmallow import fields
 from flask_login import login_required
-from . import controllers as event_reviews
-from .schemas import EventReviewSchema
+
+from pmapi.event_review import controllers as event_review
+from .schemas import EventReviewSchema  
 from . import permissions as permissions
 
 event_review_blueprint = Blueprint("event_review", __name__)
 
 
-@doc(tags=["event_reviews"])
+@doc(tags=["event_contributions"])
 class AddEventReviewResource(MethodResource):
     @login_required
     @doc(summary="Add a review", description="Adds a review to an event")
     @use_kwargs(
         {
             "text": fields.Str(required=False),
-            "rating": fields.Integer(required=False),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "event_date_id": fields.Integer(required=False),
+            "parent_id": fields.Integer(required=False)
         }
     )
     @marshal_with(EventReviewSchema(), code=200)
     def post(self, event_id, **kwargs):
-        return event_reviews.add_review(event_id, **kwargs)
+
+        return event_review.add_review(event_id, **kwargs)
 
 
 event_review_blueprint.add_url_rule(
@@ -43,17 +45,20 @@ class EventReviewResource(MethodResource):
     def delete(self, review_id, **kwargs):
         return event_reviews.delete_review(review_id)
     
+    @doc(summary="Gets a review", description="Gets a review, and it's direct children")
+    def get(self, review_id, **kwargs):
+        return event_reviews.get_event_review_and_children(review_id)
+    
 event_review_blueprint.add_url_rule(
     "/<review_id>",
     view_func=EventReviewResource.as_view("EventReviewResource"),
 )
 
-"""
-
 @event_review_blueprint.route("/event/<int:id>/", methods=("GET",))
 def event_reviews():
     pass
 
+"""
 
 @login_required
 @event_review_blueprint.route("/event/<int:eventId>/", methods=("POST",))

@@ -6,6 +6,7 @@ from sqlalchemy_utils import TranslationHybrid
 from pmapi.utils import get_locale
 from pmapi.extensions import db
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import backref
 
 translation_hybrid = TranslationHybrid(
     current_locale=get_locale,
@@ -32,6 +33,17 @@ class EventReview(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    parent_id = db.Column(db.Integer, db.ForeignKey('event_reviews.id'), nullable=True)
+
+    # Define the recursive relationship
+    children = db.relationship(
+        "EventReview",
+        backref=backref('parent', remote_side=[id]),
+        cascade="all, delete-orphan",
+        primaryjoin="EventReview.parent_id == EventReview.id",
+        order_by="EventReview.created_at.asc()" # Sort children by created_at ASC
+    )
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_event_reviews_creator_id'), nullable=False)
@@ -42,8 +54,6 @@ class EventReview(db.Model):
     event = db.relationship("Event", back_populates="event_reviews")
     event_date_id = db.Column(db.Integer, db.ForeignKey("event_dates.id", name='fk_event_reviews_event_date_id'))
     event_date = db.relationship("EventDate", back_populates="reviews")
-
-    rating = db.Column(db.Integer)
 
     text = db.Column(db.Text)
     text_translations = db.Column(MutableDict.as_mutable(HSTORE))

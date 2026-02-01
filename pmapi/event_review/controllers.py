@@ -9,6 +9,9 @@ import pmapi.event_date.controllers as event_dates
 import pmapi.media_item.controllers as media_items
 import pmapi.activity.controllers as activities
 import pmapi.exceptions as exc
+from pmapi.common.controllers import paginated_results
+
+from sqlalchemy.orm import joinedload
 
 Activity = activity_plugin.activity_cls
 
@@ -16,11 +19,35 @@ def get_review(id):
     return EventReview.query.get(id)
 
 def get_review_or_404(id):
-    event = get_review(id)
-    if not event:
+    review = get_review(id)
+    if not review:
         msg = "No such review with id {}".format(id)
         raise exc.RecordNotFound(msg)
-    return event
+    return review
+
+# return top level posts for an event and their direct children
+def get_event_reviews(event_id, **kwargs):
+    event = events.get_event_or_404(event_id)
+    
+    query = db.session.query(EventReview).options(
+        joinedload(EventReview.children)
+    ).filter(
+        EventReview.event_id == event.id,
+        EventReview.parent_id.is_(None)
+    ).order_by(
+        EventReview.created_at.desc() # Sort parent reviews by created_at DESC
+    )
+
+    return paginated_results(EventReview, query, **kwargs)
+
+def get_event_review_and_children(event_review_id):
+    review = get_review_or_404(event_review_id)
+
+    return db.session.query(EventReview).options(
+        joinedload(EventReview.children)
+    ).filter(
+        EventReview.id == review.id
+    ).first()
 
 def delete_review(id):
     review = get_review_or_404(id)
@@ -46,11 +73,11 @@ def delete_review(id):
     db.session.commit()
 
 def add_review(event_id, creator=current_user, **kwargs):
-
     text = kwargs.pop("text", None)
     media = kwargs.pop("media_items", None)
     event_date_id = kwargs.pop("event_date_id", None)
-    rating = kwargs.pop("rating", None)
+
+    parent_id = kwargs.pop("parent_id", None)
 
     event = events.get_event_or_404(event_id)
 
@@ -71,13 +98,14 @@ def add_review(event_id, creator=current_user, **kwargs):
         event_date_id=event_date_id,
         event_id=event_id,
         creator_id=creator.get_id(),
-        rating=rating
+        parent_id=parent_id
     )
 
+
+
     db.session.add(review)
-
+    
     db.session.flush()
-
     # add activity
     activity = Activity(verb=u"create", object=review, target=event)
     db.session.add(activity)
