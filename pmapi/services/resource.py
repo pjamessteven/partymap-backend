@@ -12,11 +12,16 @@ class IpLookupResource(MethodResource):
     @doc(
         summary="Get location from requesting users IP.",
     )
-    def get(self):
-        return services.get_location_from_ip()
-
+    def get(self, ip):
+        return services.get_location_from_ip(ip)
 
 services_blueprint.add_url_rule(
-    "/ip_lookup", view_func=IpLookupResource.as_view("IpLookupResource")
+    "/ip_lookup/",
+    view_func=IpLookupResource.as_view("IpLookupResource_default"),
+    defaults={'ip': None}
+)
+
+services_blueprint.add_url_rule(
+    "/ip_lookup/<ip>", view_func=IpLookupResource.as_view("IpLookupResource")
 )
 
