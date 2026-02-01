@@ -56,7 +56,7 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    featured = db.Column(db.Boolean)
     followers = db.relationship(
         "User", back_populates="following_events", secondary=user_event_following_table
     )
