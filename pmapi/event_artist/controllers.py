@@ -24,6 +24,7 @@ from pmapi.config import BaseConfig
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 
 from pmapi.common.controllers import paginated_results
+import pmapi.media_item.controllers as media_items
 
 Activity = activity_plugin.activity_cls
 
@@ -573,6 +574,7 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
 
     # get artist image
     if spotify_artist:
+        print('spotify artist', spotify_artist)
         # get tags too, why not
         if len(spotify_artist.get("genres", [])) > 0:
             add_tags_to_artist(spotify_artist.get("genres"), artist, False)
@@ -876,7 +878,7 @@ def refresh_info(id):
 
     # delete existing tags
     # remove this if at any point users can manually add tags
-    for tag in artist.tags:
+    for tag in artist.artist_tags:
         db.session.delete(tag)
     db.session.flush()
 
@@ -919,10 +921,11 @@ def refresh_info(id):
     # only use deezer as fallback
 
     for image in artist.media_items:
+        print(image.thumb_filename, image.caption)
         if "Spotify" in image.caption:
-            db.session.delete(image)
+            media_items.delete_item(image)
         if "Deezer" in image.caption:
-            db.session.delete(image)
+            media_items.delete_item(image)
     db.session.flush()
 
     refresh_spotify_data_for_artist(artist, spotify_id)

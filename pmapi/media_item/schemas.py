@@ -1,5 +1,5 @@
-from marshmallow import fields
-from marshmallow import Schema
+
+from marshmallow import Schema, post_dump, fields
 from pmapi.common.schemas import PaginatedSchema
 from flask import current_app
 import os
@@ -70,6 +70,13 @@ class MediaItemSchema(Schema):
         if obj.video_poster_filename
         else None
     )
+
+    @post_dump
+    def remove_empty(self, data, **kwargs):
+        return {
+            key: value for key, value in data.items()
+            if value is not None and value != "" and value != []
+        }
 
 
 @ts_interface()

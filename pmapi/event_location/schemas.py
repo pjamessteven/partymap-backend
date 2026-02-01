@@ -7,17 +7,34 @@ from pmapi.event_date.schemas import EventDateSchema
 
 @ts_interface()
 class LocationSchema(Schema):
-    geohash = fields.Str()
     lat = fields.Float()
     lng = fields.Float()
     name = fields.Str()
     description = fields.Str()
-    locality = fields.Nested("LocalitySchema")
-    country = fields.Str()
+    country = fields.Nested('CountrySchema', only=['short_name'])
     city = fields.Str()
-    address_components = fields.Str()
     place_id = fields.Str()
     event_dates = fields.Nested(EventDateSchema, many=True)
+
+    locality = fields.Method("get_general_location_string")
+
+    def get_general_location_string(self, obj):
+        country = getattr(obj, "country")
+
+        locality = getattr(obj, "locality", None)
+        region = getattr(obj, "region", None)
+
+        loc_name = getattr(locality, "long_name", None)
+        
+        if not loc_name: 
+            loc_name = getattr(obj, "name", None)
+        # countries that are better reprented by their states
+        if country.short_name == "US" or country.short_name == "GB":
+            return f"{loc_name}, {region.long_name}"
+        elif country:
+            return f"{loc_name}, {country.long_name}"
+        else:
+            return loc_name or getattr(obj, "name", None)
 
 class LocationVersionSchema(Schema):
     description = fields.Str()

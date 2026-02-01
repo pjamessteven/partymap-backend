@@ -396,6 +396,7 @@ def save_media_item(file, path):
         if img.mode != "RGB":
             img = img.convert("RGB")
         
+        print('save media item', os.path.join(path, filename))
         # Save original as WebP
         img.save(os.path.join(path, filename), "WEBP")
 

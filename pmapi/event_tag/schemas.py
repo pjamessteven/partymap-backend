@@ -1,5 +1,4 @@
-from marshmallow import fields
-from marshmallow import Schema
+from marshmallow import Schema, fields, post_dump
 from pmapi.common.schemas import PaginatedSchema
 from typemallow2 import ts_interface
 from pmapi.common.schemas import TranslationHybridField
@@ -8,7 +7,6 @@ from pmapi.common.schemas import TranslationHybridField
 class TagSchema(Schema):
     tag = fields.Str()
     tag_t = TranslationHybridField()
-
     count = fields.Integer()
     # events_with_tag?
 
@@ -19,6 +17,7 @@ class TagListSchema(PaginatedSchema):
 class EventTagSchema(Schema):
     tag = fields.Str(attribute="tag.tag")
     tag_t = TranslationHybridField(attribute="tag.tag_t")
+    
 
 class EventTagVersionSchema(EventTagSchema):
     changeset = fields.Dict()

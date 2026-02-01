@@ -7,7 +7,7 @@ from flask_apispec import MethodResource
 from flask_apispec import use_kwargs
 
 from pmapi.common.controllers import paginated_view_args
-import pmapi.event_location.controllers as event_locations
+from pmapi.event_location import controllers as event_locations
 from .schemas import PointSchema, LocationSchema, LocationListSchema, CountrySchema, RegionSchema, LocalitySchema
 
 

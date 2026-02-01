@@ -1,29 +1,32 @@
+import json
+
 from flask import Blueprint, jsonify
+from flask_apispec import MethodResource, doc, marshal_with, use_kwargs
+from flask_login import current_user, login_required
 from marshmallow import fields
-from flask_apispec import doc
-from flask_apispec import marshal_with
-from flask_apispec import MethodResource
-from flask_apispec import use_kwargs
-from flask_login import login_required
-from flask_login import current_user
+
+import pmapi.activity.controllers as activities
+import pmapi.event_review.controllers as event_reviews
+from pmapi.activity.schemas import ActivityListSchema
+from pmapi.common.controllers import paginated_view_args
+from pmapi.event_review.schemas import EventReviewListSchema, EventReviewSchema
+from pmapi.exceptions import InvalidUsage
 from pmapi.hcaptcha.controllers import validate_hcaptcha
 from pmapi.suggestions.controllers import add_suggested_edit
 from pmapi.user.controllers import get_user_or_404
-from . import controllers as events
-import pmapi.activity.controllers as activities
-from . import permissions as event_permissions
-
-from pmapi.exceptions import InvalidUsage
-from pmapi.common.controllers import paginated_view_args
-
-from .schemas import (
-    EventSchema,
-    EventListSchema,
-    EventVersionListSchema,
-    ContributorListSchema,
-)
 from pmapi.user.schemas import UserListSchema
-from pmapi.activity.schemas import ActivityListSchema
+
+from . import controllers as events
+from . import permissions as event_permissions
+from .schemas import (
+    ContributorListSchema,
+    EventListSchema,
+    EventSchema,
+    EventVersionListSchema,
+    FeaturedEventListSchema,
+    FeaturedEventSchema,
+    MiniEventListSchema,
+)
 
 events_blueprint = Blueprint("events", __name__)
 
@@ -47,14 +50,14 @@ class EventsResource(MethodResource):
             "hidden": fields.Boolean(required=False),
             **paginated_view_args(sort_options=["created_at", "name", "id"]),
         },
-        location="query"
+        location="query",
     )
     @marshal_with(EventListSchema(), code=200)
     def get(self, **kwargs):
         created_by_user = None
         if "created_by" in kwargs:
             created_by_user = get_user_or_404(kwargs.pop("created_by"))
-            
+
         return events.search_events(created_by_user, **kwargs)
 
     @doc(summary="Add an event", description="Add an event")
@@ -66,7 +69,9 @@ class EventsResource(MethodResource):
             "description": fields.String(required=True),
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
-            "full_description_attribute": fields.String(required=False, allow_none=True),
+            "full_description_attribute": fields.String(
+                required=False, allow_none=True
+            ),
             "youtube_url": fields.String(required=False, allow_none=True),
             "next_event_date_description": fields.String(
                 required=False, allow_none=True
@@ -84,12 +89,8 @@ class EventsResource(MethodResource):
             "name": fields.String(required=True),
             "url": fields.String(required=False, allow_none=True),
             "tags": fields.List(fields.String(), required=False, allow_none=True),
-            "media_items": fields.Nested(
-                "MediaItemUploadSchema", many=True
-            ),
-            "logo": fields.Nested(
-                "MediaItemUploadSchema", many=False
-            ),
+            "media_items": fields.Nested("MediaItemUploadSchema", many=True),
+            "logo": fields.Nested("MediaItemUploadSchema", many=False),
             "rrule": fields.Dict(),
             "host": fields.Boolean(),
             "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
@@ -101,8 +102,64 @@ class EventsResource(MethodResource):
         return events.add_event(**kwargs, creator=current_user)
 
 
+events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
+
+
+@doc(tags=["events"])
+class SimpleEventsResource(MethodResource):
+    @doc(
+        summary="Add a simple event", description="Add a simple event with basic fields"
+    )
+    @event_permissions.add
+    @use_kwargs(
+        {
+            "name": fields.String(required=True),
+            "description": fields.String(required=True),
+            "full_description": fields.String(required=False, allow_none=True),
+            "date_time": fields.String(required=True),
+            "location": fields.String(required=True),
+            "lineup_text": fields.String(required=False, allow_none=True),
+            "url": fields.String(required=False, allow_none=True),
+            "tags": fields.List(fields.String(), required=False, allow_none=True),
+            "logo_url": fields.String(required=False, allow_none=True),
+        },
+    )
+    @marshal_with(EventSchema(), code=200)
+    def post(self, **kwargs):
+        return events.add_simple_event(**kwargs, creator=current_user)
+
+
 events_blueprint.add_url_rule(
-    "/", view_func=EventsResource.as_view("EventsResource"))
+    "/simple", view_func=SimpleEventsResource.as_view("SimpleEventsResource")
+)
+
+
+@doc(tags=["events"])
+class FeaturedEventsResource(MethodResource):
+    @doc(
+        summary="Get featured events that are in the db",
+        description="""Returns the closest events first when location provided
+        """,
+    )
+    @use_kwargs(
+        {
+            "location": fields.Str(),
+            **paginated_view_args(sort_options=["created_at", "name", "id"]),
+        },
+        location="query",
+    )
+    @marshal_with(FeaturedEventListSchema(), code=200)
+    def get(self, **kwargs):
+        # get json from query string
+        if kwargs.get("location"):
+            kwargs["location"] = json.loads(kwargs["location"])
+
+        return events.featured_events(**kwargs)
+
+
+events_blueprint.add_url_rule(
+    "/featured/", view_func=FeaturedEventsResource.as_view("FeaturedEventsResource")
+)
 
 
 @doc(tags=["events"])
@@ -122,7 +179,9 @@ class EventResource(MethodResource):
             "description": fields.String(required=False, allow_none=True),
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
-            "full_description_attribute": fields.String(required=False, allow_none=True),
+            "full_description_attribute": fields.String(
+                required=False, allow_none=True
+            ),
             "youtube_url": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
@@ -150,6 +209,26 @@ class EventResource(MethodResource):
 
 events_blueprint.add_url_rule(
     "/<event_id>", view_func=EventResource.as_view("EventResource")
+)
+
+
+@doc(tags=["events", "event_contributions"])
+class EventContributionResource(MethodResource):
+    @doc(summary="Get event contributions", description="Get event contributions")
+    @marshal_with(EventReviewListSchema(), code=200)
+    @use_kwargs(
+        {
+            **paginated_view_args(sort_options=["created_at"]),
+        },
+        location="query",
+    )
+    def get(self, event_id, **kwargs):
+        return event_reviews.get_event_reviews(event_id, **kwargs)
+
+
+events_blueprint.add_url_rule(
+    "/<event_id>/contributions",
+    view_func=EventContributionResource.as_view("EventContributionResource"),
 )
 
 
@@ -182,7 +261,9 @@ class EventSuggestEditResource(MethodResource):
             "description": fields.String(required=False, allow_none=True),
             "description_attribute": fields.String(required=False, allow_none=True),
             "full_description": fields.String(required=False, allow_none=True),
-            "full_description_attribute": fields.String(required=False, allow_none=True),
+            "full_description_attribute": fields.String(
+                required=False, allow_none=True
+            ),
             "youtube_url": fields.String(required=False, allow_none=True),
             "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
@@ -210,9 +291,8 @@ class EventSuggestEditResource(MethodResource):
             action="update",
             creator_id=current_user.get_id(),
             object_type="Event",
-            **kwargs
+            **kwargs,
         )
-
 
 
 events_blueprint.add_url_rule(
@@ -228,7 +308,7 @@ class EventActivityResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query"
+        location="query",
     )
     @marshal_with(ActivityListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -249,7 +329,7 @@ class EventVersionsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query"
+        location="query",
     )
     @marshal_with(EventVersionListSchema(), code=200)
     def get(self, event_id, **kwargs):
@@ -272,7 +352,7 @@ class EventContributorsResource(MethodResource):
         {
             **paginated_view_args(sort_options=[]),
         },
-        location="query"
+        location="query",
     )
     @marshal_with(ContributorListSchema(), code=200)
     def get(self, event_id, **kwargs):

@@ -68,10 +68,8 @@ class DatesResource(MethodResource):
     @marshal_with(EventDateQueryListSchema(), code=200)
     def get(self, **kwargs):
         # get json from query string
-        print(kwargs)
         if kwargs.get("location"):
             kwargs["location"] = json.loads(kwargs["location"])
-            print(kwargs['location'])
 
         if kwargs.get("bounds"):
             kwargs["bounds"] = json.loads(kwargs["bounds"])

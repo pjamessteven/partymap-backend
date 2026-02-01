@@ -1,34 +1,46 @@
-from pmapi.common.permissions import current_user_role_is_at_least, user_role_is_at_least
-from pmapi.event_date.controllers import delete_future_event_dates, generate_future_event_dates
+import pprint
+from datetime import datetime, timedelta
 
-from pmapi.utils import ROLES
-from .model import Event, Rrule, user_event_following_table, event_page_views_table
-from pmapi import exceptions as exc
-from pmapi.extensions import db, Session, activity_plugin
-from datetime import datetime
-from flask_login import current_user
-from sqlalchemy_continuum import version_class, transaction_class
-from sqlalchemy import cast, or_, and_, func, select, join
+from dateutil import parser
+from flask.helpers import get_debug_flag
+from flask_login import current_user, login_user
+from sqlalchemy import and_, cast, func, join, or_, select
 from sqlalchemy.orm import with_expression
-from pmapi.event_date.model import EventDate, EventDateTicket, user_event_date_going_table, user_event_date_interested_table
-from pmapi.event_location.model import EventLocation
-from pmapi.user.model import User
+from sqlalchemy_continuum import transaction_class, version_class, versioning_manager
+
+import pmapi.event_location.controllers as event_locations
 import pmapi.event_tag.controllers as event_tags
 import pmapi.media_item.controllers as media_items
-import pmapi.event_location.controllers as event_locations
+from pmapi import exceptions as exc
 from pmapi.common.controllers import paginated_results
-from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.common.permissions import (
+    current_user_role_is_at_least,
+    user_role_is_at_least,
+)
+from pmapi.config import BaseConfig, DevConfig, ProdConfig
+from pmapi.event_date.controllers import (
+    delete_future_event_dates,
+    generate_future_event_dates,
+)
+from pmapi.event_date.model import (
+    EventDate,
+    EventDateTicket,
+    user_event_date_going_table,
+    user_event_date_interested_table,
+)
+from pmapi.event_location.model import EventLocation
 from pmapi.exceptions import InvalidAPIRequest
-from flask_login import current_user, login_user
-from pmapi.config import BaseConfig
-from pmapi.config import DevConfig
-from pmapi.config import ProdConfig
-from sqlalchemy_continuum import versioning_manager
-import pprint
+from pmapi.extensions import Session, activity_plugin, db
+from pmapi.hcaptcha.controllers import validate_hcaptcha
 from pmapi.mail.controllers import (
     send_new_event_notification,
 )
-from flask.helpers import get_debug_flag
+from pmapi.media_item.controllers import download_image_as_base64
+from pmapi.services.gmaps import get_best_location_result
+from pmapi.user.model import User
+from pmapi.utils import ROLES
+
+from .model import Event, Rrule, event_page_views_table, user_event_following_table
 
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
@@ -46,7 +58,6 @@ def get_event_or_404(id):
 
 
 def get_event(id):
-
     # query = Event.query.join(EventDate)
     query = Event.query.outerjoin(EventDate)
 
@@ -62,12 +73,9 @@ def get_event(id):
             .exists()
         )
 
-
-        query = (query
-                .options(
-                    with_expression(Event.user_following, following_expression)
-                    )
-                )
+        query = query.options(
+            with_expression(Event.user_following, following_expression)
+        )
 
     event = query.filter(Event.id == id).first()
 
@@ -120,8 +128,7 @@ def search_events(created_by_user, **kwargs):
             else:
                 query_text = query_text + (str(word) + str(":* & "))
         query = query.filter(
-            Event.__ts_vector__.match(
-                query_text, postgresql_regconfig="english")
+            Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
         )
 
     if created_by_user:
@@ -132,8 +139,8 @@ def search_events(created_by_user, **kwargs):
 
     return paginated_results(Event, query=query, **kwargs)
 
-def featured_events(**kwargs):
 
+def featured_events(**kwargs):
     now = datetime.utcnow()
 
     # Subquery to get the next upcoming event date for each event
@@ -181,12 +188,14 @@ def featured_events(**kwargs):
         user_location_point = func.ST_MakePoint(lng, lat)
 
         # Order by distance.
-        query = query.order_by(func.ST_Distance(event_location_point, user_location_point))
+        query = query.order_by(
+            func.ST_Distance(event_location_point, user_location_point)
+        )
     else:
         # If no location, order by the start time of the next event.
         query = query.order_by(EventDate.start.asc())
-
     return paginated_results(Event, query=query, **kwargs)
+
 
 def add_event(**kwargs):
     creator = kwargs.pop("creator", None)
@@ -197,21 +206,19 @@ def add_event(**kwargs):
     full_description = kwargs.pop("full_description")
     full_description_attribute = kwargs.pop("full_description_attribute", None)
     youtube_url = kwargs.pop("youtube_url", None)
-    next_event_date_description = kwargs.pop(
-        "next_event_date_description", None)
+    next_event_date_description = kwargs.pop("next_event_date_description", None)
     next_event_date_description_attribute = kwargs.pop(
         "next_event_date_description_attribute", None
     )
     next_event_date_size = kwargs.pop("next_event_date_size", None)
     next_event_date_artists = kwargs.pop("next_event_date_artists", None)
-    next_event_date_lineup_images = kwargs.pop(
-        "next_event_date_lineup_images", None)
+    next_event_date_lineup_images = kwargs.pop("next_event_date_lineup_images", None)
     location = kwargs.pop("location")
     date_time = kwargs.pop("date_time")
     rrule = kwargs.pop("rrule", None)
     url = kwargs.pop("url", None)
     tags = kwargs.pop("tags", None)
-    media = kwargs.pop("media_items", None) 
+    media = kwargs.pop("media_items", None)
     logo = kwargs.pop("logo", None)
     tickets = kwargs.pop("tickets", None)
     ticket_url = kwargs.pop("ticket_url", None)
@@ -232,11 +239,11 @@ def add_event(**kwargs):
         full_description_attribute=full_description_attribute,
         youtube_url=youtube_url,
     )
-    event.after_commit = True # trigger translation update in event_listeners.py
-    print('event', event)
+    event.after_commit = True  # trigger translation update in event_listeners.py
+    print("event", event)
     db.session.add(event)
     db.session.flush()
-    print('added event!')
+    print("added event!")
 
     # separation count of 0 means no recurrance
     if rrule and rrule["separationCount"] > 0:
@@ -252,7 +259,7 @@ def add_event(**kwargs):
             end_date_time=date_time["end"],
             default_url=url,
             default_location=loc,
-            exact=rrule["exact"]
+            exact=rrule["exact"],
         )
         db.session.add(rrule)
         db.session.flush()
@@ -270,7 +277,7 @@ def add_event(**kwargs):
         media_items.add_logo_to_event(logo, event, creator=creator)
 
     # add activity
-    activity = Activity(verb=u"create", object=event, target=event)
+    activity = Activity(verb="create", object=event, target=event)
     db.session.add(activity)
 
     # DATES
@@ -284,33 +291,132 @@ def add_event(**kwargs):
         next_event_date_description_attribute,
         next_event_date_size,
         next_event_date_artists,
-        next_event_date_lineup_images
+        next_event_date_lineup_images,
     )
 
     db.session.flush()
 
     if ticket_url:
         next_event_date = event.event_dates[0]
-        ed_ticket = EventDateTicket(url=ticket_url, event_date=next_event_date, event=event)
-        db.session.add(ed_ticket)  
+        ed_ticket = EventDateTicket(
+            url=ticket_url, event_date=next_event_date, event=event
+        )
+        db.session.add(ed_ticket)
 
-    if tickets: 
+    if tickets:
         next_event_date = event.event_dates[0]
         for ticket in tickets:
             ed_ticket = EventDateTicket(
-                url=ticket.get("url"), description=ticket.get("description"), price_min=ticket.get("price_min"), price_max=ticket.get("price_max"), price_currency_code=ticket.get("price_currency_code"), event_date=next_event_date, event=event)
-            db.session.add(ed_ticket) 
-            
-
+                url=ticket.get("url"),
+                description=ticket.get("description"),
+                price_min=ticket.get("price_min"),
+                price_max=ticket.get("price_max"),
+                price_currency_code=ticket.get("price_currency_code"),
+                event_date=next_event_date,
+                event=event,
+            )
+            db.session.add(ed_ticket)
 
     db.session.commit()
 
     # send notification
     if creator and creator.role < 30:
         send_new_event_notification(
-            event, creator.username if creator is not None and creator.id != CONFIG.ANON_USER_ID else None
+            event,
+            creator.username
+            if creator is not None and creator.id != CONFIG.ANON_USER_ID
+            else None,
         )
-    print('added!!')
+    print("added!!")
+    return event
+
+
+def add_simple_event(
+    name,
+    description,
+    full_description,
+    date_time,
+    location,
+    lineup_text,
+    url,
+    tags,
+    logo_url=None,
+    creator=None,
+):
+    from pmapi import exceptions as exc
+
+    # Parse date_time string to datetime
+    try:
+        start = parser.parse(date_time)
+    except Exception as e:
+        raise exc.InvalidAPIRequest(f"Invalid date_time format: {e}")
+    # Assume end is start + 24 hours
+    end = start + timedelta(hours=24)
+    date_time_dict = {
+        "start": start.strftime("%Y-%m-%d %H:%M:%S"),
+        "end": end.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    # Get location
+    location_dict = get_best_location_result(location)
+    if not location_dict:
+        raise exc.InvalidAPIRequest("Could not find location")
+    # Check if location exists
+    loc = event_locations.get_location(location_dict["place_id"])
+    if loc is None:
+        # create location
+        loc = event_locations.add_new_event_location(creator, **location_dict)
+    # Handle full_description with lineup_text
+    if lineup_text:
+        if full_description:
+            full_description += "\n\n" + lineup_text
+        else:
+            full_description = lineup_text
+    # Create event
+    event = Event(
+        name=name,
+        creator_id=creator.id if creator else None,
+        description=description,
+        full_description=full_description,
+    )
+    event.after_commit = True  # trigger translation update
+    db.session.add(event)
+    db.session.flush()
+    rrule = Rrule(
+        id=event.id,
+        recurring_type=3,  # annually
+        separation_count=1,
+        start_date_time=date_time_dict["start"],
+        end_date_time=date_time_dict["end"],
+        default_url=url,
+        default_location=loc,
+        exact=False,
+    )
+    db.session.add(rrule)
+    db.session.flush()
+    event.rrule = rrule
+    # Add tags
+    if tags:
+        event_tags.add_tags_to_event(tags, event)
+    # Add logo if provided
+    if logo_url:
+        logo_base64 = download_image_as_base64(logo_url)
+        if logo_base64:
+            logo = {"base64File": logo_base64}
+            media_items.add_logo_to_event(logo, event, creator=creator)
+    # Generate event dates
+    generate_future_event_dates(
+        event,
+        date_time_dict,
+        loc,
+        rrule,
+        url,
+        None,  # next_event_date_description
+        None,
+        None,
+        None,
+        None,
+    )
+    db.session.commit()
     return event
 
 
@@ -334,20 +440,24 @@ def update_event(event_id, **kwargs):
     logo = kwargs.pop("logo", None)
 
     event = get_event_or_404(event_id)
-    existing_rrule = db.session.query(Rrule).filter(
-        Rrule.id == event.rrule_id).first()
+    existing_rrule = db.session.query(Rrule).filter(Rrule.id == event.rrule_id).first()
 
     # this field is useful for triggering
     # a new version of this object in continuum
     event.updated_at = datetime.utcnow()
 
-    if hidden is not None: 
+    if hidden is not None:
         if current_user_role_is_at_least("ADMIN"):
             event.hidden = hidden
         else:
-            raise exc.InvalidPermissions('Only admin can approve events')
+            raise exc.InvalidPermissions("Only admin can approve events")
 
-    if name is not None or description is not None or full_description is not None or youtube_url is not None:
+    if (
+        name is not None
+        or description is not None
+        or full_description is not None
+        or youtube_url is not None
+    ):
         if name:
             event.name = name
 
@@ -366,14 +476,12 @@ def update_event(event_id, **kwargs):
         if youtube_url:
             event.youtube_url = youtube_url
 
-
     if remove_rrule is True:
         if existing_rrule is not None:
             db.session.delete(existing_rrule)
             db.session.flush()
             # add activity for delete rrule activity
-            activity = Activity(
-                verb=u"delete", object=existing_rrule, target=event)
+            activity = Activity(verb="delete", object=existing_rrule, target=event)
             db.session.add(activity)
 
     if add_tags and len(add_tags) > 0:
@@ -400,7 +508,6 @@ def update_event(event_id, **kwargs):
     # require these three fields to update
     # separtion count of 0 means no recurrance
     if date_time and location and rrule and rrule["separationCount"] > 0:
-
         # location
         event_location = event_locations.get_location(location["place_id"])
         if event_location is None:
@@ -419,8 +526,7 @@ def update_event(event_id, **kwargs):
             existing_rrule.default_url = url
             existing_rrule.default_location = event_location
             db.session.flush()
-            activity = Activity(
-                verb=u"update", object=existing_rrule, target=event)
+            activity = Activity(verb="update", object=existing_rrule, target=event)
             db.session.add(activity)
             rrule = existing_rrule
 
@@ -437,13 +543,13 @@ def update_event(event_id, **kwargs):
                 end_date_time=date_time["end"],
                 default_url=url,
                 default_location=event_location,
-                exact=rrule["exact"]
+                exact=rrule["exact"],
             )
             db.session.add(rrule)
             # activity for creating rrule
             db.session.flush()
             event.rrule = rrule
-            activity = Activity(verb=u"create", object=rrule, target=event)
+            activity = Activity(verb="create", object=rrule, target=event)
             db.session.add(activity)
 
         # session.flush()
@@ -467,31 +573,23 @@ def update_event(event_id, **kwargs):
         if remove_rrule:
             # delete future event dates (not including the next one)
             # login as bot user for following action
-            delete_future_event_dates(
-                event, preserve_next=False, activity=False
-            )
+            delete_future_event_dates(event, preserve_next=False, activity=False)
 
         if date_time and location and rrule:
-            delete_future_event_dates(
-                event, preserve_next=False, activity=False
-            )
+            delete_future_event_dates(event, preserve_next=False, activity=False)
             print(rrule.week_of_month)
             generate_future_event_dates(
                 event, date_time, rrule.default_location, rrule, activity=False
             )
 
     if description is not None or full_description is not None:
-        print('trigger translation')
-        event.after_commit = True # trigger translation update in event_listeners.py
-        
+        print("trigger translation")
+        event.after_commit = True  # trigger translation update in event_listeners.py
 
     # add activity
     db.session.flush()
-    activity = Activity(verb=u"update", object=event, target=event)
+    activity = Activity(verb="update", object=event, target=event)
     db.session.add(activity)
-
-
-
 
     db.session.flush()
     db.session.commit()
@@ -500,21 +598,16 @@ def update_event(event_id, **kwargs):
 
 
 def delete_event(event_id):
-
     event = get_event_or_404(event_id)
-    
+
     # delete page views
     db.engine.execute(
-        event_page_views_table.delete(
-            event_page_views_table.c.event_id == event_id)
+        event_page_views_table.delete(event_page_views_table.c.event_id == event_id)
     )
 
     # delete all activity
     db.session.query(Activity).filter(
-        or_(
-            Activity.object == event,
-            Activity.target == event
-        )
+        or_(Activity.object == event, Activity.target == event)
     ).delete()
 
     # delete event and all related objects through cascade

@@ -9,7 +9,7 @@ services:
       - ./.env
     ports:
       - 5000
-    depends_on: 
+    depends_on:
       - rabbit
       - db
     volumes:
@@ -32,7 +32,7 @@ services:
     env_file:
       - ./.env
     entrypoint: celery
-    user: '1000'
+    user: "1000"
     command: -A pmapi.celery_worker.celery worker --loglevel=debug  --concurrency=4
     volumes:
       - .:/app
@@ -43,13 +43,13 @@ services:
   db:
     image: postgis/postgis:13-3.2-alpine
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - /var/www/dev.content.partymap.com/postgres_data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=partymap
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-        - 5432
+      - 5432
   test-db:
     image: postgis/postgis:13-3.2-alpine
     environment:
@@ -57,7 +57,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-        - 5432
+      - 5432
   geoip-updater:
     env_file:
       - ./.env
@@ -74,4 +74,4 @@ services:
       - LOG_JSON=false
     restart: always
 volumes:
-  postgres_data:  
+  postgres_data:

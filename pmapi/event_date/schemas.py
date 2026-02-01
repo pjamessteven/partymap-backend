@@ -1,5 +1,4 @@
-from marshmallow import fields
-from marshmallow import Schema
+from marshmallow import Schema, post_dump, fields
 from pmapi.common.schemas import PaginatedSchema
 from typemallow2 import ts_interface
 
@@ -67,6 +66,12 @@ class MiniEventDateSchema(Schema):
     location_id = fields.Str()
     distance = fields.Float()
     cancelled = fields.Boolean()
+
+    @post_dump
+    def remove_description_if_description_t_exists(self, data, **kwargs):
+        if data.get('event', {}).get('description_t'):
+            data.get('event', {}).pop('description', None)
+        return data
 
 
 @ts_interface()
