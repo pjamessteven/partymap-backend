@@ -26,7 +26,7 @@ from pmapi.event.model import (
 
 from pmapi.event_date.model import (
     user_event_date_interested_table,
-    user_event_date_going_table
+    user_event_date_going_table,
 )
 
 
@@ -40,8 +40,7 @@ class User(db.Model):
     id = db.Column(UUID, primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     login_attempts = db.Column(db.Integer, default=0)
-    role = db.Column(db.Integer, nullable=False,
-                     default=ROLES["UNPRIVILIGED_USER"])
+    role = db.Column(db.Integer, nullable=False, default=ROLES["UNPRIVILIGED_USER"])
     last_active = db.Column(db.DateTime, default=datetime.utcnow)
     # Username can be null before social user has chosen a username
     username = db.Column(db.String(80), unique=True, nullable=True)
@@ -51,6 +50,7 @@ class User(db.Model):
     description = db.Column(db.String(1000))
     oauth = db.Column(db.Boolean, unique=False, default=False)
     one_off_auth_token = db.Column(UUID)
+    api_key = db.Column(db.String(255), unique=True, nullable=True, index=True)
     locale = db.Column(db.String(16))
     status = db.Column(
         ENUM("active", "disabled", "pending", name="user_status"), default="pending"
@@ -59,9 +59,16 @@ class User(db.Model):
     notifications = db.relationship(
         "UserNotification", back_populates="user", cascade="all, delete-orphan"
     )
-    avatar_id = db.Column(db.Integer, db.ForeignKey(MediaItem.id, name='fk_users_avatar_id'))
-    avatar = db.relationship("MediaItem", uselist=False,
-                             foreign_keys=[avatar_id], back_populates="is_user_avatar", primaryjoin="User.avatar_id == MediaItem.id")
+    avatar_id = db.Column(
+        db.Integer, db.ForeignKey(MediaItem.id, name="fk_users_avatar_id")
+    )
+    avatar = db.relationship(
+        "MediaItem",
+        uselist=False,
+        foreign_keys=[avatar_id],
+        back_populates="is_user_avatar",
+        primaryjoin="User.avatar_id == MediaItem.id",
+    )
 
     following_events = db.relationship(
         "Event", back_populates="followers", secondary=user_event_following_table
@@ -72,7 +79,9 @@ class User(db.Model):
     )
 
     interested_event_dates = db.relationship(
-        "EventDate", back_populates="interested", secondary=user_event_date_interested_table
+        "EventDate",
+        back_populates="interested",
+        secondary=user_event_date_interested_table,
     )
 
     created_events = db.relationship(
@@ -95,20 +104,20 @@ class User(db.Model):
 
     created_reviews = db.relationship(
         "EventReview",
-    back_populates="creator",
+        back_populates="creator",
         primaryjoin="EventReview.creator_id == User.id",
     )
     #    created_event_artists = db.relationship(
     #        'EventArtist', back_populates="creator")
     created_media_items = db.relationship(
-        "MediaItem", back_populates="creator", primaryjoin="MediaItem.creator_id == User.id")
-    created_event_locations = db.relationship(
-        "EventLocation", back_populates="creator")
+        "MediaItem",
+        back_populates="creator",
+        primaryjoin="MediaItem.creator_id == User.id",
+    )
+    created_event_locations = db.relationship("EventLocation", back_populates="creator")
     created_event_tags = db.relationship("EventTag", back_populates="creator")
-    created_artist_tags = db.relationship(
-        "ArtistTag", back_populates="creator")
-    created_event_artists = db.relationship(
-        "EventDateArtist", back_populates="creator")
+    created_artist_tags = db.relationship("ArtistTag", back_populates="creator")
+    created_event_artists = db.relationship("EventDateArtist", back_populates="creator")
     created_reports = db.relationship("Report", back_populates="creator")
     created_feedback = db.relationship("Feedback", back_populates="creator")
 
@@ -177,6 +186,13 @@ class User(db.Model):
 
     def get_id(self):
         return str(self.id).encode("utf-8").decode("utf-8")
+
+    def generate_api_key(self):
+        """Generate a new API key for the user."""
+        import secrets
+
+        self.api_key = secrets.token_urlsafe(32)
+        return self.api_key
 
 
 """
