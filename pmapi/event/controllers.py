@@ -223,6 +223,12 @@ def add_event(**kwargs):
     tickets = kwargs.pop("tickets", None)
     ticket_url = kwargs.pop("ticket_url", None)
 
+    # If place_id is not provided, look it up using Google Maps
+    if "place_id" not in location and "description" in location:
+        location = get_best_location_result(location["description"])
+        if location is None:
+            raise exc.InvalidUsage("Could not find location from description")
+
     # Check if location already exists
     loc = event_locations.get_location(location["place_id"])
     if loc is None:
@@ -331,95 +337,6 @@ def add_event(**kwargs):
     return event
 
 
-def add_simple_event(
-    name,
-    description,
-    full_description,
-    date_time,
-    location,
-    lineup_text,
-    url,
-    tags,
-    logo_url=None,
-    creator=None,
-):
-    from pmapi import exceptions as exc
-
-    # Parse date_time string to datetime
-    try:
-        start = parser.parse(date_time)
-    except Exception as e:
-        raise exc.InvalidAPIRequest(f"Invalid date_time format: {e}")
-    # Assume end is start + 24 hours
-    end = start + timedelta(hours=24)
-    date_time_dict = {
-        "start": start.strftime("%Y-%m-%d %H:%M:%S"),
-        "end": end.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    # Get location
-    location_dict = get_best_location_result(location)
-    if not location_dict:
-        raise exc.InvalidAPIRequest("Could not find location")
-    # Check if location exists
-    loc = event_locations.get_location(location_dict["place_id"])
-    if loc is None:
-        # create location
-        loc = event_locations.add_new_event_location(creator, **location_dict)
-    # Handle full_description with lineup_text
-    if lineup_text:
-        if full_description:
-            full_description += "\n\n" + lineup_text
-        else:
-            full_description = lineup_text
-    # Create event
-    event = Event(
-        name=name,
-        creator_id=creator.id if creator else None,
-        description=description,
-        full_description=full_description,
-    )
-    event.after_commit = True  # trigger translation update
-    db.session.add(event)
-    db.session.flush()
-    rrule = Rrule(
-        id=event.id,
-        recurring_type=3,  # annually
-        separation_count=1,
-        start_date_time=date_time_dict["start"],
-        end_date_time=date_time_dict["end"],
-        default_url=url,
-        default_location=loc,
-        exact=False,
-    )
-    db.session.add(rrule)
-    db.session.flush()
-    event.rrule = rrule
-    # Add tags
-    if tags:
-        event_tags.add_tags_to_event(tags, event)
-    # Add logo if provided
-    if logo_url:
-        logo_base64 = download_image_as_base64(logo_url)
-        if logo_base64:
-            logo = {"base64File": logo_base64}
-            media_items.add_logo_to_event(logo, event, creator=creator)
-    # Generate event dates
-    generate_future_event_dates(
-        event,
-        date_time_dict,
-        loc,
-        rrule,
-        url,
-        None,  # next_event_date_description
-        None,
-        None,
-        None,
-        None,
-    )
-    db.session.commit()
-    return event
-
-
 def update_event(event_id, **kwargs):
     rrule = kwargs.get("rrule")
     remove_rrule = kwargs.get("remove_rrule")
@@ -438,7 +355,7 @@ def update_event(event_id, **kwargs):
     is_suggestion = kwargs.get("is_suggestion", False)
     hidden = kwargs.get("hidden")
     logo = kwargs.pop("logo", None)
-
+    message = kwargs.pop("message", None)
     event = get_event_or_404(event_id)
     existing_rrule = db.session.query(Rrule).filter(Rrule.id == event.rrule_id).first()
 
@@ -588,7 +505,12 @@ def update_event(event_id, **kwargs):
 
     # add activity
     db.session.flush()
-    activity = Activity(verb="update", object=event, target=event)
+    activity = Activity(
+        verb="update",
+        object=event,
+        target=event,
+        data={"message": message, "kwargs": kwargs},
+    )
     db.session.add(activity)
 
     db.session.flush()
