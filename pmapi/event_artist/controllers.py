@@ -1,6 +1,7 @@
 import re
 import pytz
 from datetime import datetime
+from dateutil import parser as date_parser
 from pmapi.media_item.controllers import add_media_to_artist
 from timezonefinder import TimezoneFinder
 from sqlalchemy import cast, or_, and_, desc
@@ -29,6 +30,7 @@ import pmapi.media_item.controllers as media_items
 Activity = activity_plugin.activity_cls
 
 TIMEOUT = 5
+
 
 def get_artist_or_404(id):
     artist = get_artist(id)
@@ -65,8 +67,7 @@ def get_artists(**kwargs):
         lat = float(location["lat"])
         lng = float(location["lng"])
         if lat is None or lng is None:
-            raise exc.InvalidAPIRequest(
-                "lat and lng are required for nearby search.")
+            raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
 
         query = query.join(EventLocation)
         query = query.filter(
@@ -85,10 +86,8 @@ def get_artists(**kwargs):
         query = query.filter(Artist.name.ilike(search))
 
     elif "bounds" in kwargs:
-        query = (
-            query
-            .join(Event, EventDate.event_id == Event.id)
-            .join(EventLocation, EventDate.location_id == EventLocation.id)
+        query = query.join(Event, EventDate.event_id == Event.id).join(
+            EventLocation, EventDate.location_id == EventLocation.id
         )
         bounds = kwargs.get("bounds")
 
@@ -100,26 +99,22 @@ def get_artists(**kwargs):
                 or_(
                     and_(
                         southWest["lat"] < northEast["lat"],
-                        EventLocation.lat.between(
-                            southWest["lat"], northEast["lat"]),
+                        EventLocation.lat.between(southWest["lat"], northEast["lat"]),
                     ),
                     and_(
                         northEast["lat"] < southWest["lat"],
-                        EventLocation.lat.between(
-                            northEast["lat"], southWest["lat"]),
+                        EventLocation.lat.between(northEast["lat"], southWest["lat"]),
                     ),
                 ),
                 # match lng
                 or_(
                     and_(
                         southWest["lng"] < northEast["lng"],
-                        EventLocation.lng.between(
-                            southWest["lng"], northEast["lng"]),
+                        EventLocation.lng.between(southWest["lng"], northEast["lng"]),
                     ),
                     and_(
                         northEast["lng"] < southWest["lng"],
-                        EventLocation.lng.between(
-                            northEast["lng"], southWest["lng"]),
+                        EventLocation.lng.between(northEast["lng"], southWest["lng"]),
                     ),
                 ),
             )
@@ -173,8 +168,8 @@ def remove_artists_from_date(event_date, ed_artists):
         )
         if artist:
             db.session.delete(artist)
-            db.session.flush()  
-            activity = Activity(verb=u"delete", object=artist, target=event_date)
+            db.session.flush()
+            activity = Activity(verb="delete", object=artist, target=event_date)
             db.session.add(activity)
     return
 
@@ -213,7 +208,7 @@ def update_artist(id, **kwargs):
 
     db.session.flush()
 
-    activity = Activity(verb=u"update", object=artist, target=artist)
+    activity = Activity(verb="update", object=artist, target=artist)
     db.session.add(activity)
     db.session.commit()
 
@@ -228,7 +223,6 @@ def update_artists_of_date(event_date, artists):
             .first()
         )
         if existing_record:
-
             start_naive = artist.get("start_naive", None)
             if start_naive is not None:
                 # get timezone of event_date
@@ -242,9 +236,9 @@ def update_artists_of_date(event_date, artists):
                     tz_obj = pytz.timezone(tz)
 
                 # parse date string as naive datetime
-                start_naive = datetime.strptime(
-                    start_naive, "%Y-%m-%d %H:%M:%S"
-                ).replace(second=0, microsecond=0, tzinfo=None)
+                start_naive = date_parser.parse(start_naive).replace(
+                    second=0, microsecond=0, tzinfo=None
+                )
 
                 start_utc = tz_obj.localize(start_naive)
                 start_utc = start_utc.astimezone(pytz.utc)
@@ -279,14 +273,13 @@ def add_artist(name, mbid=None):
     )
     db.session.add(artist)
     db.session.flush()
-    artist.after_commit = True # get artist details after commit (event_listeners.py)
+    artist.after_commit = True  # get artist details after commit (event_listeners.py)
     return artist
 
 
 def add_artist_to_date(
     event_date, name, id=None, mbid=None, stage=None, start_naive=None, **kwargs
 ):
-
     artist = None
     start_utc = None
 
@@ -309,6 +302,7 @@ def add_artist_to_date(
         elif artist and (len(artist.urls) == 0 or len(artist.media_items) == 0):
             # refresh artist info if suspected missing
             from pmapi.celery_tasks import refresh_artist_info
+
             artist_id = artist.id
             refresh_artist_info.delay(artist_id)
 
@@ -319,8 +313,10 @@ def add_artist_to_date(
         if artist is None:
             # create new artist record
             artist = add_artist(name)
-            
-    artist.after_commit = True # update artist details after commit (event_listeners.py)
+
+    artist.after_commit = (
+        True  # update artist details after commit (event_listeners.py)
+    )
 
     db.session.flush()
 
@@ -336,7 +332,7 @@ def add_artist_to_date(
             tz_obj = pytz.timezone(tz)
 
         # parse date string as naive datetime
-        start_naive = datetime.strptime(start_naive, "%Y-%m-%d %H:%M:%S").replace(
+        start_naive = date_parser.parse(start_naive).replace(
             second=0, microsecond=0, tzinfo=None
         )
 
@@ -355,9 +351,7 @@ def add_artist_to_date(
 
     db.session.add(event_date_artist)
     db.session.flush()
-    activity = Activity(
-         verb=u"create", object=event_date_artist, target=event_date
-    )
+    activity = Activity(verb="create", object=event_date_artist, target=event_date)
     db.session.add(activity)
 
     return event_date_artist
@@ -407,9 +401,13 @@ def get_artist_details_from_music_brainz(mbid=None, name=None, attempt=5):
         try:
             # Determine URL based on input type
             if mbid:
-                url = f"https://musicbrainz.org/ws/2/artist/{mbid}?inc=url-rels&fmt=json"
+                url = (
+                    f"https://musicbrainz.org/ws/2/artist/{mbid}?inc=url-rels&fmt=json"
+                )
             elif name:
-                url = f"https://musicbrainz.org/ws/2/artist/?query=artist:{name}&fmt=json"
+                url = (
+                    f"https://musicbrainz.org/ws/2/artist/?query=artist:{name}&fmt=json"
+                )
             else:
                 logging.error("No valid identifier (mbid or name) provided.")
                 return None
@@ -424,7 +422,9 @@ def get_artist_details_from_music_brainz(mbid=None, name=None, attempt=5):
             # Retry on failure
             if response.status_code != 200:
                 time.sleep(2)
-                return get_artist_details_from_music_brainz(mbid=mbid, name=name, attempt=attempt - 1)
+                return get_artist_details_from_music_brainz(
+                    mbid=mbid, name=name, attempt=attempt - 1
+                )
 
             data = response.json()
 
@@ -448,13 +448,17 @@ def get_artist_details_from_music_brainz(mbid=None, name=None, attempt=5):
                 exception=e,
             )
             time.sleep(2)
-            return get_artist_details_from_music_brainz(mbid=mbid, name=name, attempt=attempt - 1)
+            return get_artist_details_from_music_brainz(
+                mbid=mbid, name=name, attempt=attempt - 1
+            )
 
     logging.error(
         "event_artist.get_artist_details_from_music_brainz.max_retries_reached",
         error_body="Max retries reached for getting artist details.",
     )
     return None
+
+
 def get_artist_details_from_last_fm(mbid, retries=5):
     if retries > 0:
         url = (
@@ -469,7 +473,7 @@ def get_artist_details_from_last_fm(mbid, retries=5):
             response = requests.get(
                 url=url, headers={"Accept": "application/json"}, timeout=TIMEOUT
             )
-            print('response', response)
+            print("response", response)
         except RequestException as e:
             logging.error(
                 "event_artist.get_artist_details_from_last_fm.request_error",
@@ -478,7 +482,7 @@ def get_artist_details_from_last_fm(mbid, retries=5):
         if response.status_code != 200:
             # wait and try again (last.fm api limited to one req/sec)
             time.sleep(2)
-            return get_artist_details_from_last_fm(mbid, retries-1)
+            return get_artist_details_from_last_fm(mbid, retries - 1)
 
         response = response.json()
         bio = response.get("artist", {}).get("bio", {}).get("content", None)
@@ -487,11 +491,11 @@ def get_artist_details_from_last_fm(mbid, retries=5):
             tags.append(tag.get("name"))
 
         return bio, tags
-    
+
     logging.error(
         "event_artist.get_artist_details_from_music_brainz.max_retries_reached",
         status_code=response.status_code,
-        error_body="max retries reached for getting artist details " + mbid, 
+        error_body="max retries reached for getting artist details " + mbid,
         exception=e,
     )
 
@@ -511,7 +515,6 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
     except RequestException as e:
         logging.error(
             "event_artist.refresh_spotify_data_for_artist.auth_token_request_error",
-
         )
 
     auth_response_data = auth_response.json()
@@ -524,9 +527,8 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
     }
     spotify_artist = None
 
-
     if spotify_id:
-        print('SPOTIFY refreshing for spotify_id: ' + spotify_id)
+        print("SPOTIFY refreshing for spotify_id: " + spotify_id)
         url = f"https://api.spotify.com/v1/artists/{spotify_id}"
         try:
             response = requests.get(url=url, headers=headers, timeout=TIMEOUT)
@@ -542,9 +544,8 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
             print(f"Error fetching data from Spotify: {response.status_code}")
             return None
 
-
     else:
-        print('SPOTIFY refreshing for artist name: ' + artist.name)
+        print("SPOTIFY refreshing for artist name: " + artist.name)
         url = "https://api.spotify.com/v1/search?type=artist&q=" + artist.name
 
         try:
@@ -561,11 +562,12 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
             spotify_artist_name = artist.name.lower()
             # Find an exact match (case-insensitive) and sort by popularity
             spotify_artist = None
-            for item in sorted(items, key=lambda d: d.get("popularity", 0), reverse=True):
+            for item in sorted(
+                items, key=lambda d: d.get("popularity", 0), reverse=True
+            ):
                 if item.get("name", "").lower() == spotify_artist_name:
                     spotify_artist = item
                     break
-
 
     # delete existing spotify url
     for url in artist.urls:
@@ -574,7 +576,7 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
 
     # get artist image
     if spotify_artist:
-        print('spotify artist', spotify_artist)
+        print("spotify artist", spotify_artist)
         # get tags too, why not
         if len(spotify_artist.get("genres", [])) > 0:
             add_tags_to_artist(spotify_artist.get("genres"), artist, False)
@@ -591,17 +593,14 @@ def refresh_spotify_data_for_artist(artist, spotify_id=None):
         images = spotify_artist.get("images")
         if len(images) > 0:
             # sort images by biggest first
-            images_sorted = sorted(
-                images, key=lambda d: d.get("height"), reverse=True
-            )
+            images_sorted = sorted(images, key=lambda d: d.get("height"), reverse=True)
             image_url = images_sorted[0].get("url")
             try:
                 headers = {
                     "Accept": "image/*",
                     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0",
                 }
-                r = requests.get(
-                    image_url, headers=headers, timeout=TIMEOUT)
+                r = requests.get(image_url, headers=headers, timeout=TIMEOUT)
             except RequestException as e:
                 logging.error(
                     "event_artist.refresh_spotify_data_for_artist.image_request_error",
@@ -743,7 +742,7 @@ def add_tags_to_artist(tags, artist, activity=True):
             if activity:
                 # add activity
                 db.session.flush()
-                activity = Activity(verb=u"create", object=at, target=artist)
+                activity = Activity(verb="create", object=at, target=artist)
                 db.session.add(activity)
 
     return tags
@@ -762,8 +761,7 @@ def remove_tags_from_artist(tags, artist, activity=True):
             # add activity
             db.session.flush()
             if activity:
-                activity = Activity(
-                    verb=u"delete", object=existing_tag, target=artist)
+                activity = Activity(verb="delete", object=existing_tag, target=artist)
                 db.session.add(activity)
 
     return
@@ -774,8 +772,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
     for relation in relations:
         url = relation.get("url", {}).get("resource")
         # make sure urls are up to date
-        artist_url = db.session.query(ArtistUrl).filter(
-            ArtistUrl.url == url).first()
+        artist_url = db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
         if artist_url is None:
             # create new url entry
             type = relation.get("type")
@@ -794,8 +791,7 @@ def add_musicbrainz_urls_to_artist(relations, artist):
                     )
                     # check that image url not already in DB
                     artist_url = (
-                        db.session.query(ArtistUrl).filter(
-                            ArtistUrl.url == url).first()
+                        db.session.query(ArtistUrl).filter(ArtistUrl.url == url).first()
                     )
                     if artist_url is None:
                         # add image as media item if it's not already in db
@@ -820,7 +816,7 @@ def add_artist_url(url, type, artist, activity=True):
     db.session.add(artist_url)
     if activity:
         # activity
-        activity = Activity(verb=u"create", object=artist_url, target=artist)
+        activity = Activity(verb="create", object=artist_url, target=artist)
         db.session.add(activity)
 
     db.session.flush()
@@ -835,7 +831,7 @@ def delete_artist_url(id, activity=True):
         db.session.flush()
         if activity:
             # activity
-            activity = Activity(verb=u"delete", object=url, target=artist)
+            activity = Activity(verb="delete", object=url, target=artist)
             db.session.add(activity)
 
     db.session.flush()
@@ -863,17 +859,19 @@ def delete_artist(id):
     db.session.commit()
     db.session.flush()
 
+
 def refresh_info(id):
     artist = get_artist_or_404(id)
-    
+
     # disable after_commit listener action that triggers refresh_info
     artist.after_commit = False
-    
+
     # music brainz search
     musicbrainz_response = get_artist_details_from_music_brainz(
-        mbid=artist.mbid, name=artist.name)
-    
-    mbid = musicbrainz_response.get('id', None) if musicbrainz_response else None
+        mbid=artist.mbid, name=artist.name
+    )
+
+    mbid = musicbrainz_response.get("id", None) if musicbrainz_response else None
     spotify_id = None
 
     # delete existing tags
@@ -882,9 +880,9 @@ def refresh_info(id):
         db.session.delete(tag)
     db.session.flush()
 
-    spotify_artist_regex = r'https://open.spotify.com/artist/([a-zA-Z0-9]{22})'
+    spotify_artist_regex = r"https://open.spotify.com/artist/([a-zA-Z0-9]{22})"
 
-    # check if there's a spotify ID 
+    # check if there's a spotify ID
     for artist_url in artist.urls:
         match = re.match(spotify_artist_regex, artist_url.url)
         if match:
@@ -892,7 +890,7 @@ def refresh_info(id):
             spotify_id = match.group(1)
 
     if musicbrainz_response and mbid:
-        print('refreshing with mbid ', mbid)
+        print("refreshing with mbid ", mbid)
         # last.fm search
         lastfm_bio, lastfm_tags = get_artist_details_from_last_fm(mbid)
 
@@ -901,7 +899,7 @@ def refresh_info(id):
             area = area.get("name", None)
 
         # update artist
-        artist.disambiguation =  musicbrainz_response.get("disambiguation", None)
+        artist.disambiguation = musicbrainz_response.get("disambiguation", None)
         artist.name = musicbrainz_response.get("name", None)
         artist.description = lastfm_bio
         artist.area = area
@@ -909,14 +907,15 @@ def refresh_info(id):
             add_tags_to_artist(lastfm_tags, artist, False)
 
         if musicbrainz_response.get("relations", None):
-            add_musicbrainz_urls_to_artist(
-                musicbrainz_response["relations"], artist)
+            add_musicbrainz_urls_to_artist(musicbrainz_response["relations"], artist)
 
             for rel in musicbrainz_response["relations"]:
-                if rel.get("type") == "streaming music" and "spotify.com" in rel.get("url", {}).get("resource", ""):
+                if rel.get("type") == "streaming music" and "spotify.com" in rel.get(
+                    "url", {}
+                ).get("resource", ""):
                     spotify_url = rel["url"]["resource"]
                     spotify_id = spotify_url.split("/")[-1]  # Extract Spotify Artist ID
-                
+
     # get images from external services
     # only use deezer as fallback
 
@@ -932,8 +931,8 @@ def refresh_info(id):
 
     # DISABLED BECAUSE DEEZER MOSTLY RETURNS BLANK AVATARS
     # if not spotify_image_found:
-        # get deezer image if spotify image doesn't exist
-        # get_artist_image_from_deezer(artist)
+    # get deezer image if spotify image doesn't exist
+    # get_artist_image_from_deezer(artist)
 
     db.session.commit()
 

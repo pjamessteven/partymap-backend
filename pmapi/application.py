@@ -3,47 +3,55 @@ application.py
 - creates a Flask app instance and registers the database object
 """
 
-from flask import Flask,  render_template, request, g, jsonify
-from flask_cors import cross_origin
-from flask.helpers import get_debug_flag
-from flask_login import current_user, AnonymousUserMixin
+import logging
+import os
 from datetime import datetime
-from flask_migrate import Migrate
+
 from celery.app.control import Control
+from flask import Flask, g, jsonify, render_template, request
+from flask.helpers import get_debug_flag
+from flask_cors import cross_origin
+from flask_login import AnonymousUserMixin, current_user
+from flask_migrate import Migrate
+from flask_track_usage.storage.sql import SQLStorage
+from flask_track_usage.summarization import (
+    sumLanguage,
+    sumRemote,
+    sumServer,
+    sumUrl,
+    sumUserAgent,
+)
+from sqlalchemy.exc import DatabaseError, DBAPIError, IntegrityError
+from werkzeug.exceptions import InternalServerError, UnprocessableEntity
+from werkzeug.routing import RequestRedirect
 
 from pmapi import extensions
-from pmapi.admin.views import EventDateModelView, EventLocationModelView, EventModelView, LogoutMenuLink, UserModelView
+from pmapi.admin.views import (
+    EventDateModelView,
+    EventLocationModelView,
+    EventModelView,
+    LogoutMenuLink,
+    UserModelView,
+)
 from pmapi.event.model import Event
 from pmapi.event_date.model import EventDate
 from pmapi.event_location.model import EventLocation
-from pmapi.services.goabase import fetch_events_from_goabase, update_goabase_lineup
 from pmapi.services.ip_location import get_location_from_ip
+from pmapi.services.translations import update_translations
 from pmapi.user.model import User
+from pmapi.utils import ROLES, SUPPORTED_LANGUAGES
 
-from .exceptions import DatabaseConnectionError
-from .exceptions import InvalidAPIRequest
-from .exceptions import InvalidRoute
-from .exceptions import JSONException
-from .exceptions import RecordAlreadyExists
-from .exceptions import SystemError
-
+from .config import DevConfig, ProdConfig
+from .exceptions import (
+    DatabaseConnectionError,
+    InvalidAPIRequest,
+    InvalidRoute,
+    JSONException,
+    RecordAlreadyExists,
+    SystemError,
+)
 from .extensions import db
 
-from sqlalchemy.exc import DatabaseError
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.exc import IntegrityError
-from werkzeug.exceptions import InternalServerError
-from werkzeug.exceptions import UnprocessableEntity
-from werkzeug.routing import RequestRedirect
-
-from flask_track_usage.storage.sql import SQLStorage
-from flask_track_usage.summarization import sumRemote, sumLanguage, sumUrl, sumUserAgent, sumServer
-from .config import DevConfig, ProdConfig
-
-import os
-import logging
-from pmapi.utils import ROLES, SUPPORTED_LANGUAGES
-from pmapi.services.translations import update_translations
 # ONLY FOR TESTING !!
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -71,12 +79,27 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     register_blueprints_with_tracker(app)
     extensions.lm.login_view = "auth.LoginResource"
     register_errorhandlers(app)
+
+    # Register API key request loader for Flask-Login
+    @extensions.lm.request_loader
+    def load_user_from_request(request):
+        """Load user from API key header if present."""
+        from pmapi.user.model import User
+        from pmapi.utils import ROLES
+
+        api_key = request.headers.get("X-API-Key") or request.args.get("api_key")
+        if api_key:
+            user = User.query.filter_by(api_key=api_key).first()
+            if user and user.status == "active":
+                return user
+        return None
+
     register_docs(app)
 
-    @app.route('/oauth_redirect')
+    @app.route("/oauth_redirect")
     def index():
-        redirect_uri = request.args.get('redirect_uri')
-        return render_template('oauth_redirect.html', redirect_uri=redirect_uri)
+        redirect_uri = request.args.get("redirect_uri")
+        return render_template("oauth_redirect.html", redirect_uri=redirect_uri)
 
     @app.before_request
     def update_last_active():
@@ -85,15 +108,16 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
             extensions.db.session.add(current_user)
             extensions.db.session.commit()
 
-
     @app.after_request
     def add_partitioned_cookie(response):
-        cookie_header = response.headers.get('Set-Cookie')
+        cookie_header = response.headers.get("Set-Cookie")
         if cookie_header:
             if isinstance(cookie_header, str):
-                response.headers['Set-Cookie'] = cookie_header + '; Partitioned'
+                response.headers["Set-Cookie"] = cookie_header + "; Partitioned"
             elif isinstance(cookie_header, list):
-                response.headers['Set-Cookie'] = [h + '; Partitioned' for h in cookie_header]
+                response.headers["Set-Cookie"] = [
+                    h + "; Partitioned" for h in cookie_header
+                ]
         return response
 
     @app.teardown_appcontext
@@ -101,9 +125,10 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
         if exception:
             db.session.rollback()  # Rollback any uncommitted transaction
         db.session.remove()
-        
+
     with app.app_context():
         from pmapi import event_listeners  # Import here to avoid circular imports
+
         # create and set anonymous user
         """
         anon = (
@@ -151,14 +176,6 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
     def update_translation():
         return update_translations()
 
-    @app.cli.command("goabase-sync-lineup")
-    def update_translation():
-        return update_goabase_lineup()
-
-    @app.cli.command("goabase-sync")
-    def pull_goabase_events():
-        return fetch_events_from_goabase()
-
     @app.cli.command("purge-tasks")
     def purge_tasks():
         pass
@@ -167,7 +184,6 @@ def create_app(config=CONFIG, app_name="PARTYMAP"):
 
 
 def register_extensions(app):
-
     with app.app_context():
         extensions.cache.init_app(app)
         try:
@@ -185,9 +201,12 @@ def register_extensions(app):
             extensions.tracker.init_app(
                 app,
                 [
-                    SQLStorage(db=db, hooks=[sumRemote, sumLanguage, sumUrl, sumUserAgent, sumServer]),
+                    SQLStorage(
+                        db=db,
+                        hooks=[sumRemote, sumLanguage, sumUrl, sumUserAgent, sumServer],
+                    ),
                 ],
-                get_location_from_ip
+                get_location_from_ip,
             )
 
         except Exception as e:
@@ -200,30 +219,33 @@ def register_admin_views():
     extensions.admin.add_view(UserModelView(User, extensions.db.session))
     extensions.admin.add_view(EventModelView(Event, extensions.db.session))
     extensions.admin.add_view(EventDateModelView(EventDate, extensions.db.session))
-    extensions.admin.add_view(EventLocationModelView(EventLocation, extensions.db.session))
-    extensions.admin.add_view(LogoutMenuLink(name='Logout', endpoint='logout'))
+    extensions.admin.add_view(
+        EventLocationModelView(EventLocation, extensions.db.session)
+    )
+    extensions.admin.add_view(LogoutMenuLink(name="Logout", endpoint="logout"))
+
 
 def register_blueprints(app):
+    # from pmapi.favorite_events.resource import favorites_blueprint
+    from pmapi.activity.resource import activity_blueprint
     from pmapi.auth.oauth_fb_resource import oauth_fb_blueprint
     from pmapi.auth.oauth_google_resource import oauth_google_blueprint
     from pmapi.auth.resource import auth_blueprint
-    from pmapi.event_tag.resource import event_tags_blueprint
-    from pmapi.event_date.resource import event_dates_blueprint
     from pmapi.event.resource import events_blueprint
-    from pmapi.event_location.resource import locations_blueprint
-    from pmapi.media_item.resource import media_blueprint
-    from pmapi.user.resource import users_blueprint
-    from pmapi.report.resource import reports_blueprint
-    from pmapi.feedback.resource import feedback_blueprint
-    from pmapi.suggestions.resource import suggestions_blueprint
     from pmapi.event_artist.resource import artists_blueprint
-    from pmapi.services.resource import services_blueprint
+    from pmapi.event_date.resource import event_dates_blueprint
+    from pmapi.event_location.resource import locations_blueprint
     from pmapi.event_review.resource import event_review_blueprint
-    from pmapi.search.resource import search_blueprint
-    # from pmapi.favorite_events.resource import favorites_blueprint
-    from pmapi.activity.resource import activity_blueprint
-    from pmapi.sitemap.resource import sitemap_blueprint
+    from pmapi.event_tag.resource import event_tags_blueprint
+    from pmapi.feedback.resource import feedback_blueprint
+    from pmapi.media_item.resource import media_blueprint
     from pmapi.metrics.resource import metrics_blueprint
+    from pmapi.report.resource import reports_blueprint
+    from pmapi.search.resource import search_blueprint
+    from pmapi.services.resource import services_blueprint
+    from pmapi.sitemap.resource import sitemap_blueprint
+    from pmapi.suggestions.resource import suggestions_blueprint
+    from pmapi.user.resource import users_blueprint
 
     # auth endpoint is /api/oauth/google
     app.register_blueprint(oauth_google_blueprint, url_prefix="/api/oauth")
@@ -236,14 +258,12 @@ def register_blueprints(app):
     app.register_blueprint(media_blueprint, url_prefix="/api/media")
     app.register_blueprint(locations_blueprint, url_prefix="/api/location")
     app.register_blueprint(users_blueprint, url_prefix="/api/user")
-    app.register_blueprint(event_review_blueprint,
-                           url_prefix="/api/contribution")
+    app.register_blueprint(event_review_blueprint, url_prefix="/api/contribution")
     # app.register_blueprint(favorites_blueprint, url_prefix="/api/favorites")
     app.register_blueprint(activity_blueprint, url_prefix="/api/activity")
     app.register_blueprint(reports_blueprint, url_prefix="/api/report")
     app.register_blueprint(feedback_blueprint, url_prefix="/api/feedback")
-    app.register_blueprint(suggestions_blueprint,
-                           url_prefix="/api/suggestions")
+    app.register_blueprint(suggestions_blueprint, url_prefix="/api/suggestions")
     app.register_blueprint(artists_blueprint, url_prefix="/api/artist")
     app.register_blueprint(search_blueprint, url_prefix="/api/search")
     app.register_blueprint(services_blueprint, url_prefix="/api/services")
@@ -252,21 +272,20 @@ def register_blueprints(app):
 
 
 def register_blueprints_with_tracker(app):
-    from pmapi.extensions import tracker
-
     # from pmapi.auth.oauth_resource import oauth_blueprint this one causes issues
     from pmapi.auth.resource import auth_blueprint
-    from pmapi.event_tag.resource import event_tags_blueprint
-    from pmapi.event_date.resource import event_dates_blueprint
     from pmapi.event.resource import events_blueprint
-    from pmapi.event_location.resource import locations_blueprint
-    from pmapi.media_item.resource import media_blueprint
-    from pmapi.user.resource import users_blueprint
-    from pmapi.report.resource import reports_blueprint
-    from pmapi.feedback.resource import feedback_blueprint
-    from pmapi.suggestions.resource import suggestions_blueprint
     from pmapi.event_artist.resource import artists_blueprint
+    from pmapi.event_date.resource import event_dates_blueprint
+    from pmapi.event_location.resource import locations_blueprint
+    from pmapi.event_tag.resource import event_tags_blueprint
+    from pmapi.extensions import tracker
+    from pmapi.feedback.resource import feedback_blueprint
+    from pmapi.media_item.resource import media_blueprint
+    from pmapi.report.resource import reports_blueprint
     from pmapi.search.resource import search_blueprint
+    from pmapi.suggestions.resource import suggestions_blueprint
+    from pmapi.user.resource import users_blueprint
 
     tracker.include_blueprint(auth_blueprint)
     tracker.include_blueprint(event_tags_blueprint)
@@ -287,31 +306,31 @@ def register_docs(app):
         LoginResource,
         LogoutResource,
     )
-    from pmapi.user.resource import UsersResource
-    from pmapi.event_tag.resource import TagsResource
-    from pmapi.event_location.resource import (
-        PointsResource,
-        LocationResource,
-        LocationsResource,
+    from pmapi.event.resource import (
+        EventResource,
+        EventsResource,
+    )
+    from pmapi.event_artist.resource import (
+        ArtistResource,
     )
     from pmapi.event_date.resource import (
         DateResource,
         DatesResource,
         EventDatesResource,
     )
-    from pmapi.event.resource import (
-        EventResource,
-        EventsResource,
+    from pmapi.event_location.resource import (
+        LocationResource,
+        LocationsResource,
+        PointsResource,
     )
+    from pmapi.event_tag.resource import TagsResource
+    from pmapi.services.resource import IpLookupResource
+    from pmapi.sitemap.resource import SiteMapResource
     from pmapi.suggestions.resource import (
         SuggestedEditResource,
         SuggestedEditsResource,
     )
-    from pmapi.event_artist.resource import (
-        ArtistResource,
-    )
-    from pmapi.services.resource import IpLookupResource
-    from pmapi.sitemap.resource import SiteMapResource
+    from pmapi.user.resource import UsersResource
 
     extensions.apidocs.register(LoginResource, "auth.LoginResource")
     extensions.apidocs.register(LogoutResource, "auth.LogoutResource")
@@ -319,8 +338,7 @@ def register_docs(app):
     extensions.apidocs.register(TagsResource, "tags.TagsResource")
     extensions.apidocs.register(PointsResource, "locations.PointsResource")
     extensions.apidocs.register(LocationResource, "locations.LocationResource")
-    extensions.apidocs.register(
-        LocationsResource, "locations.LocationsResource")
+    extensions.apidocs.register(LocationsResource, "locations.LocationsResource")
     extensions.apidocs.register(DateResource, "dates.DateResource")
     extensions.apidocs.register(DatesResource, "dates.DatesResource")
     extensions.apidocs.register(EventDatesResource, "dates.EventDatesResource")
@@ -334,7 +352,7 @@ def register_docs(app):
     )
     extensions.apidocs.register(ArtistResource, "artists.ArtistResource")
     extensions.apidocs.register(IpLookupResource, "service.IpLookupResource")
-    extensions.apidocs.register(SiteMapResource, 'sitemap.SiteMapResource')
+    extensions.apidocs.register(SiteMapResource, "sitemap.SiteMapResource")
 
 
 def register_errorhandlers(app):
@@ -353,8 +371,7 @@ def handle_internal_error(error, **kwargs):
 
 
 def handle_301(error):
-    response = jsonify(InvalidRoute(
-        message={"new_url": error.new_url}).to_dict())
+    response = jsonify(InvalidRoute(message={"new_url": error.new_url}).to_dict())
     return response
 
 
@@ -392,4 +409,3 @@ def handle_db_disconnect(error):
 def handle_integrity_error(original_error):
     error = RecordAlreadyExists()
     return handle_error(error, original_error)
-

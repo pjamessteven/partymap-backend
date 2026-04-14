@@ -51,14 +51,6 @@ services:
       - POSTGRES_DB=partymap
     ports:
       - "127.0.0.1:5438:5432"
-  test-db:
-    image: postgis/postgis:13-3.2-alpine
-    environment:
-      - POSTGRES_USER=partymap
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=partymap
-    ports:
-      - 5432
   geoip-updater:
     env_file:
       - ./.env

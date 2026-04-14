@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 **/__pycache__
 *.pyc
+postgres_data/
+postgres_data.zip
 uploaded_media.tar
 .pytest_cache
 chromedriver
@@ -14,3 +16,4 @@ env/
 .env.local_dev
 .env
 geoip-data/
+.aider*

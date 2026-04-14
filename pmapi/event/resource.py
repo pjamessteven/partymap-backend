@@ -61,7 +61,6 @@ class EventsResource(MethodResource):
         return events.search_events(created_by_user, **kwargs)
 
     @doc(summary="Add an event", description="Add an event")
-    @event_permissions.add
     @use_kwargs(
         {
             "date_time": fields.Dict(required=True),
@@ -79,7 +78,7 @@ class EventsResource(MethodResource):
             "next_event_date_description_attribute": fields.String(
                 required=False, allow_none=True
             ),
-            "next_event_date_size": fields.String(required=False, allow_none=True),
+            "next_event_date_size": fields.Integer(required=False, allow_none=True),
             "next_event_date_artists": fields.List(
                 fields.Dict(), required=False, allow_none=True
             ),
@@ -96,42 +95,15 @@ class EventsResource(MethodResource):
             "tickets": fields.List(fields.Dict(), required=False, allow_none=True),
             "ticket_url": fields.String(required=False, allow_none=True),
         },
+        location="json",
     )
     @marshal_with(EventSchema(), code=200)
+    @event_permissions.add
     def post(self, **kwargs):
         return events.add_event(**kwargs, creator=current_user)
 
 
 events_blueprint.add_url_rule("/", view_func=EventsResource.as_view("EventsResource"))
-
-
-@doc(tags=["events"])
-class SimpleEventsResource(MethodResource):
-    @doc(
-        summary="Add a simple event", description="Add a simple event with basic fields"
-    )
-    @event_permissions.add
-    @use_kwargs(
-        {
-            "name": fields.String(required=True),
-            "description": fields.String(required=True),
-            "full_description": fields.String(required=False, allow_none=True),
-            "date_time": fields.String(required=True),
-            "location": fields.String(required=True),
-            "lineup_text": fields.String(required=False, allow_none=True),
-            "url": fields.String(required=False, allow_none=True),
-            "tags": fields.List(fields.String(), required=False, allow_none=True),
-            "logo_url": fields.String(required=False, allow_none=True),
-        },
-    )
-    @marshal_with(EventSchema(), code=200)
-    def post(self, **kwargs):
-        return events.add_simple_event(**kwargs, creator=current_user)
-
-
-events_blueprint.add_url_rule(
-    "/simple", view_func=SimpleEventsResource.as_view("SimpleEventsResource")
-)
 
 
 @doc(tags=["events"])
@@ -193,6 +165,7 @@ class EventResource(MethodResource):
             "remove_rrule": fields.Boolean(required=False, allow_none=True),
             "media_items": fields.List(fields.Dict(), required=False, allow_none=True),
             "logo": fields.Dict(required=False, allow_none=True),
+            "message": fields.String(required=False, allow_none=True),
         },
     )
     @marshal_with(EventSchema(), code=200)

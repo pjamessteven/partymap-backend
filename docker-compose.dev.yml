@@ -8,13 +8,12 @@ services:
     env_file:
       - ./.env
     ports:
-      - 5000
+      - 5000:5000
     depends_on:
       - rabbit
       - db
     volumes:
       - .:/app
-      - /var/www/dev.content.partymap.com/uploaded_media:/static/uploaded_media
   rabbit:
     hostname: rabbit
     image: rabbitmq:management
@@ -23,8 +22,8 @@ services:
       - RABBITMQ_DEFAULT_PASS=rabbitmq
       - RABBIT_MQ_HOSTNAME=rabbit
     ports:
-      - 5672
-      - 15672
+      - 5673:5672
+      - 15672:15672
   worker_1:
     build:
       context: .
@@ -43,13 +42,13 @@ services:
   db:
     image: postgis/postgis:13-3.2-alpine
     volumes:
-      - /var/www/dev.content.partymap.com/postgres_data:/var/lib/postgresql/data/
+      - ./postgres_data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=partymap
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-      - 5432
+      - 5432:5432
   test-db:
     image: postgis/postgis:13-3.2-alpine
     environment:
@@ -57,7 +56,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=partymap
     ports:
-      - 5432
+      - 5433:5432
   geoip-updater:
     env_file:
       - ./.env

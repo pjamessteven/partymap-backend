@@ -1,0 +1,46 @@
+GET managed events 
+
+
+Parameters
+Name	Description
+query
+string
+(query)
+	
+created_by
+string
+(query)
+	
+hidden
+boolean
+(query)
+	
+sort
+string
+(query)
+	
+Property to sort on
+
+Available values : created_at, name, id
+per_page
+integer
+(query)
+	
+Items per page
+
+Default value : 10
+page
+integer
+(query)
+	
+
+Page number (1 indexed). If the special page number 0 (zero) is given, then all items will be returned.
+
+Default value : 1
+desc
+boolean
+(query)
+	
+Reverse sort results
+
+Default value : false

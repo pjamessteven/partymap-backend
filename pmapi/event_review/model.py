@@ -26,7 +26,6 @@ event_review_downvotes = db.Table(
               db.ForeignKey("event_reviews.id", name='fk_event_review_downvotes_event_review_id')),
 )
 
-
 class EventReview(db.Model):
     __tablename__ = "event_reviews"
     __versioned__ = {'versioning_relations': ['event', 'event_date']}

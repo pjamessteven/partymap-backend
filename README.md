@@ -25,13 +25,11 @@ You can find us on Discord: https://discord.gg/BD7BwrZA
 To start contributing to the code base, [find](https://github.com/pjamessteven/partymap-quasar-v2/issues?q=is:issue+is:closed) an existing issue, or [open](https://github.com/pjamessteven/partymap-quasar-v2/issues/new/choose) a new one. We categorize issues into 2 types:
 
 - Feature requests:
-
   - If you're opening a new feature request, we'd like you to explain what the proposed feature achieves, and include as much context as possible
   - If you want to pick one up from the existing issues, simply drop a comment below it saying so.
 
 - Anything else (e.g. bug report, performance optimization, typo correction):
   - Start coding right away.
-
 
 ---
 
@@ -49,6 +47,10 @@ These containers are:
 
 - `worker_1`: A celery worker that waits for asynchronous work (like getting artist info and processing media) and then does it 'in the background'. Explained above. This uses the same Debian container created by the 'web' service.
 
+## API documentation
+
+See /swagger-ui/ and /swagger/
+
 ## Initial install
 
 1. Make sure you have Docker and Docker Compose installed on your system!
@@ -57,115 +59,106 @@ These containers are:
 
 3. Copy .env.dev.example to .env.dev and fill out requisite API keys
 
-3. Pull images
-> docker compose pull
+4. Pull images
 
-4. Build images
-> docker compose build (--no-cache option can be useful sometimes)
+   > docker compose pull
 
-5. Run containers 
-> docker compose -f docker-compose.local.yml up
+5. Build images
 
-6. 
-	- If you want to your database prepopulated with events from a partymap.com snapshot
+   > docker compose build (--no-cache option can be useful sometimes)
 
-		> docker compose exec web python3 manage.py seed_db
+6. Run containers
 
-	- If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
+   > docker compose -f docker-compose.local.yml up
 
-		> docker compose exec web python3 manage.py create_users
+7. - If you want to your database prepopulated with events from a partymap.com snapshot
 
-7. That should be it! You should now be able to access the api from your local environment at localhost:5000
+     > docker compose exec web python3 manage.py seed_db
 
+   - If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
 
+     > docker compose exec web python3 manage.py create_users
 
-## Subsequent runs: 
+8. That should be it! You should now be able to access the api from your local environment at localhost:5000
+
+## Subsequent runs:
 
 > docker compose up
 
 ## Handy commands:
 
-
 Completely destroy database:
+
 > docker compose exec db dropdb -U partymap -f partymap
 
 Create empty database:
+
 > docker compose exec db createdb -U partymap partymap
 
 Adjust SQLAlchemy tables (do this after recreating the database)
+
 > docker compose exec web ./alter_sqlalchemy_tables.sh
 
 Seed database with production snapshot:
+
 > docker compose exec web python3 manage.py seed_test_db
 
 Access bash within the main 'web' container:
+
 > docker compose exec -it web /bin/bash
 
 Send any command to a container:
+
 > docker compose exec [container name] [command]
 
 Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_types.ts)
+
 > docker compose exec web python3 manage.py generate_types
 
 Expose local Docker network to local network (useful for testing on mobile)
+
 > docker compose run --service-ports web
 
 Expose on local network when running flask dev server without Docker
+
 > pyton3 manage.py runserver --host=0.0.0.0
 
-_____________________________
+---
 
 ## Alembic Postgres Database Management commands:
 
 Make a new database migration:
+
 > docker compose exec web python3 manage.py db migrate
 
 List all database migrations/revisions:
+
 > docker compose exec web python3 manage.py db history
-	
+
 Upgrade to the latest database migration:
+
 > docker compose exec web python3 manage.py db upgrade
 
 Downgrade to the latest database migration:
+
 > docker compose exec web python3 manage.py db downgrade [REVISION_ID]
 
+## Prod notes:
 
-## Tips related to the production environment:
-_____________________________________________________________________________
-
-How to backup the production Postgresql DB:
-1) Login to prod machine or other environment via ssh
-2) Switch to the postgres user
-> sudo su - postgres
-3) Enter psql CLI and dump
-> psql 
-> dump
-
-How to restore a backup (in docker container)
-1) Open a shell for the web service
-2) Run: psql -h db -U partymap -p 5432 partymap < snapshot_prod_23_7_22/partymap_23_jul_22.sql
-3) Move static folder to root (for media)
+---
 
 Purge celery tasks:
 
 -A pmapi.celery_worker.celery worker purge
 
-UWSGI command for production:
-(Something like..) uwsgi --http-socket :5000 --plugin python37 --module=wsgi:app --virtualenv /home/partymap/partymap-backend/env
+# Make requests with the API key
 
-_______________________________________________________________________________
+curl -H "X-API-Key: your-api-key-here" \
+ -H "Content-Type: application/json" \
+ -X POST \
+ -d '{"name": "Test Event", "description": "Test", "location": {"description": "NYC"}, "date_time": {"start": "2025-12-25T20:00:00"}}' \
+ http://api.partymap.com/api/event/
 
+# Or using query parameter
 
-## Additional Notes: 
-
--Video converting requires ffmpeg and ffprobe to be installed.
-
-_______________________________________________________________________________
-
-
-## PROD NOTES:
-- /var/www/content.partymap.com/uploaded_media needs to be mounted as volume to /static/uploaded_media/
-
-docker compose up -v /var/www/content.partymap.com:/static/uploaded_media
-
-- Uses uwsgi, socket file is created within container directory
+curl "http://api.partymap.com/api/event/?api_key=your-api-key-here"

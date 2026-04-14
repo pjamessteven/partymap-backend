@@ -1,4 +1,3 @@
-
 from marshmallow import Schema, post_dump, fields, pre_dump
 from pmapi.common.schemas import PaginatedSchema
 from typemallow2 import ts_interface
@@ -11,7 +10,7 @@ from pmapi.common.schemas import TranslationHybridField
 class FeaturedEventSchema(Schema):
     id = fields.Integer()
     next_date = fields.Nested("MiniEventDateSchema", attribute="next_event_date")
-    
+
 
 @ts_interface()
 class MiniEventSchema(Schema):
@@ -24,7 +23,9 @@ class MiniEventSchema(Schema):
     description_t = TranslationHybridField()
     youtube_url = fields.Str()
     tz = fields.Str()
-    next_date = fields.Nested("MiniEventDateSchema", attribute="next_event_date", exclude=['event'])
+    next_date = fields.Nested(
+        "MiniEventDateSchema", attribute="next_event_date", exclude=["event"]
+    )
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
     cover_items = fields.Nested("MediaItemSchema", many=True)
@@ -34,10 +35,10 @@ class MiniEventSchema(Schema):
 
     @post_dump
     def remove_description_if_description_t_exists(self, data, **kwargs):
-        if data.get('description_t'):
-            data.pop('description', None)
+        if data.get("description_t"):
+            data.pop("description", None)
         return data
-    
+
 
 @ts_interface()
 class EventSchema(Schema):
@@ -56,9 +57,11 @@ class EventSchema(Schema):
     youtube_url = fields.Str()
     tz = fields.Str()
     event_dates = fields.Nested(
-        "MiniEventDateSchema", many=True, attribute="event_dates", exclude=['event']
+        "MiniEventDateSchema", many=True, attribute="event_dates", exclude=["event"]
     )
-    next_date = fields.Nested("EventDateSchema", attribute="next_event_date", exclude=['event'])
+    next_date = fields.Nested(
+        "EventDateSchema", attribute="next_event_date", exclude=["event"]
+    )
     event_tags = fields.Nested("EventTagSchema", many=True)
     rrule = fields.Nested("RruleSchema")
     media_items = fields.Nested("MediaItemSchema", many=True)
@@ -67,6 +70,7 @@ class EventSchema(Schema):
     last_transaction = fields.Nested("TransactionSchema")
     is_favorited = fields.Boolean()
     page_views = fields.Int()
+
 
 @ts_interface()
 class EventVersionSchema(Schema):
@@ -79,11 +83,14 @@ class EventVersionSchema(Schema):
     id = fields.Integer()
     name = fields.Str()
 
+
 class EventListSchema(PaginatedSchema):
     items = fields.Nested("EventSchema", many=True)
 
+
 class MiniEventListSchema(PaginatedSchema):
     items = fields.Nested("MiniEventSchema", many=True)
+
 
 class FeaturedEventListSchema(PaginatedSchema):
     items = fields.Nested("FeaturedEventSchema", many=True)
@@ -119,5 +126,7 @@ class RruleVersionSchema(RruleSchema):
 
 
 class ContributorListSchema(Schema):
-    items = fields.List(fields.Tuple(
-        (fields.Nested("UserSchema"), fields.String())))
+    items = fields.List(fields.Tuple((fields.Nested("UserSchema"), fields.String())))
+
+
+ 

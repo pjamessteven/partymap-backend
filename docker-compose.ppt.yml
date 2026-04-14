@@ -1,0 +1,77 @@
+version: "3"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    ports:
+      - 5000
+    depends_on:
+      - rabbit
+      - db
+    volumes:
+      - .:/app
+      - /var/www/dev.content.partymap.com/uploaded_media:/static/uploaded_media
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:management
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=rabbitmq
+      - RABBIT_MQ_HOSTNAME=rabbit
+    ports:
+      - 5672
+      - 15672
+  worker_1:
+    build:
+      context: .
+    hostname: worker_1
+    env_file:
+      - ./.env
+    entrypoint: celery
+    user: "1000"
+    command: -A pmapi.celery_worker.celery worker --loglevel=debug  --concurrency=4
+    volumes:
+      - .:/app
+    links:
+      - rabbit
+    depends_on:
+      - rabbit
+  db:
+    image: postgis/postgis:13-3.2-alpine
+    volumes:
+      - /var/www/dev.content.partymap.com/postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=partymap
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=partymap
+    ports:
+      - 5432
+  test-db:
+    image: postgis/postgis:13-3.2-alpine
+    environment:
+      - POSTGRES_USER=partymap
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=partymap
+    ports:
+      - 5432
+  geoip-updater:
+    env_file:
+      - ./.env
+    image: crazymax/geoip-updater:latest
+    container_name: geoip-updater
+    volumes:
+      - "./geoip-data:/data"
+    environment:
+      - EDITION_IDS=GeoLite2-City
+      - LICENSE_KEY=${MAXMIND_GEO_LICENSE_KEY}
+      - DOWNLOAD_PATH=/data
+      - SCHEDULE=0 0 * * 0
+      - LOG_LEVEL=info
+      - LOG_JSON=false
+    restart: always
+volumes:
+  postgres_data:

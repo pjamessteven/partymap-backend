@@ -1,14 +1,24 @@
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
-from pmapi.event_artist.controllers import add_artists_to_date, remove_artists_from_date, update_artists_of_date
+from pmapi.event_artist.controllers import (
+    add_artists_to_date,
+    remove_artists_from_date,
+    update_artists_of_date,
+)
 from pmapi.event_location.schemas import ExtendedRegionSchema
 from pmapi.event_review.model import EventReview
 from timezonefinder import TimezoneFinder
 from datetime import datetime
+from dateutil import parser as date_parser
 from flask_login import current_user
 from flask import Response
 from calendar import isleap
-from icalendar import Calendar as icalendarCalendar, Event as icalendarEvent, vCalAddress, vText
+from icalendar import (
+    Calendar as icalendarCalendar,
+    Event as icalendarEvent,
+    vCalAddress,
+    vText,
+)
 
 from geoalchemy2 import func, Geography
 from sqlalchemy import cast, or_, and_, asc, distinct
@@ -26,7 +36,11 @@ from pmapi.event_date.model import EventDateTicket
 
 from pmapi.event.model import Event, user_event_following_table
 
-from .model import EventDate, user_event_date_interested_table, user_event_date_going_table
+from .model import (
+    EventDate,
+    user_event_date_interested_table,
+    user_event_date_going_table,
+)
 
 from pmapi.utils import normalize_bounds
 
@@ -80,14 +94,16 @@ def get_event_date(id):
     query = EventDate.query
 
     if current_user.is_authenticated:
-        query = query.options(with_expression(
-            EventDate.user_interested,
-            interested_expression,
-        ),
+        query = query.options(
             with_expression(
-            EventDate.user_going,
-            going_expression,
-        ))
+                EventDate.user_interested,
+                interested_expression,
+            ),
+            with_expression(
+                EventDate.user_going,
+                going_expression,
+            ),
+        )
 
     return query.get(id)
 
@@ -108,16 +124,12 @@ def add_event_date_with_datetime(
     if date_time:
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start = datetime.strptime(date_time["start"], "%Y-%m-%d %H:%M:%S").replace(
-            second=0, microsecond=0
-        )
+        start = date_parser.parse(date_time["start"]).replace(second=0, microsecond=0)
         start_naive = start.replace(tzinfo=None)
 
         if date_time.get("end", None) is None:
             end = start
-        end = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S").replace(
-            second=0, microsecond=0
-        )
+        end = date_parser.parse(date_time["end"]).replace(second=0, microsecond=0)
         end_naive = end.replace(tzinfo=None)
 
         # trigger new reivison of event
@@ -136,14 +148,11 @@ def add_event_date_with_datetime(
             artists=artists,
         )
 
-
         db.session.commit()
-
 
         return event
 
     else:
-
         raise exc.InvalidAPIRequest(
             "date_time required for making healthy computer program"
         )
@@ -193,8 +202,7 @@ def add_event_date(
         end_naive = start_naive
 
     if end_naive < start_naive:
-        raise exc.InvalidAPIRequest(
-            "End date/time can't be before the start date/time")
+        raise exc.InvalidAPIRequest("End date/time can't be before the start date/time")
 
     start_utc = tz_obj.localize(start_naive)
     start_utc = start_utc.astimezone(pytz.utc)
@@ -206,7 +214,6 @@ def add_event_date(
     end_utc = end_utc.replace(
         tzinfo=None
     )  # strip tz info before adding to db. very important!
-
 
     event_date = EventDate(
         event=event,
@@ -220,7 +227,7 @@ def add_event_date(
         description_attribute=description_attribute,
         size=size,
         url=url,
-        date_confirmed=date_confirmed
+        date_confirmed=date_confirmed,
     )
     db.session.add(event_date)
     event_date.after_commit = True
@@ -228,22 +235,21 @@ def add_event_date(
     db.session.flush()
 
     if ticket_url:
-        ed_ticket = EventDateTicket(url=ticket_url, event_date=event_date, event=event_date.event)
+        ed_ticket = EventDateTicket(
+            url=ticket_url, event_date=event_date, event=event_date.event
+        )
         db.session.add(ed_ticket)
 
     if activity:
-        activity = Activity(verb=u"create", object=event_date,
-                            target=event_date.event)
+        activity = Activity(verb="create", object=event_date, target=event_date.event)
         db.session.add(activity)
 
     if artists is not None:
         add_artists_to_date(event_date, artists)
 
     if lineup_images is not None:
-        media_items.add_lineup_images_to_event_date(
-            lineup_images, event, event_date)
+        media_items.add_lineup_images_to_event_date(lineup_images, event, event_date)
 
-    
     return event_date
 
 
@@ -264,18 +270,16 @@ def update_event_date(id, **kwargs):
 
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(
-            date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = date_parser.parse(date_time["start"])
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
             end_naive = start_naive
-        end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
+        end_naive = date_parser.parse(date_time["end"])
         end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if end_naive < start_naive:
-            raise exc.InvalidAPIRequest(
-                "End time can't be before the start time")
+            raise exc.InvalidAPIRequest("End time can't be before the start time")
 
         try:
             # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
@@ -329,8 +333,9 @@ def update_event_date(id, **kwargs):
         event_date.location = event_location
         event_date.tz = tz
         db.session.flush()
-        activity = Activity(verb=u"update", object=event_date.location,
-                            target=event_date)
+        activity = Activity(
+            verb="update", object=event_date.location, target=event_date
+        )
         db.session.add(activity)
         # date settings not touched
         # update location of all future eventdates
@@ -342,8 +347,7 @@ def update_event_date(id, **kwargs):
         event_date.description = kwargs.pop("description", None)
 
     if "description_attribute" in kwargs:
-        event_date.description_attribute = kwargs.pop(
-            "description_attribute", None)
+        event_date.description_attribute = kwargs.pop("description_attribute", None)
 
     if "url" in kwargs:
         event_date.url = kwargs.pop("url")
@@ -357,46 +361,59 @@ def update_event_date(id, **kwargs):
         tickets = kwargs.pop("tickets")
         for ticket in tickets:
             ed_ticket = EventDateTicket(
-                url=ticket["url"], description=ticket["description"], price_min=ticket["price_min"], price_max=ticket["price_max"], price_currency_code=ticket["price_currency_code"], event_date=event_date, event=event_date.event)
+                url=ticket["url"],
+                description=ticket["description"],
+                price_min=ticket["price_min"],
+                price_max=ticket["price_max"],
+                price_currency_code=ticket["price_currency_code"],
+                event_date=event_date,
+                event=event_date.event,
+            )
             db.session.add(ed_ticket)
-    
+
     if "ticket_url" in kwargs:
-        ed_ticket = EventDateTicket(url=kwargs.pop("ticket_url"), event_date=event_date, event=event_date.event)
+        ed_ticket = EventDateTicket(
+            url=kwargs.pop("ticket_url"), event_date=event_date, event=event_date.event
+        )
         db.session.add(ed_ticket)
 
     if "size" in kwargs:
         event_date.size = kwargs.pop("size")
 
     if "remove_artists" in kwargs:
-        remove_artists_from_date(
-            event_date, kwargs.pop("remove_artists"))
+        remove_artists_from_date(event_date, kwargs.pop("remove_artists"))
 
     if "add_artists" in kwargs:
-        add_artists_to_date(
-            event_date, kwargs.pop("add_artists"))
+        add_artists_to_date(event_date, kwargs.pop("add_artists"))
 
     if "update_artists" in kwargs:
-        update_artists_of_date(
-            event_date, kwargs.pop("update_artists"))
+        update_artists_of_date(event_date, kwargs.pop("update_artists"))
 
     if "lineup_images" in kwargs:
-        media_items.add_lineup_images_to_event_date(kwargs.pop(
-            "lineup_images"), event_date.event, event_date, creator=current_user)
+        media_items.add_lineup_images_to_event_date(
+            kwargs.pop("lineup_images"),
+            event_date.event,
+            event_date,
+            creator=current_user,
+        )
 
     if "media_items" in kwargs:
-        media_items.add_media_to_event(kwargs.pop(
-            "media_items"), event_date.event, event_date, creator=current_user)
+        media_items.add_media_to_event(
+            kwargs.pop("media_items"),
+            event_date.event,
+            event_date,
+            creator=current_user,
+        )
 
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event_date.event.updated_at = datetime.utcnow()
 
     db.session.flush()
-    activity = Activity(verb=u"update", object=event_date,
-                        target=event_date.event)
+    activity = Activity(verb="update", object=event_date, target=event_date.event)
     db.session.add(activity)
     # create_notification('UPDATE EVENT', activity, ed.event.followers)
-    
+
     if "description" in kwargs:
         event_date.after_commit = True
 
@@ -416,8 +433,9 @@ def delete_future_event_dates(event, preserve_next=False, activity=True):
         db.session.delete(ed)
         db.session.flush()
         if activity:
-            activity = Activity(verb=u"delete", object=ed, target=event)
+            activity = Activity(verb="delete", object=ed, target=event)
             db.session.add(activity)
+
 
 # DONT USE THIS METHOD FOR AUTOGENERATION (BECAUSE DATE_CONFIRMED WILL BE SET TO TRUE IN CASES WHERE IT SHOULD NOT BE)
 
@@ -435,7 +453,6 @@ def generate_future_event_dates(
     next_event_date_lineup_images=None,
     activity=True,
 ):
-
     if rrule is None and event.rrule:
         # use existing rrule if one not provided
         rrule = event.rrule
@@ -446,13 +463,12 @@ def generate_future_event_dates(
     if date_time:
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
-        start_naive = datetime.strptime(
-            date_time["start"], "%Y-%m-%d %H:%M:%S")
+        start_naive = date_parser.parse(date_time["start"])
         start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         if date_time.get("end", None) is None:
             end_naive = start_naive
-        end_naive = datetime.strptime(date_time["end"], "%Y-%m-%d %H:%M:%S")
+        end_naive = date_parser.parse(date_time["end"])
         end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
 
         # Find timezone info
@@ -490,7 +506,6 @@ def generate_future_event_dates(
         )
 
     else:
-
         if url:
             rrule.default_url = url
 
@@ -499,8 +514,7 @@ def generate_future_event_dates(
 
         # event is recurring
         event.recurring = True
-        startdates, enddates = generateRecurringDates(
-            rrule, start_naive, end_naive)
+        startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
 
         # work out how many dates to generate
         limit = 10 - len(event.future_event_dates)
@@ -542,7 +556,7 @@ def generate_future_event_dates(
                     lineup_images=next_event_date_lineup_images,
                     activity=activity,
                     # the first date should be confirmed
-                    date_confirmed=True if rrule.exact or index == 0 else False
+                    date_confirmed=True if rrule.exact or index == 0 else False,
                 )
                 # next_event_date_description and artists only used once
                 next_event_date_description = None
@@ -556,7 +570,6 @@ def generate_future_event_dates(
 # to generate a series of dates for an event
 # ( should become an automated task in the future )
 def generateRecurringDates(rp, start, end=None):
-
     print(rp)
     days = [MO, TU, WE, TH, FR, SA, SU]
 
@@ -581,8 +594,11 @@ def generateRecurringDates(rp, start, end=None):
     try:
         two_years_away = start.replace(year=start.year + 2)
     except ValueError:
-        if (start.month == 2 and start.day == 29 and  # leap day
-                isleap(start.year)):
+        if (
+            start.month == 2
+            and start.day == 29  # leap day
+            and isleap(start.year)
+        ):
             two_years_away = start.replace(year=start.year + 2, day=28)
         else:
             raise
@@ -590,8 +606,11 @@ def generateRecurringDates(rp, start, end=None):
     try:
         ten_years_away = start.replace(year=start.year + 10)
     except ValueError:
-        if (start.month == 2 and start.day == 29 and  # leap day
-                isleap(start.year)):
+        if (
+            start.month == 2
+            and start.day == 29  # leap day
+            and isleap(start.year)
+        ):
             ten_years_away = start.replace(year=start.year + 10, day=28)
         else:
             raise
@@ -667,7 +686,6 @@ def generateRecurringDates(rp, start, end=None):
                 )
             )
 
-
     else:
         raise exc.InvalidAPIRequest("Invalid recurring_type (1-3)")
 
@@ -685,11 +703,11 @@ def delete_event_date(id):
     event.updated_at = datetime.utcnow()
     db.session.delete(event_date)
     db.session.flush()
-    activity = Activity(verb=u"delete", object=event_date,
-                        target=event_date.event)
+    activity = Activity(verb="delete", object=event_date, target=event_date.event)
     db.session.add(activity)
     db.session.commit()
     return event
+
 
 """
 def query_event_dates(**kwargs):
@@ -935,6 +953,7 @@ def query_event_dates(**kwargs):
     return results
 """
 
+
 def query_event_dates(**kwargs):
     # Base query
     query = db.session.query(EventDate).join(Event, EventDate.event_id == Event.id)
@@ -958,16 +977,15 @@ def query_event_dates(**kwargs):
 
     sort_option = kwargs.pop("sort", None)
     if sort_option is None:
-        sort_option = kwargs.pop('sort_option', None) # deprecate this
+        sort_option = kwargs.pop("sort_option", None)  # deprecate this
 
     # Create an alias for EventDate that we'll use throughout
     EventDateAlias = aliased(EventDate)
 
     query = db.session.query(EventDateAlias)
-    
+
     # Initialize distance_expression as None
     distance_expression = None
-
 
     if bounds:
         # Ensure EventLocation is joined if not already
@@ -981,7 +999,6 @@ def query_event_dates(**kwargs):
         )
 
         query = query.filter(func.ST_Intersects(EventLocation.geo, bbox))
-
 
     # Date filters
     if date_min := kwargs.get("date_min"):
@@ -999,29 +1016,26 @@ def query_event_dates(**kwargs):
         query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
 
     if empty_lineup:
-        query = query.filter(
-                ~EventDateAlias.artists.any()
-            )
-        
+        query = query.filter(~EventDateAlias.artists.any())
+
     if date_unconfirmed:
-        query = query.filter(
-                EventDateAlias.date_confirmed == False
-            )
+        query = query.filter(EventDateAlias.date_confirmed == False)
 
     # Filter hidden events out
     query = query.filter(
         or_(
-                    Event.hidden == False,
-                    and_(
-                        Event.hidden == True,
-                        Event.creator_id is not None, 
-                        Event.creator_id == current_user.id
-                    )
-                ))
+            Event.hidden == False,
+            and_(
+                Event.hidden == True,
+                Event.creator_id is not None,
+                Event.creator_id == current_user.id,
+            ),
+        )
+    )
 
     # Distance filter if location is provided
     if location_filters and location_filters["lat"] and location_filters["lng"]:
-        print('LOCATION FILTERS')
+        print("LOCATION FILTERS")
         lat = float(location_filters["lat"])
         lng = float(location_filters["lng"])
         if lat is None or lng is None:
@@ -1057,24 +1071,31 @@ def query_event_dates(**kwargs):
             ]
 
             # Add row_number for distinct filtering
-            row_number_column = func.row_number().over(
-                partition_by=EventDateAlias.event_id, 
-                order_by=EventDateAlias.start.asc()
-            ).label("row_number")
+            row_number_column = (
+                func.row_number()
+                .over(
+                    partition_by=EventDateAlias.event_id,
+                    order_by=EventDateAlias.start.asc(),
+                )
+                .label("row_number")
+            )
 
             # Create subquery including all columns from EventDateAlias
             subquery = query.add_columns(row_number_column).subquery()
-            
+
             # Create new query from subquery using alias
             CountEventDateAlias = aliased(EventDate, subquery)
-            count_query = db.session.query(CountEventDateAlias).join(EventLocation, CountEventDateAlias.location_id == EventLocation.id).filter(
-                subquery.c.row_number == 1
+            count_query = (
+                db.session.query(CountEventDateAlias)
+                .join(
+                    EventLocation, CountEventDateAlias.location_id == EventLocation.id
+                )
+                .filter(subquery.c.row_number == 1)
             )
 
-            for r in radii:               
-                count = (   
-                    count_query
-                    .filter(
+            for r in radii:
+                count = (
+                    count_query.filter(
                         func.ST_DWithin(
                             cast(EventLocation.geo, Geography(srid=4326)),
                             cast(
@@ -1099,9 +1120,10 @@ def query_event_dates(**kwargs):
 
     # location not provided
     else:
-        query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+        query = query.join(
+            EventLocation, EventDateAlias.location_id == EventLocation.id
+        )
         query = query.join(Event, EventDateAlias.event_id == Event.id)
-
 
     if country_id:
         query = query.filter(EventLocation.country_id == country_id)
@@ -1109,7 +1131,6 @@ def query_event_dates(**kwargs):
     if region_name:
         query = query.join(Region, EventLocation.region_id == Region.id)
         query = query.filter(Region.long_name == region_name)
-
 
     # User related filters
     if creator_user:
@@ -1123,18 +1144,16 @@ def query_event_dates(**kwargs):
     if interested_user:
         user = users.get_user_or_404(interested_user)
         interested_event_date_ids = db.session.query(
-            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
-        query = query.filter(
-            EventDateAlias.id.in_(interested_event_date_ids)
-        )
+            user_event_date_interested_table.c.event_date_id
+        ).filter(user_event_date_interested_table.c.user_id == user.id)
+        query = query.filter(EventDateAlias.id.in_(interested_event_date_ids))
 
     if going_user:
         user = users.get_user_or_404(going_user)
         going_event_date_ids = db.session.query(
-            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
-        query = query.filter(
-            EventDateAlias.id.in_(going_event_date_ids)
-        )
+            user_event_date_going_table.c.event_date_id
+        ).filter(user_event_date_going_table.c.user_id == user.id)
+        query = query.filter(EventDateAlias.id.in_(going_event_date_ids))
 
     if reviewed_user:
         user = users.get_user_or_404(reviewed_user)
@@ -1144,28 +1163,33 @@ def query_event_dates(**kwargs):
     if following_user:
         user = users.get_user_or_404(following_user)
         following_event_ids = db.session.query(
-            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
-        query = query.filter(
-            Event.id.in_(following_event_ids)
-        )
+            user_event_following_table.c.event_id
+        ).filter(user_event_date_going_table.c.user_id == user.id)
+        query = query.filter(Event.id.in_(following_event_ids))
 
     if all_related_to_user:
         user = users.get_user_or_404(all_related_to_user)
-        query = query.outerjoin(EventReview, EventDateAlias.event_id == EventReview.event_id)
+        query = query.outerjoin(
+            EventReview, EventDateAlias.event_id == EventReview.event_id
+        )
         interested_event_date_ids = db.session.query(
-            user_event_date_interested_table.c.event_date_id).filter(user_event_date_interested_table.c.user_id == user.id)
+            user_event_date_interested_table.c.event_date_id
+        ).filter(user_event_date_interested_table.c.user_id == user.id)
         going_event_date_ids = db.session.query(
-            user_event_date_going_table.c.event_date_id).filter(user_event_date_going_table.c.user_id == user.id)
+            user_event_date_going_table.c.event_date_id
+        ).filter(user_event_date_going_table.c.user_id == user.id)
         following_event_ids = db.session.query(
-            user_event_following_table.c.event_id).filter(user_event_date_going_table.c.user_id == user.id)
+            user_event_following_table.c.event_id
+        ).filter(user_event_date_going_table.c.user_id == user.id)
         query = query.filter(
             or_(
                 (EventReview.creator_id == user.id),
-                (Event.creator_id == user.id), (Event.host_id == user.id),
+                (Event.creator_id == user.id),
+                (Event.host_id == user.id),
                 (EventDateAlias.id.in_(going_event_date_ids)),
-                (EventDateAlias.id.in_(interested_event_date_ids)), (
-                    Event.id.in_(following_event_ids)
-                ))
+                (EventDateAlias.id.in_(interested_event_date_ids)),
+                (Event.id.in_(following_event_ids)),
+            )
         )
 
     # Apply going/interested expression to results
@@ -1174,70 +1198,74 @@ def query_event_dates(**kwargs):
             with_expression(
                 EventDateAlias.user_interested,
                 db.session.query(user_event_date_interested_table)
-                    .filter(
-                        user_event_date_interested_table.c.user_id == current_user.id,
-                        user_event_date_interested_table.c.event_date_id == EventDateAlias.id,
-                    )
-                    .exists(),
+                .filter(
+                    user_event_date_interested_table.c.user_id == current_user.id,
+                    user_event_date_interested_table.c.event_date_id
+                    == EventDateAlias.id,
+                )
+                .exists(),
             ),
             with_expression(
                 EventDateAlias.user_going,
                 db.session.query(user_event_date_going_table)
-                    .filter(
-                        user_event_date_going_table.c.user_id == current_user.id,
-                        user_event_date_going_table.c.event_date_id == EventDateAlias.id,
-                    )
-                    .exists(),
+                .filter(
+                    user_event_date_going_table.c.user_id == current_user.id,
+                    user_event_date_going_table.c.event_date_id == EventDateAlias.id,
+                )
+                .exists(),
             ),
         )
-
 
     # Sort and distinct logic
     if kwargs.get("distinct"):
         # Add row_number for distinct filtering
-        row_number_column = func.row_number().over(
-            partition_by=EventDateAlias.event_id, 
-            order_by=EventDateAlias.start.asc()
-        ).label("row_number")
+        row_number_column = (
+            func.row_number()
+            .over(
+                partition_by=EventDateAlias.event_id,
+                order_by=EventDateAlias.start.asc(),
+            )
+            .label("row_number")
+        )
 
         # Create subquery including all columns from EventDateAlias
         subquery = query.add_columns(row_number_column).subquery()
-        
+
         # Create new query from subquery using alias
         EventDateAlias = aliased(EventDate, subquery)
-        query = db.session.query(EventDateAlias).filter(
-            subquery.c.row_number == 1
-        )
-        
+        query = db.session.query(EventDateAlias).filter(subquery.c.row_number == 1)
+
         # Reapply the distance expression if it exists
         if distance_expression is not None:
-            query = query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
-            query = query.options(with_expression(
-                EventDateAlias.distance,
-                distance_expression
-            ))
+            query = query.join(
+                EventLocation, EventDateAlias.location_id == EventLocation.id
+            )
+            query = query.options(
+                with_expression(EventDateAlias.distance, distance_expression)
+            )
 
     # Sorting logic based on distance or start date
     if sort_option == "distance" and location_filters:
         query = query.order_by(
-            func.coalesce(EventDateAlias.distance, 0).asc(), 
-            EventDateAlias.start.asc()
+            func.coalesce(EventDateAlias.distance, 0).asc(), EventDateAlias.start.asc()
         )
     elif sort_option:
-        if sort_option == 'date':
-            sort_option = 'start' # deprecate this
+        if sort_option == "date":
+            sort_option = "start"  # deprecate this
 
-        desc = kwargs.pop('desc', False)
+        desc = kwargs.pop("desc", False)
         sort_field = getattr(EventDateAlias, sort_option)
         if sort_field and desc:
             from sqlalchemy import desc
+
             sort_field = desc(sort_field)
         query = query.order_by(sort_field)
     else:
-        desc = kwargs.pop('desc', False)
-        sort_field = getattr(EventDateAlias, 'start')
+        desc = kwargs.pop("desc", False)
+        sort_field = getattr(EventDateAlias, "start")
         if desc:
             from sqlalchemy import desc
+
             sort_field = desc(sort_field)
         query = query.order_by(sort_field)
 
@@ -1262,8 +1290,8 @@ def enrich_results_with_top_entities(results, query):
         for tag in ed.event.event_tags:
             tags.append(tag)
         region = ed.location.region
-        if (hasattr(region, 'id')):
-            region.lat =  ed.location.lat
+        if hasattr(region, "id"):
+            region.lat = ed.location.lat
             region.lng = ed.location.lng
             regions.append(region)
 
@@ -1276,7 +1304,9 @@ def get_top_entities(entities, id_attr, limit):
     valid_entities = [e for e in entities if e is not None and hasattr(e, id_attr)]
     counter = Counter(getattr(e, id_attr) for e in valid_entities)
     unique_entities = list({getattr(e, id_attr): e for e in valid_entities}.values())
-    return sorted(unique_entities, key=lambda e: counter[getattr(e, id_attr)], reverse=True)[:limit]
+    return sorted(
+        unique_entities, key=lambda e: counter[getattr(e, id_attr)], reverse=True
+    )[:limit]
 
 
 """
@@ -1723,6 +1753,7 @@ def query_event_dates(**kwargs):
     return results
 """
 
+
 def toggle_going(id):
     event_date = get_event_date_or_404(id)
     user = current_user
@@ -1768,12 +1799,16 @@ def ics_download(id):
     event_date = get_event_date_or_404(id)
     timezone = tz.gettz(event_date.tz)
 
-    filename = event_date.event.name + \
-        ' | ' + event_date.start_naive.strftime("%B %d, %Y")
+    filename = (
+        event_date.event.name + " | " + event_date.start_naive.strftime("%B %d, %Y")
+    )
 
-    event_url = 'https://partymap.com/event/' + \
-        str(event_date.event.id) + "?name=" + \
-        event_date.event.name.replace(" ", "_")
+    event_url = (
+        "https://partymap.com/event/"
+        + str(event_date.event.id)
+        + "?name="
+        + event_date.event.name.replace(" ", "_")
+    )
 
     iso_start = event_date.start.strftime("%Y%m%dT%H%M%SZ")
     human_start_time = event_date.start_naive.strftime("%a %d %b %I:%M%p ")
@@ -1781,45 +1816,62 @@ def ics_download(id):
     if event_date.end_naive:
         human_end_time = event_date.end_naive.strftime("%a %d %b %I:%M%p ")
 
-    description = event_url + '\n\n' + 'Start: ' + human_start_time + '\n' + 'End: ' + human_end_time + \
-        '\n' + 'Timezone: ' + event_date.tz + '\n\n' + \
-        event_date.event.description + '\n\n'
+    description = (
+        event_url
+        + "\n\n"
+        + "Start: "
+        + human_start_time
+        + "\n"
+        + "End: "
+        + human_end_time
+        + "\n"
+        + "Timezone: "
+        + event_date.tz
+        + "\n\n"
+        + event_date.event.description
+        + "\n\n"
+    )
 
     if event_date.description:
-        description = description + ' ' + event_date.description
+        description = description + " " + event_date.description
 
     cal = icalendarCalendar()
-    cal.add('prodid', '-//Partymap//partymap.com//')
-    cal.add('version', '2.0')
+    cal.add("prodid", "-//Partymap//partymap.com//")
+    cal.add("version", "2.0")
 
-    organizer = vCalAddress('MAILTO:noreply@partymap.com')
-    organizer.params['cn'] = vText('partymap')
+    organizer = vCalAddress("MAILTO:noreply@partymap.com")
+    organizer.params["cn"] = vText("partymap")
 
     event = icalendarEvent()
-    event['organizer'] = organizer
+    event["organizer"] = organizer
 
-    event.add('uid', iso_start+'/'+str(event_date.id)+'@partymap.com')
-    event.add('summary', event_date.event.name)
+    event.add("uid", iso_start + "/" + str(event_date.id) + "@partymap.com")
+    event.add("summary", event_date.event.name)
 
-    event.add('description', description)
-    event.add('geo', (event_date.location.lat, event_date.location.lng))
-    event.add('location', event_date.location.description)
+    event.add("description", description)
+    event.add("geo", (event_date.location.lat, event_date.location.lng))
+    event.add("location", event_date.location.description)
 
-    event.add('dtstart', event_date.start_naive.astimezone(timezone))
-    event.add('dtend', event_date.end_naive.astimezone(timezone))
-    event.add('dtstamp', datetime.utcnow())
+    event.add("dtstart", event_date.start_naive.astimezone(timezone))
+    event.add("dtend", event_date.end_naive.astimezone(timezone))
+    event.add("dtstamp", datetime.utcnow())
 
     cal.add_component(event)
 
     # reference for below code: https://github.com/N-Coder/vtimezone-examples
     from khal.khalendar.event import create_timezone
+
     cal.add_component(create_timezone(pytz.timezone(event_date.tz)))
 
     response = Response(cal.to_ical(), mimetype="text/calendar")
 
     # add a filename
     response.headers.set(
-        "Content-Disposition", "attachment", filename="{0}.ics".format(filename.encode('latin-1', 'ignore').decode('latin-1'))
+        "Content-Disposition",
+        "attachment",
+        filename="{0}.ics".format(
+            filename.encode("latin-1", "ignore").decode("latin-1")
+        ),
     )
 
     return response
