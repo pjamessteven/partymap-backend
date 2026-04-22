@@ -14,6 +14,7 @@ fi
 # ensure that postgis extension is enabled
 psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "CREATE EXTENSION postgis;"
 psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "CREATE EXTENSION hstore;"
+psql -h $SQL_HOST -U $DATABASE_USER -d $DATABASE -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 # run db migrations
 python manage.py db init
@@ -39,4 +40,3 @@ then
 
     exec uwsgi --ini uwsgi.ini
 fi
-

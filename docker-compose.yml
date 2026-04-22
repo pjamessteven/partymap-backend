@@ -42,7 +42,9 @@ services:
     depends_on:
       - rabbit
   db:
-    image: postgis/postgis:13-3.2-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     volumes:
       - /var/www/content.partymap.com/postgres_data:/var/lib/postgresql/data/
     environment:

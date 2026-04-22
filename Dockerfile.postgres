@@ -1,0 +1,28 @@
+FROM postgres:13-bullseye AS pgvector-builder
+
+ARG PGVECTOR_VERSION=v0.8.1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        clang-11 \
+        git \
+        llvm-11 \
+        postgresql-server-dev-13 \
+    && git clone --branch ${PGVECTOR_VERSION} --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && make -C /tmp/pgvector \
+    && make -C /tmp/pgvector install \
+    && rm -rf /tmp/pgvector \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM postgres:13-bullseye
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-13-postgis-3 \
+        postgresql-13-postgis-3-scripts \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=pgvector-builder /usr/lib/postgresql/13/lib/vector.so /usr/lib/postgresql/13/lib/vector.so
+COPY --from=pgvector-builder /usr/share/postgresql/13/extension/vector* /usr/share/postgresql/13/extension/

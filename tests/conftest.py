@@ -53,6 +53,7 @@ def db(app, config):
     with app.app_context():
         print('SETUP DB')
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
+        _db.engine.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         _db.create_all()
         # configure anon user
         anon = (
