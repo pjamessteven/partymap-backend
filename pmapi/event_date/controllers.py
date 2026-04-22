@@ -48,6 +48,7 @@ from pmapi import exceptions as exc
 
 import pmapi.media_item.controllers as media_items
 from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.services.gmaps import resolve_location_input
 
 # from dateutil.relativedelta import *
 from dateutil.rrule import rrule, MO, TU, WE, TH, FR, SA, SU, YEARLY, MONTHLY, WEEKLY
@@ -56,6 +57,82 @@ from dateutil import tz
 import time
 
 Activity = activity_plugin.activity_cls
+
+
+def add_ticket_to_event_date(event_date, ticket):
+    ed_ticket = EventDateTicket(
+        url=ticket.get("url"),
+        description=ticket.get("description"),
+        price_min=ticket.get("price_min"),
+        price_max=ticket.get("price_max"),
+        price_currency_code=ticket.get("price_currency_code"),
+        event_date=event_date,
+        event=event_date.event,
+    )
+    db.session.add(ed_ticket)
+    return ed_ticket
+
+
+def replace_event_date_tickets(event_date, tickets):
+    for ticket in event_date.tickets:
+        db.session.delete(ticket)
+
+    for ticket in tickets or []:
+        add_ticket_to_event_date(event_date, ticket)
+
+
+def get_timezone_for_event_location(event_location):
+    try:
+        tf = TimezoneFinder()
+        tz = tf.timezone_at(lng=event_location.lng, lat=event_location.lat)
+        tz_obj = pytz.timezone(tz)
+        return tz, tz_obj
+    except UnknownTimeZoneError:
+        print("TIMEZONE ERROR")
+        raise
+
+
+def apply_event_date_datetime_and_location(event_date, date_time=None, event_location=None):
+    if event_location is None:
+        event_location = event_date.location
+
+    if date_time:
+        if date_time.get("start", None) is None:
+            raise exc.InvalidAPIRequest("Start date required")
+        start_naive = date_parser.parse(date_time["start"])
+        start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
+
+        if date_time.get("end", None) is None:
+            end_naive = start_naive
+        else:
+            end_naive = date_parser.parse(date_time["end"])
+            end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
+    else:
+        start_naive = event_date.start_naive
+        end_naive = event_date.end_naive
+
+    if end_naive < start_naive:
+        raise exc.InvalidAPIRequest("End time can't be before the start time")
+
+    tz, tz_obj = get_timezone_for_event_location(event_location)
+
+    start = tz_obj.localize(start_naive)
+    start = start.astimezone(pytz.utc)
+    start = start.replace(tzinfo=None)
+
+    end = tz_obj.localize(end_naive)
+    end = end.astimezone(pytz.utc)
+    end = end.replace(tzinfo=None)
+
+    event_date.start = start
+    event_date.end = end
+    event_date.start_naive = start_naive
+    event_date.end_naive = end_naive
+    event_date.tz = tz
+    event_date.location = event_location
+
+    if date_time:
+        event_date.date_confirmed = True
 
 
 def get_event_date_or_404(id):
@@ -115,7 +192,7 @@ def add_event_date_with_datetime(
     description=None,
     description_attribute=None,
     url=None,
-    ticket_url=None,
+    tickets=None,
     size=None,
     artists=None,
     creator=None,
@@ -144,7 +221,7 @@ def add_event_date_with_datetime(
             description_attribute=description_attribute,
             size=size,
             url=url,
-            ticket_url=ticket_url,
+            tickets=tickets,
             artists=artists,
         )
 
@@ -167,7 +244,7 @@ def add_event_date(
     creator=None,
     tz=None,
     url=None,
-    ticket_url=None,
+    tickets=None,
     description=None,
     description_attribute=None,
     size=None,
@@ -183,6 +260,7 @@ def add_event_date(
         # get EventLocation from geobject place_id
         if not location:
             raise exc.InvalidAPIRequest("Location required")
+        location = resolve_location_input(location, exc.InvalidUsage)
         event_location = event_locations.get_location(location["place_id"])
         if not event_location:
             event_location = event_locations.add_new_event_location(
@@ -234,11 +312,8 @@ def add_event_date(
 
     db.session.flush()
 
-    if ticket_url:
-        ed_ticket = EventDateTicket(
-            url=ticket_url, event_date=event_date, event=event_date.event
-        )
-        db.session.add(ed_ticket)
+    for ticket in tickets or []:
+        add_ticket_to_event_date(event_date, ticket)
 
     if activity:
         activity = Activity(verb="create", object=event_date, target=event_date.event)
@@ -258,80 +333,25 @@ def update_event_date(id, **kwargs):
 
     date_time = kwargs.get("date_time", None)
     location = kwargs.get("location", None)
+    event_location = None
 
-    if date_time:
-        # location required for timezone info
-        if location:
-            lat = location["geometry"]["location"]["lat"]
-            lng = location["geometry"]["location"]["lng"]
-        else:
-            lat = event_date.location.lat
-            lng = event_date.location.lng
-
-        if date_time.get("start", None) is None:
-            raise exc.InvalidAPIRequest("Start date required")
-        start_naive = date_parser.parse(date_time["start"])
-        start_naive = start_naive.replace(tzinfo=None, second=0, microsecond=0)
-
-        if date_time.get("end", None) is None:
-            end_naive = start_naive
-        end_naive = date_parser.parse(date_time["end"])
-        end_naive = end_naive.replace(tzinfo=None, second=0, microsecond=0)
-
-        if end_naive < start_naive:
-            raise exc.InvalidAPIRequest("End time can't be before the start time")
-
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = pytz.timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
-        """
-        Date should be received as a naive date
-        ie. the local time where the event is happening with no tz info.
-        """
-        start = start_naive.replace(tzinfo=None)
-        start = tz_obj.localize(start)
-        start = start.astimezone(pytz.utc)
-        start = start.replace(tzinfo=None)
-        end = end_naive.replace(tzinfo=None)
-        end = tz_obj.localize(end_naive)
-        end = end.astimezone(pytz.utc)
-        end = end.replace(tzinfo=None)
-
-        event_date.start = start
-        event_date.end = end
-        event_date.start_naive = start_naive
-        event_date.end_naive = end_naive
-        event_date.tz = tz
-        event_date.date_confirmed = True
+    location = resolve_location_input(location, exc.InvalidUsage)
 
     if location:
-        lat = location["geometry"]["location"]["lat"]
-        lng = location["geometry"]["location"]["lng"]
-
-        try:
-            # ADD CORRECT TIMEZONE TO DATE TIME AND THEN CONVERT TO UTC
-            tf = TimezoneFinder()
-            tz = tf.timezone_at(lng=lng, lat=lat)
-            tz_obj = pytz.timezone(tz)
-
-        except UnknownTimeZoneError:
-            print("TIMEZONE ERROR")
-            pass  # {handle error}
-
         event_location_creator = current_user
 
-        event_location = event_locations.add_new_event_location(
-            event_location_creator, **location
+        event_location = event_locations.get_location(location["place_id"])
+        if event_location is None:
+            event_location = event_locations.add_new_event_location(
+                event_location_creator, **location
+            )
+
+    if date_time or event_location is not None:
+        apply_event_date_datetime_and_location(
+            event_date, date_time=date_time, event_location=event_location
         )
-        event_date.location = event_location
-        event_date.tz = tz
+
+    if event_location is not None:
         db.session.flush()
         activity = Activity(
             verb="update", object=event_date.location, target=event_date
@@ -353,29 +373,7 @@ def update_event_date(id, **kwargs):
         event_date.url = kwargs.pop("url")
 
     if "tickets" in kwargs:
-        # delete all previous tickets
-        for ticket in event_date.tickets:
-            db.session.delete(ticket)
-
-        # set new ticket urls
-        tickets = kwargs.pop("tickets")
-        for ticket in tickets:
-            ed_ticket = EventDateTicket(
-                url=ticket["url"],
-                description=ticket["description"],
-                price_min=ticket["price_min"],
-                price_max=ticket["price_max"],
-                price_currency_code=ticket["price_currency_code"],
-                event_date=event_date,
-                event=event_date.event,
-            )
-            db.session.add(ed_ticket)
-
-    if "ticket_url" in kwargs:
-        ed_ticket = EventDateTicket(
-            url=kwargs.pop("ticket_url"), event_date=event_date, event=event_date.event
-        )
-        db.session.add(ed_ticket)
+        replace_event_date_tickets(event_date, kwargs.pop("tickets"))
 
     if "size" in kwargs:
         event_date.size = kwargs.pop("size")

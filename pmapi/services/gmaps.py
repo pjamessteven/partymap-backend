@@ -1,6 +1,20 @@
 import googlemaps
 from pmapi.config import BaseConfig
 
+
+def resolve_location_input(location, invalid_usage_cls):
+    """Resolve a free-text location payload to a full Google place result."""
+    if location is None:
+        return None
+
+    if "place_id" not in location and "description" in location:
+        location = get_best_location_result(location["description"])
+        if location is None:
+            raise invalid_usage_cls("Could not find location from description")
+
+    return location
+
+
 def get_best_location_result(location):
     """
     Looks up a location string using the Google Maps API and returns the best result.
