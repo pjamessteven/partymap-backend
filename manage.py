@@ -4,7 +4,7 @@ manage.py
   application to perform interactive debugging and setup
 """
 
-from flask_script import Manager, Command
+from flask_script import Manager, Command, Option
 from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag
 from flask.cli import FlaskGroup
@@ -76,10 +76,29 @@ class GenerateTypes(Command):
         generate_ts('./autogen_types.ts')
 
 
+class BackfillEventEmbeddings(Command):
+    option_list = (
+        Option("--batch-size", dest="batch_size", type=int, default=100),
+        Option("--limit", dest="limit", type=int, default=None),
+        Option("--force", action="store_true", dest="force", default=False),
+    )
+
+    def run(self, batch_size, limit, force):
+        from scripts.backfill_event_embeddings import run_backfill
+
+        run_backfill(
+            batch_size=batch_size,
+            limit=limit,
+            force=force,
+            logger=app.logger,
+        )
+
+
 manager.add_command("create_db", CreateDb)
 manager.add_command("create_users", CreateUsers)
 manager.add_command("seed_test_db", SeedTestDb)
 manager.add_command("generate_types", GenerateTypes)
+manager.add_command("backfill_event_embeddings", BackfillEventEmbeddings)
 
 # enable python shell with application context
 @manager.shell

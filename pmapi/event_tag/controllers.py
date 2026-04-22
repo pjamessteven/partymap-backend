@@ -7,11 +7,12 @@ from .model import Tag, EventTag
 from pmapi.event_location.model import EventLocation
 from pmapi.event_date.model import EventDate
 from pmapi.event.model import Event
+from pmapi.services.embeddings import mark_event_embedding_refresh
 
 Activity = activity_plugin.activity_cls
 
 
-def add_tags_to_event(tags, event):
+def add_tags_to_event(tags, event, refresh_embedding=True):
     for t in tags:
 
         # check if tag is already in db
@@ -45,6 +46,9 @@ def add_tags_to_event(tags, event):
             db.session.flush()
             activity = Activity(verb=u"create", object=et, target=event)
             db.session.add(activity)
+
+    if refresh_embedding:
+        mark_event_embedding_refresh(event)
 
     return tags
 

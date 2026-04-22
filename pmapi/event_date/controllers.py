@@ -48,6 +48,7 @@ from pmapi import exceptions as exc
 
 import pmapi.media_item.controllers as media_items
 from pmapi.hcaptcha.controllers import validate_hcaptcha
+from pmapi.services.embeddings import mark_event_embedding_refresh
 from pmapi.services.gmaps import resolve_location_input
 
 # from dateutil.relativedelta import *
@@ -309,6 +310,7 @@ def add_event_date(
     )
     db.session.add(event_date)
     event_date.after_commit = True
+    mark_event_embedding_refresh(event)
 
     db.session.flush()
 
@@ -350,6 +352,7 @@ def update_event_date(id, **kwargs):
         apply_event_date_datetime_and_location(
             event_date, date_time=date_time, event_location=event_location
         )
+        mark_event_embedding_refresh(event_date.event)
 
     if event_location is not None:
         db.session.flush()
@@ -362,6 +365,7 @@ def update_event_date(id, **kwargs):
 
     if "cancelled" in kwargs:
         event_date.cancelled = kwargs.pop("cancelled")
+        mark_event_embedding_refresh(event_date.event)
 
     if "description" in kwargs:
         event_date.description = kwargs.pop("description", None)
@@ -699,6 +703,7 @@ def delete_event_date(id):
     # this field is useful for triggering
     # a new version of the parent event object in continuum
     event.updated_at = datetime.utcnow()
+    mark_event_embedding_refresh(event)
     db.session.delete(event_date)
     db.session.flush()
     activity = Activity(verb="delete", object=event_date, target=event_date.event)

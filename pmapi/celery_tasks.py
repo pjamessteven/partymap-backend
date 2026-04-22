@@ -15,6 +15,7 @@ from pmapi.event_artist.model import Artist
 from pmapi.event_date.model import EventDate
 from pmapi.event_review.model import EventReview
 from pmapi.extensions import db, mail
+from pmapi.services.embeddings import refresh_event_embedding
 from pmapi.services.translations import get_description_translation
 from pmapi.utils import SUPPORTED_LANGUAGES
 
@@ -117,6 +118,20 @@ def update_event_translation(event_id):
         event.full_description_translations = update_translation_field(
             event.full_description_translations, event.full_description
         )
+        db.session.commit()
+        db.session.close()
+
+
+@celery.task(
+    autoretry_for=(RequestException, OperationalError),
+    retry_backoff=True,
+    retry_backoff_max=120,
+    rate_limit="60/m",
+)
+def update_event_embedding(event_id):
+    event = db.session.query(Event).filter(Event.id == event_id).first()
+    if event:
+        refresh_event_embedding(event, raise_on_error=True)
         db.session.commit()
         db.session.close()
 

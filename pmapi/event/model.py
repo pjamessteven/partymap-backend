@@ -240,7 +240,11 @@ class Event(db.Model):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
         eds = eds.filter(
-            and_(EventDate.end >= now, EventDate.event_id == self.id))
+            and_(
+                EventDate.end >= now,
+                EventDate.event_id == self.id,
+                EventDate.cancelled != True,
+            ))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()
 
@@ -249,7 +253,11 @@ class Event(db.Model):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
         eds = eds.filter(
-            and_(EventDate.end >= now, EventDate.event_id == self.id))
+            and_(
+                EventDate.end >= now,
+                EventDate.event_id == self.id,
+                EventDate.cancelled != True,
+            ))
         eds = eds.order_by(EventDate.start.asc())
         return eds.all()[1:]
 
@@ -258,7 +266,11 @@ class Event(db.Model):
         now = datetime.utcnow()
         eds = db.session.query(EventDate)
         eds = eds.filter(
-            and_(EventDate.end >= now, EventDate.event_id == self.id))
+            and_(
+                EventDate.end >= now,
+                EventDate.event_id == self.id,
+                EventDate.cancelled != True,
+            ))
         eds = eds.order_by(EventDate.start.asc())
         return eds.first()
 
@@ -269,7 +281,13 @@ class Event(db.Model):
         now = datetime.utcnow()
         return (
             select(EventDate)
-            .where(and_(EventDate.event_id == cls.id), EventDate.end >= now)
+            .where(
+                and_(
+                    EventDate.event_id == cls.id,
+                    EventDate.end >= now,
+                    EventDate.cancelled != True,
+                )
+            )
             .first()
         )
 

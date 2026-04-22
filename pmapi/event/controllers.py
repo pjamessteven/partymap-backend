@@ -39,7 +39,10 @@ from pmapi.mail.controllers import (
 )
 from pmapi.media_item.controllers import download_image_as_base64
 from pmapi.services.gmaps import resolve_location_input
-from pmapi.services.embeddings import generate_embedding, refresh_event_embedding
+from pmapi.services.embeddings import (
+    generate_embedding,
+    mark_event_embedding_refresh,
+)
 from pmapi.user.model import User
 from pmapi.utils import ROLES
 
@@ -286,8 +289,6 @@ def add_event(**kwargs):
     db.session.flush()
     print("added event!")
 
-    refresh_event_embedding(event)
-
     # separation count of 0 means no recurrance
     if rrule and rrule["separationCount"] > 0:
         rrule = Rrule(
@@ -312,6 +313,8 @@ def add_event(**kwargs):
 
     if tags:
         event_tags.add_tags_to_event(tags, event)
+
+    mark_event_embedding_refresh(event)
 
     if media:
         media_items.add_media_to_event(media, event, creator=creator)
@@ -433,8 +436,7 @@ def update_event(event_id, **kwargs):
         if youtube_url:
             event.youtube_url = youtube_url
 
-    if name is not None or description is not None:
-        refresh_event_embedding(event)
+    should_refresh_embedding = name is not None or description is not None
 
     if remove_rrule is True:
         if existing_rrule is not None:
@@ -445,14 +447,15 @@ def update_event(event_id, **kwargs):
             db.session.add(activity)
 
     if add_tags and len(add_tags) > 0:
-        event_tags.add_tags_to_event(
-            add_tags, event
-        )  # will remove tag if it already exists
+        event_tags.add_tags_to_event(add_tags, event)
+        should_refresh_embedding = True
 
     if remove_tags and len(remove_tags) > 0:
-        event_tags.add_tags_to_event(
-            remove_tags, event
-        )  # will remove tag if it already exists
+        event_tags.add_tags_to_event(remove_tags, event)
+        should_refresh_embedding = True
+
+    if should_refresh_embedding:
+        mark_event_embedding_refresh(event)
 
     if media:
         # if is_suggestion:
@@ -468,6 +471,8 @@ def update_event(event_id, **kwargs):
     should_regenerate_recurring_dates = (
         date_time and location and rrule and rrule["separationCount"] > 0
     )
+    if date_time or location or rrule or remove_rrule:
+        mark_event_embedding_refresh(event)
 
     # require these three fields to update
     # separtion count of 0 means no recurrance

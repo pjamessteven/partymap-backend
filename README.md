@@ -125,6 +125,14 @@ Expose on local network when running flask dev server without Docker
 
 ---
 
+Data migrations
+
+Backfill embeddings:
+
+> python manage.py backfill_event_embeddings --force
+
+---
+
 ## Alembic Postgres Database Management commands:
 
 Make a new database migration:

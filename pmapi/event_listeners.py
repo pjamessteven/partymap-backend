@@ -20,6 +20,11 @@ def track_objects(session, flush_context, instances):
         session._pending_objects = set()
     session._pending_objects.update(session.new)
     session._pending_objects.update(session.dirty)
+    session._pending_objects.update(
+        obj
+        for obj in session.identity_map.values()
+        if getattr(obj, "refresh_embedding_after_commit", False)
+    )
     # exclude objects if flagged to not process
     session._pending_objects = {obj for obj in session._pending_objects if not should_exclude(obj)}
 
@@ -27,6 +32,8 @@ def track_objects(session, flush_context, instances):
 def should_exclude(obj):
     # Exclude objects where `obj.after_commit` is set to False
     if (hasattr(obj, 'after_commit') and obj.after_commit == True):
+        return False
+    if getattr(obj, "refresh_embedding_after_commit", False):
         return False
     return True
 
@@ -47,21 +54,28 @@ def process_objects_after_commit(session):
 
             # refresh event description in background after create or update
             if isinstance(instance, Event):
+                if getattr(instance, "refresh_embedding_after_commit", False):
+                    event_id = instance.id
+                    from pmapi.celery_tasks import update_event_embedding
+                    update_event_embedding.delay(event_id)
+                    instance.refresh_embedding_after_commit = False
 
                 # dont burn tokens in DEV
-                if not DEV_ENVIRON or True:
+                if getattr(instance, 'after_commit', False) and (not DEV_ENVIRON or True):
                     event_id = instance.id
                     from pmapi.celery_tasks import update_event_translation
                     update_event_translation.delay(event_id)
+                    instance.after_commit = False
                     print(f"Event instance committed or updated: {instance}")
 
             # refresh event date description in background after create or update
             if isinstance(instance, EventDate):
                 # dont burn tokens in DEV
-                if not DEV_ENVIRON:
+                if getattr(instance, 'after_commit', False) and not DEV_ENVIRON:
                     event_date_id = instance.id
                     from pmapi.celery_tasks import update_event_date_translation
                     update_event_date_translation.delay(event_date_id)
+                    instance.after_commit = False
                     print(f"EventDate instance committed or updated: {instance}")
 
         session._pending_objects.clear()
