@@ -46,13 +46,85 @@
     },
     "location": {
       "type": ["object", "null"],
-      "description": "Event location",
-      "properties": {
-        "description": {
-          "type": "string",
-          "description": "Location description"
+      "description": "Event location. You can provide either a simple description for Google Maps lookup or a full Google place payload.",
+      "oneOf": [
+        {
+          "required": ["description"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Free-text location description to look up"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["place_id", "description", "geometry", "types", "address_components"],
+          "properties": {
+            "place_id": {
+              "type": "string",
+              "description": "Stable place identifier"
+            },
+            "name": {
+              "type": ["string", "null"],
+              "description": "Place name"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable address or place description"
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "geometry": {
+              "type": "object",
+              "required": ["location"],
+              "properties": {
+                "location": {
+                  "type": "object",
+                  "required": ["lat", "lng"],
+                  "properties": {
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lng": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "address_components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["long_name", "short_name", "types"],
+                "properties": {
+                  "long_name": {
+                    "type": "string"
+                  },
+                  "short_name": {
+                    "type": "string"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
         }
-      }
+      ]
     },
     "url": {
       "type": ["string", "null"],

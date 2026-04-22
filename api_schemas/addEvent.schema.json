@@ -55,14 +55,85 @@
     },
     "location": {
       "type": "object",
-      "description": "Event location",
-      "required": ["description"],
-      "properties": {
-        "description": {
-          "type": "string",
-          "description": "Location description (e.g., '123 test road')"
+      "description": "Event location. You can provide either a simple description for Google Maps lookup or a full Google place payload.",
+      "oneOf": [
+        {
+          "required": ["description"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Free-text location description to look up (e.g., '123 test road')"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "required": ["place_id", "description", "geometry", "types", "address_components"],
+          "properties": {
+            "place_id": {
+              "type": "string",
+              "description": "Stable place identifier"
+            },
+            "name": {
+              "type": ["string", "null"],
+              "description": "Place name"
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable address or place description"
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "geometry": {
+              "type": "object",
+              "required": ["location"],
+              "properties": {
+                "location": {
+                  "type": "object",
+                  "required": ["lat", "lng"],
+                  "properties": {
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lng": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "address_components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["long_name", "short_name", "types"],
+                "properties": {
+                  "long_name": {
+                    "type": "string"
+                  },
+                  "short_name": {
+                    "type": "string"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
         }
-      }
+      ]
     },
     "url": {
       "type": ["string", "null"],
@@ -206,34 +277,42 @@
         }
       }
     },
-    "ticket_url": {
-      "type": ["string", "null"],
-      "description": "URL for ticket purchases (optional)"
-    },
     "tickets": {
       "type": ["array", "null"],
-      "description": "List of ticket options (optional)",
+      "description": "List of ticket objects for the next event date (optional)",
       "items": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": ["integer", "null"],
+            "description": "Ticket ID (optional; ignored on create)"
+          },
+          "event_id": {
+            "type": ["integer", "null"],
+            "description": "Parent event ID (optional; ignored on create)"
+          },
+          "event_date_id": {
+            "type": ["integer", "null"],
+            "description": "Parent event-date ID (optional; ignored on create)"
+          },
           "url": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "Ticket purchase URL"
           },
           "description": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "Ticket description (e.g., 'General Admission')"
           },
           "price_min": {
-            "type": "number",
+            "type": ["number", "null"],
             "description": "Minimum ticket price"
           },
           "price_max": {
-            "type": "number",
+            "type": ["number", "null"],
             "description": "Maximum ticket price"
           },
           "price_currency_code": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "Currency code (e.g., 'USD', 'EUR')"
           }
         }

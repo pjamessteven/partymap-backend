@@ -65,11 +65,11 @@ See /swagger-ui/ and /swagger/
 
 5. Build images
 
-   > docker compose build (--no-cache option can be useful sometimes)
+   > docker compose -f docker-compose.dev.yml build --no-cache (--no-cache option can be useful sometimes)
 
 6. Run containers
 
-   > docker compose -f docker-compose.local.yml up
+   > docker compose -f docker-compose.dev.yml up
 
 7. - If you want to your database prepopulated with events from a partymap.com snapshot
 

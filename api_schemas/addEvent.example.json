@@ -40,7 +40,12 @@
     { "name": "Support Act One" },
     { "name": "Local Band" }
   ],
-  "ticket_url": "https://tickets.example.com/summerfest2026",
+  "next_event_date_lineup_images": [
+    {
+      "url": "https://example.com/summerfest2026-lineup-poster.jpg",
+      "caption": "Official opening lineup poster"
+    }
+  ],
   "tickets": [
     {
       "url": "https://tickets.example.com/summerfest2026/ga",
