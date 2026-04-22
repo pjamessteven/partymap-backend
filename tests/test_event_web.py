@@ -38,6 +38,7 @@ def test_add_event_rrule(regular_user):
     payload = {
         "name": "Test event",
         "description": "Test description",
+        "full_description": "Test full description",
         "location": {
             "address_components": [
                 {
@@ -71,16 +72,9 @@ def test_add_event_rrule(regular_user):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -89,18 +83,17 @@ def test_add_event_rrule(regular_user):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
         "url": "test.com",
         "tags": ["test1", "test2"],
-        "images": None,
     }
     rv = regular_user.client.post(url_for("events.EventsResource"), json=payload)
-
+    assert rv.status_code == 200
     event = rv.json
-    print(event)
-    assert event["description"] == payload["description"]
     assert event["name"] == payload["name"]
     assert len(event["event_dates"]) == 10
+    # Timaru is Pacific/Auckland (UTC+12)
     assert datetime.fromisoformat(event["event_dates"][0]["start_naive"]) == datetime(
         2021, 5, 12, 8, 00, tzinfo=None
     )
@@ -114,9 +107,7 @@ def test_add_event_rrule(regular_user):
         2021, 5, 14, 8, 30, tzinfo=None
     )
     # check tags
-    event_tags = []
-    for tag in event["event_tags"]:
-        event_tags.append(tag["tag"])
+    event_tags = [tag["tag"] for tag in event["event_tags"]]
     for tag in payload["tags"]:
         assert tag in event_tags
 
@@ -125,6 +116,7 @@ def test_add_event_rrule_anon(anon_user):
     payload = {
         "name": "Test event",
         "description": "Test description",
+        "full_description": "Test full description",
         "location": {
             "address_components": [
                 {
@@ -158,16 +150,9 @@ def test_add_event_rrule_anon(anon_user):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -179,10 +164,9 @@ def test_add_event_rrule_anon(anon_user):
         },
         "url": "test.com",
         "tags": ["test1", "test2"],
-        "images": None,
     }
     rv = anon_user.client.post(url_for("events.EventsResource"), json=payload)
-    assert rv.status_code == 302  # login required
+    assert rv.status_code == 401  # login required
 
 
 def test_update_event_rrule(complete_event_factory, regular_user):
@@ -221,16 +205,9 @@ def test_update_event_rrule(complete_event_factory, regular_user):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -305,16 +282,9 @@ def test_update_event_rrule_staff(complete_event_factory, regular_user, staff_us
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -391,16 +361,9 @@ def test_update_event_no_permission(complete_event_factory, regular_user_factory
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,

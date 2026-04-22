@@ -6,7 +6,7 @@ from flask.helpers import get_debug_flag
 from flask import current_app
 from flask_login import current_user, login_user
 from sqlalchemy import and_, bindparam, cast, case, func, join, or_, select
-from sqlalchemy.orm import with_expression
+from sqlalchemy.orm import joinedload, with_expression
 from sqlalchemy_continuum import transaction_class, version_class, versioning_manager
 
 import pmapi.event_location.controllers as event_locations
@@ -358,6 +358,20 @@ def add_event(**kwargs):
 
     db.session.commit()
 
+    # Re-attach event and eagerly load relationships to avoid DetachedInstanceError
+    event = (
+        db.session.query(Event)
+        .options(
+            joinedload(Event.event_dates),
+            joinedload(Event.event_tags),
+            joinedload(Event.media_items),
+            joinedload(Event.rrule),
+            joinedload(Event.creator),
+            joinedload(Event.host),
+        )
+        .get(event.id)
+    )
+
     # send notification
     if creator and creator.role < 30:
         send_new_event_notification(
@@ -572,6 +586,8 @@ def update_event(event_id, **kwargs):
     db.session.flush()
     db.session.commit()
 
+    # Re-query to avoid DetachedInstanceError after commit
+    event = Event.query.get(event.id)
     return event
 
 

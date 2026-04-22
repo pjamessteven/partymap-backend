@@ -2,7 +2,7 @@ from pmapi.application import create_app
 from pmapi.extensions import db as _db
 from pmapi.user.model import User
 from pmapi.event.model import Event, Rrule
-from pmapi.event_location.model import EventLocation, EventLocationType
+from pmapi.event_location.model import EventLocation, EventLocationType, Country, Region, Locality
 from pmapi.event_tag.model import Tag, EventTag
 from pmapi.config import BaseConfig
 from pmapi.extensions import mail
@@ -16,6 +16,7 @@ from flask_migrate import upgrade
 import pytest
 import uuid
 from sqlalchemy import func, and_, Index, ForeignKeyConstraint
+from unittest.mock import patch
 
 import pmapi.event_date.controllers as event_dates
 
@@ -54,6 +55,7 @@ def db(app, config):
         print('SETUP DB')
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+        _db.engine.execute("CREATE EXTENSION IF NOT EXISTS hstore;")
         _db.create_all()
         # configure anon user
         anon = (
@@ -96,26 +98,42 @@ def clear_db(request):
         meta = db.metadata
         print('CLEARED DB2')
 
-        
-        # Drop all tables
-        for table in reversed(meta.sorted_tables):
-            print('table', table)
-            db.engine.execute(table.delete())
-        db.session.commit()
+        # Rollback any pending transaction from a failed test
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        # Delete all rows using truncate cascade to handle fk ordering
+        with db.engine.begin() as conn:
+            for table in reversed(meta.sorted_tables):
+                print('table', table)
+                conn.execute(f"TRUNCATE TABLE {table.name} CASCADE")
         print('CLEARED DB3')
 
         # Drop the indexes
-        with db.engine.connect() as conn:
-            event_index = Index("idx_events_fts", "events.c.__ts_vector__")
-            event_index.drop(conn)
-            tag_index = Index("idx_tags_fts", "tags.c.__ts_vector__")
-            tag_index.drop(conn)
+        try:
+            with db.engine.begin() as conn:
+                event_index = Index("idx_events_fts", "events.c.__ts_vector__")
+                event_index.drop(conn)
+                tag_index = Index("idx_tags_fts", "tags.c.__ts_vector__")
+                tag_index.drop(conn)
+        except Exception:
+            pass
+        print('CLEARED DB4')
+        print('CLEARED DB3')
+
+        # Drop the indexes
+        try:
+            with db.engine.connect() as conn:
+                event_index = Index("idx_events_fts", "events.c.__ts_vector__")
+                event_index.drop(conn)
+                tag_index = Index("idx_tags_fts", "tags.c.__ts_vector__")
+                tag_index.drop(conn)
+        except Exception:
+            pass
         print('CLEARED DB4')
 
-        """
-        for table in reversed(meta.sorted_tables):
-            db.session.execute(table.delete())
-        """
         db.session.commit()
 
     if "db" in request.fixturenames:
@@ -277,10 +295,9 @@ def event_date_factory(
             event_location = event_location_factory()
         ed = event_dates.add_event_date(
             start_naive,
-            None,
+            end_naive,
             event,
             event_location=event_location,
-            end_naive=end_naive,
             url="https://test.com",
             creator=creator,
         )
@@ -391,6 +408,7 @@ def event_location_factory(app, db, regular_user, event_location_type_factory):
     def _gen_event_location(
         name="place name",
         geometry={"location": {"lat": -44.3903881, "lng": 171.2372756}},
+        address_components=None,
     ):
         place_id = str(uuid.uuid4())  # random primary key
         description = name
@@ -401,6 +419,38 @@ def event_location_factory(app, db, regular_user, event_location_type_factory):
 
         lat = float(geometry["location"]["lat"])
         lng = float(geometry["location"]["lng"])
+
+        # Default address components if none provided
+        if address_components is None:
+            address_components = [
+                {"long_name": "Timaru", "short_name": "Timaru", "types": ["locality", "political"]},
+                {"long_name": "Canterbury", "short_name": "Canterbury", "types": ["administrative_area_level_1", "political"]},
+                {"long_name": "New Zealand", "short_name": "NZ", "types": ["country", "political"]},
+            ]
+
+        # Create country, region, locality from address_components
+        country = None
+        region = None
+        locality = None
+        for component in address_components:
+            if "country" in component["types"]:
+                country = db.session.query(Country).filter_by(short_name=component["short_name"]).first()
+                if not country:
+                    country = Country(short_name=component["short_name"], long_name=component["long_name"])
+                    db.session.add(country)
+                    db.session.flush()
+            elif "administrative_area_level_1" in component["types"]:
+                region = db.session.query(Region).filter_by(short_name=component["short_name"], country=country).first()
+                if not region:
+                    region = Region(short_name=component["short_name"], long_name=component["long_name"], country=country)
+                    db.session.add(region)
+                    db.session.flush()
+            elif "locality" in component["types"]:
+                locality = db.session.query(Locality).filter_by(short_name=component["short_name"], region=region, country=country).first()
+                if not locality:
+                    locality = Locality(short_name=component["short_name"], long_name=component["long_name"], region=region, country=country)
+                    db.session.add(locality)
+                    db.session.flush()
 
         el = EventLocation(
             geohash=pgh.encode(lat, lng),
@@ -414,9 +464,11 @@ def event_location_factory(app, db, regular_user, event_location_type_factory):
             lng=lng,
             place_id=place_id,
             creator_id=regular_user.id,
+            country=country,
+            region=region,
+            locality=locality,
         )
         db.session.add(el)
-
         db.session.commit()
 
         return el
@@ -484,3 +536,93 @@ def emailer():
     """
     mail.reset_mail_sent()
     return mail
+
+
+# ---------------------------------------------------------------------------
+# Mock fixtures for external services (Google Maps, image downloads, etc.)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_gmaps_resolve():
+    """Patch Google Maps geocoding so tests can send a simple location string."""
+    fake_place = {
+        "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
+        "name": "Timaru",
+        "description": "Timaru, New Zealand",
+        "types": ["locality", "political"],
+        "geometry": {
+            "location": {"lat": -44.3903881, "lng": 171.2372756},
+            "viewport": {
+                "south": -44.42603005279609,
+                "west": 171.1740580162034,
+                "north": -44.33174896335244,
+                "east": 171.272916966389,
+            },
+        },
+        "address_components": [
+            {
+                "long_name": "Timaru",
+                "short_name": "Timaru",
+                "types": ["locality", "political"],
+            },
+            {
+                "long_name": "Canterbury",
+                "short_name": "Canterbury",
+                "types": ["administrative_area_level_1", "political"],
+            },
+            {
+                "long_name": "New Zealand",
+                "short_name": "NZ",
+                "types": ["country", "political"],
+            },
+        ],
+    }
+    with patch(
+        "pmapi.services.gmaps.get_best_location_result",
+        return_value=fake_place,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_image_download():
+    """Patch image URL downloading so tests can use fake remote image URLs."""
+    fake_base64 = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA"
+    with patch(
+        "pmapi.media_item.controllers.download_image_as_base64",
+        return_value=fake_base64,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_hcaptcha():
+    """Patch hCaptcha validation so anon suggestion tests don't need real tokens."""
+    with patch(
+        "pmapi.hcaptcha.controllers.validate_hcaptcha",
+        return_value=True,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_apple_auth():
+    """Patch Apple Sign-In authentication to return a fake user."""
+    fake_user = {"sub": "apple-id-123", "email": "apple@example.com"}
+    with patch(
+        "pmapi.auth.controllers.authenticate_apple_user",
+        return_value=fake_user,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def mock_generate_embedding():
+    """Patch embedding generation to return None in tests (avoids external API calls).
+    Must patch where it's used (pmapi.event.controllers), not where it's defined."""
+    with patch(
+        "pmapi.event.controllers.generate_embedding",
+        return_value=None,
+    ) as mock:
+        yield mock
