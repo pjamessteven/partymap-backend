@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import query_expression
 from sqlalchemy_utils import TranslationHybrid
 from sqlalchemy.ext.mutable import MutableDict
+from pmapi.config import BaseConfig
+from pmapi.db_types import Vector
 from pmapi.utils import get_locale
 from pmapi.extensions import db
 
@@ -139,6 +141,7 @@ class Event(db.Model):
         cascade="all, delete-orphan"
     )
     hidden = db.Column(db.Boolean, default=True)
+    search_embedding = db.Column(Vector(BaseConfig.EVENT_EMBEDDING_DIMENSIONS))
 
     __ts_vector__ = create_tsvector(name, description)
     # this is an index for searching events

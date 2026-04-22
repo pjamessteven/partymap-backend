@@ -48,6 +48,20 @@ class BaseConfig(object):
 
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     ENABLE_TRANSLATIONS = os.getenv("ENABLE_TRANSLATIONS", "false").lower() == "true"
+    ENABLE_EVENT_EMBEDDINGS = (
+        os.getenv("ENABLE_EVENT_EMBEDDINGS", "false").lower() == "true"
+    )
+    EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    EMBEDDING_API_URL = os.getenv(
+        "EMBEDDING_API_URL", "https://api.openai.com/v1/embeddings"
+    )
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+    EVENT_EMBEDDING_DIMENSIONS = int(os.getenv("EVENT_EMBEDDING_DIMENSIONS", "1536"))
+    EVENT_SEARCH_VECTOR_MAX_DISTANCE = float(
+        os.getenv("EVENT_SEARCH_VECTOR_MAX_DISTANCE", "0.45")
+    )
+    EVENT_SEARCH_TEXT_WEIGHT = float(os.getenv("EVENT_SEARCH_TEXT_WEIGHT", "0.35"))
+    EVENT_SEARCH_VECTOR_WEIGHT = float(os.getenv("EVENT_SEARCH_VECTOR_WEIGHT", "0.65"))
 
     ZOHO_CLIENT_ID = os.environ.get("ZOHO_CLIENT_ID")
     ZOHO_CLIENT_SECRET = os.environ.get("ZOHO_CLIENT_SECRET")

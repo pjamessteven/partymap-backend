@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 
 from dateutil import parser
 from flask.helpers import get_debug_flag
+from flask import current_app
 from flask_login import current_user, login_user
-from sqlalchemy import and_, cast, func, join, or_, select
+from sqlalchemy import and_, bindparam, cast, case, func, join, or_, select
 from sqlalchemy.orm import with_expression
 from sqlalchemy_continuum import transaction_class, version_class, versioning_manager
 
@@ -19,6 +20,7 @@ from pmapi.common.permissions import (
 )
 from pmapi.config import BaseConfig, DevConfig, ProdConfig
 from pmapi.event_date.controllers import (
+    apply_event_date_datetime_and_location,
     delete_future_event_dates,
     generate_future_event_dates,
 )
@@ -36,7 +38,8 @@ from pmapi.mail.controllers import (
     send_new_event_notification,
 )
 from pmapi.media_item.controllers import download_image_as_base64
-from pmapi.services.gmaps import get_best_location_result
+from pmapi.services.gmaps import resolve_location_input
+from pmapi.services.embeddings import generate_embedding, refresh_event_embedding
 from pmapi.user.model import User
 from pmapi.utils import ROLES
 
@@ -127,9 +130,46 @@ def search_events(created_by_user, **kwargs):
                 query_text = query_text + (str(word) + str(":*"))
             else:
                 query_text = query_text + (str(word) + str(":* & "))
-        query = query.filter(
-            Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
-        )
+        ts_query = func.to_tsquery("english", query_text)
+        ts_match = Event.__ts_vector__.match(query_text, postgresql_regconfig="english")
+
+        query_embedding = None
+        try:
+            query_embedding = generate_embedding(query_string)
+        except Exception:
+            current_app.logger.exception(
+                "Failed to generate query embedding for event search"
+            )
+
+        if query_embedding:
+            vector_distance = Event.search_embedding.op("<=>")(
+                bindparam("query_embedding", query_embedding, type_=Event.search_embedding.type)
+            )
+            text_rank = func.ts_rank_cd(Event.__ts_vector__, ts_query)
+            semantic_score = case(
+                [(Event.search_embedding.isnot(None), 1 - vector_distance)],
+                else_=0.0,
+            )
+            combined_score = (
+                text_rank * CONFIG.EVENT_SEARCH_TEXT_WEIGHT
+                + semantic_score * CONFIG.EVENT_SEARCH_VECTOR_WEIGHT
+            )
+
+            query = (
+                query.filter(
+                    or_(
+                        ts_match,
+                        and_(
+                            Event.search_embedding.isnot(None),
+                            vector_distance <= CONFIG.EVENT_SEARCH_VECTOR_MAX_DISTANCE,
+                        ),
+                    )
+                )
+                .order_by(combined_score.desc(), text_rank.desc(), Event.id.desc())
+                .params(query_embedding=query_embedding)
+            )
+        else:
+            query = query.filter(ts_match)
 
     if created_by_user:
         query = query.filter(Event.creator_id == created_by_user.id)
@@ -221,13 +261,8 @@ def add_event(**kwargs):
     media = kwargs.pop("media_items", None)
     logo = kwargs.pop("logo", None)
     tickets = kwargs.pop("tickets", None)
-    ticket_url = kwargs.pop("ticket_url", None)
 
-    # If place_id is not provided, look it up using Google Maps
-    if "place_id" not in location and "description" in location:
-        location = get_best_location_result(location["description"])
-        if location is None:
-            raise exc.InvalidUsage("Could not find location from description")
+    location = resolve_location_input(location, exc.InvalidUsage)
 
     # Check if location already exists
     loc = event_locations.get_location(location["place_id"])
@@ -250,6 +285,8 @@ def add_event(**kwargs):
     db.session.add(event)
     db.session.flush()
     print("added event!")
+
+    refresh_event_embedding(event)
 
     # separation count of 0 means no recurrance
     if rrule and rrule["separationCount"] > 0:
@@ -302,13 +339,6 @@ def add_event(**kwargs):
 
     db.session.flush()
 
-    if ticket_url:
-        next_event_date = event.event_dates[0]
-        ed_ticket = EventDateTicket(
-            url=ticket_url, event_date=next_event_date, event=event
-        )
-        db.session.add(ed_ticket)
-
     if tickets:
         next_event_date = event.event_dates[0]
         for ticket in tickets:
@@ -358,6 +388,16 @@ def update_event(event_id, **kwargs):
     message = kwargs.pop("message", None)
     event = get_event_or_404(event_id)
     existing_rrule = db.session.query(Rrule).filter(Rrule.id == event.rrule_id).first()
+    event_location = None
+
+    location = resolve_location_input(location, exc.InvalidUsage)
+
+    if location:
+        event_location = event_locations.get_location(location["place_id"])
+        if event_location is None:
+            event_location = event_locations.add_new_event_location(
+                creator=current_user, **location
+            )
 
     # this field is useful for triggering
     # a new version of this object in continuum
@@ -393,6 +433,9 @@ def update_event(event_id, **kwargs):
         if youtube_url:
             event.youtube_url = youtube_url
 
+    if name is not None or description is not None:
+        refresh_event_embedding(event)
+
     if remove_rrule is True:
         if existing_rrule is not None:
             db.session.delete(existing_rrule)
@@ -422,14 +465,13 @@ def update_event(event_id, **kwargs):
     if logo:
         media_items.add_logo_to_event(logo, event, creator=current_user)
 
+    should_regenerate_recurring_dates = (
+        date_time and location and rrule and rrule["separationCount"] > 0
+    )
+
     # require these three fields to update
     # separtion count of 0 means no recurrance
-    if date_time and location and rrule and rrule["separationCount"] > 0:
-        # location
-        event_location = event_locations.get_location(location["place_id"])
-        if event_location is None:
-            event_location = event_locations.add_new_event_location(**location)
-
+    if should_regenerate_recurring_dates:
         # delete existing rrule if exists
         if existing_rrule is not None:
             existing_rrule.recurring_type = rrule["recurringType"]
@@ -469,12 +511,21 @@ def update_event(event_id, **kwargs):
             activity = Activity(verb="create", object=rrule, target=event)
             db.session.add(activity)
 
-        # session.flush()
-        # db.session.commit()
+    elif event_location is not None and existing_rrule is not None:
+        existing_rrule.default_location = event_location
+        db.session.flush()
+        activity = Activity(verb="update", object=existing_rrule, target=event)
+        db.session.add(activity)
 
-    # db.session.commit()
+    if (date_time or event_location is not None) and not should_regenerate_recurring_dates:
+        for future_event_date in event.future_event_dates:
+            apply_event_date_datetime_and_location(
+                future_event_date,
+                date_time=date_time,
+                event_location=event_location,
+            )
 
-    if (date_time and location and rrule) or remove_rrule:
+    if should_regenerate_recurring_dates or remove_rrule:
         # perform event_date add/delete as system user
         # manually create new transaction
         # requesting_user_id = current_user.id
@@ -492,7 +543,7 @@ def update_event(event_id, **kwargs):
             # login as bot user for following action
             delete_future_event_dates(event, preserve_next=False, activity=False)
 
-        if date_time and location and rrule:
+        if should_regenerate_recurring_dates:
             delete_future_event_dates(event, preserve_next=False, activity=False)
             print(rrule.week_of_month)
             generate_future_event_dates(
