@@ -1,27 +1,39 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.10-bullseye
+FROM python:3.12-slim-bookworm
 
-# install system dependencies (I think the PIL python library requires all this qt5 shit)
-RUN pip install --upgrade pip setuptools wheel
-RUN apt update && apt install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools pyqt5-dev postgresql ffmpeg python3-dev  python3-distutils libatlas-base-dev && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools \
+    pyqt5-dev postgresql ffmpeg python3-dev \
+    libatlas-base-dev gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /app
-RUN pip3 --version
 
-# install python dependencies
-COPY requirements.txt requirements.txt
-RUN pip3 install --use-pep517 googlemaps
-RUN pip3 install -r requirements.txt
+# Enable uv bytecode compilation for faster startup
+ENV UV_COMPILE_BYTECODE=1
 
-# install flask-track-usage AFTER other dependancies have been installed (depends onsphinxcontrib-applehelp)
-# RUN pip3 install git+https://github.com/ashcrow/flask-track-usage@baeec4d#egg=Flask-Track-Usage
+# Set up uv to use a virtual environment outside of /app (to avoid volume mount issues)
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
-# copy project files to WORKDIR
+# Copy dependency files first (for better layer caching)
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies using uv
+RUN uv sync --frozen --no-install-project
+
+# Copy project files
 COPY . .
 
-# expose port to host
+# Sync again with project
+RUN uv sync --frozen
+
+# Expose port to host
 EXPOSE 5000
 
-# run entrypoint.sh to init db
+# Run entrypoint.sh to init db
 ENTRYPOINT ["/app/entrypoint.sh"]

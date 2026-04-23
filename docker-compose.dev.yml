@@ -30,9 +30,11 @@ services:
     hostname: worker_1
     env_file:
       - ./.env
-    entrypoint: celery
+    environment:
+      - UV_PROJECT_ENVIRONMENT=/opt/venv
+    entrypoint: uv
     user: "1000"
-    command: -A pmapi.celery_worker.celery worker --loglevel=debug  --concurrency=4
+    command: run celery -A pmapi.celery_worker.celery worker --loglevel=debug --concurrency=4
     volumes:
       - .:/app
     links:

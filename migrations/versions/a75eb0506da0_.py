@@ -20,6 +20,11 @@ def upgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
 
+    # Check if flask_usage table exists
+    if 'flask_usage' not in inspector.get_table_names():
+        print("Skipping: 'flask_usage' table does not exist yet")
+        return
+
     col_type = next(
         (col['type'] for col in inspector.get_columns('flask_usage') if col['name'] == 'ip_info'),
         None
@@ -40,6 +45,11 @@ def upgrade():
 def downgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
+
+    # Check if flask_usage table exists
+    if 'flask_usage' not in inspector.get_table_names():
+        print("Skipping: 'flask_usage' table does not exist")
+        return
 
     col_type = next(
         (col['type'] for col in inspector.get_columns('flask_usage') if col['name'] == 'ip_info'),

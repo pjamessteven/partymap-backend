@@ -33,13 +33,50 @@ To start contributing to the code base, [find](https://github.com/pjamessteven/p
 
 ---
 
+## Dependency Management with uv
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast Python dependency management. While the app runs in Docker, you'll use uv locally to manage dependencies.
+
+### Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Common uv Commands
+
+| Task | Command |
+|------|---------|
+| Install dependencies (creates/updates lock file) | `uv sync` |
+| Add a production package | `uv add <package>` |
+| Add a dev package | `uv add --group dev <package>` |
+| Update lock file after manual pyproject.toml edits | `uv lock` |
+| Run tests | `uv run pytest` |
+| Format code | `uv run black .` |
+| Lint code | `uv run flake8` |
+
+### Adding a New Dependency
+
+1. Add the package using uv:
+   ```bash
+   uv add <package-name>
+   ```
+
+2. Rebuild the Docker image to include the new dependency:
+   ```bash
+   docker compose -f docker-compose.dev.yml build --no-cache web
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+---
+
 ## Overview
 
 I dockerized PMAPI because it has dependencies like rabbitmq, celery and postgres that can be annoying to manually set up. If you haven't used Docker before, basically it automates the creation of virtual machines images that are set up the same every time according to a script. The file `docker-compose.yml` contains the definitions for each of the creation and configuration of the four services that make up PMAPI. These services all talk to each other over a virtual network. The hostname of each machine or 'service' on the network is simply the name of the service as defined in `docker-compose.yml`.
 
 These containers are:
 
-- `web`: This is the main container which contains and runs the Python Flask application. The base is Debian 11 'Bullseye'. When docker builds this image, it follows the script in the file named 'Dockerfile'. This script uses apt to install some system packages that are dependencies of the project. It also installs all of the 3rd party Python packages defined in `requirements.txt`. Environment variables (mostly used by the flask app, see `config.py`) are defined in the file `.env.dev`. You will need to rebuild this image if you add or change any environment variables.
+- `web`: This is the main container which contains and runs the Python Flask application. The base is Debian 12 'Bookworm' with Python 3.12. When docker builds this image, it follows the script in the file named 'Dockerfile'. This script uses apt to install some system packages that are dependencies of the project. It also installs all of the 3rd party Python packages defined in `pyproject.toml` and locked in `uv.lock` using [uv](https://docs.astral.sh/uv/) for fast, reliable dependency management. Environment variables (mostly used by the flask app, see `config.py`) are defined in the file `.env.dev`. You will need to rebuild this image if you add or change any environment variables.
 
 - `db`: This is the Postgresql database configured with the Postgis extension (for geo features like getting distances between two points extremely fast with a SQL query). This image is based on Alpine Linux (a very minimal distro). When first built, the image creates a database with the name and password defined in the environment variables.
 
@@ -51,7 +88,7 @@ These containers are:
 
 See /swagger-ui/ and /swagger/
 
-## Initial install
+## Initial install (Docker)
 
 1. Make sure you have Docker and Docker Compose installed on your system!
 
@@ -65,23 +102,23 @@ See /swagger-ui/ and /swagger/
 
 5. Build images
 
-   > docker compose -f docker-compose.dev.yml build --no-cache (--no-cache option can be useful sometimes)
+   > docker compose -f docker-compose.dev.yml build --no-cache
 
 6. Run containers
 
    > docker compose -f docker-compose.dev.yml up
 
-7. - If you want to your database prepopulated with events from a partymap.com snapshot
+7. - If you want your database prepopulated with events from a partymap.com snapshot:
 
-     > docker compose exec web python3 manage.py seed_db
+     > docker compose exec web uv run python manage.py seed_db
 
-   - If you want a fresh testing environment, you will just need to create the default users in the database (admin, anon, partymap-bot):
+   - If you want a fresh testing environment, create the default users:
 
-     > docker compose exec web python3 manage.py create_users
+     > docker compose exec web uv run python manage.py create_users
 
-8. That should be it! You should now be able to access the api from your local environment at localhost:5000
+8. That should be it! Access the API at http://localhost:5000
 
-## Subsequent runs:
+## Subsequent runs (Docker):
 
 > docker compose up
 
@@ -95,13 +132,13 @@ Create empty database:
 
 > docker compose exec db createdb -U partymap partymap
 
-Adjust SQLAlchemy tables (do this after recreating the database)
+Adjust SQLAlchemy tables (do this after recreating the database):
 
 > docker compose exec web ./alter_sqlalchemy_tables.sh
 
 Seed database with production snapshot:
 
-> docker compose exec web python3 manage.py seed_test_db
+> docker compose exec web uv run python manage.py seed_test_db
 
 Access bash within the main 'web' container:
 
@@ -111,25 +148,21 @@ Send any command to a container:
 
 > docker compose exec [container name] [command]
 
-Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_types.ts)
+Generate Typescript interfaces from marshmallow schemas (prints to ./autogen_types.ts):
 
-> docker compose exec web python3 manage.py generate_types
+> docker compose exec web uv run python manage.py generate_types
 
-Expose local Docker network to local network (useful for testing on mobile)
+Expose local Docker network to local network (useful for testing on mobile):
 
 > docker compose run --service-ports web
 
-Expose on local network when running flask dev server without Docker
-
-> pyton3 manage.py runserver --host=0.0.0.0
-
 ---
 
-Data migrations
+## Data migrations
 
 Backfill embeddings:
 
-> python manage.py backfill_event_embeddings --force
+> docker compose exec web uv run python manage.py backfill_event_embeddings --force
 
 ---
 
@@ -137,19 +170,19 @@ Backfill embeddings:
 
 Make a new database migration:
 
-> docker compose exec web python3 manage.py db migrate
+> docker compose exec web uv run python manage.py db migrate
 
 List all database migrations/revisions:
 
-> docker compose exec web python3 manage.py db history
+> docker compose exec web uv run python manage.py db history
 
 Upgrade to the latest database migration:
 
-> docker compose exec web python3 manage.py db upgrade
+> docker compose exec web uv run python manage.py db upgrade
 
-Downgrade to the latest database migration:
+Downgrade to a specific migration:
 
-> docker compose exec web python3 manage.py db downgrade [REVISION_ID]
+> docker compose exec web uv run python manage.py db downgrade [REVISION_ID]
 
 ## Prod notes:
 

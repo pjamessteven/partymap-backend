@@ -141,4 +141,15 @@ def shell_ctx():
 
 
 if __name__ == "__main__":
+    # Patch for Python 3.12 compatibility with flask-script
+    import argparse
+    original_parse_known_args = argparse.ArgumentParser.parse_known_args
+    
+    def patched_parse_known_args(self, args=None, namespace=None):
+        if namespace is None:
+            namespace = argparse.Namespace()
+        return original_parse_known_args(self, args, namespace)
+    
+    argparse.ArgumentParser.parse_known_args = patched_parse_known_args
+    
     manager.run()
