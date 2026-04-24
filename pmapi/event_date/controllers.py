@@ -196,6 +196,7 @@ def add_event_date_with_datetime(
     tickets=None,
     size=None,
     artists=None,
+    lineup_images=None,
     creator=None,
 ):
     # this function is used by the post eventdate endpoint
@@ -224,6 +225,7 @@ def add_event_date_with_datetime(
             url=url,
             tickets=tickets,
             artists=artists,
+            lineup_images=lineup_images,
         )
 
         db.session.commit()
@@ -462,6 +464,9 @@ def generate_future_event_dates(
     if event_location is None and rrule:
         event_location = rrule.default_location
 
+    if event_location is None and event.event_dates:
+        event_location = event.last_event_date().location
+
     if date_time:
         if date_time.get("start", None) is None:
             raise exc.InvalidAPIRequest("Start date required")
@@ -491,7 +496,6 @@ def generate_future_event_dates(
 
     if rrule is None or rrule.separation_count == 0:
         # event is a one-off
-        event.recurring = False
         add_event_date(
             event=event,
             start_naive=start_naive,
@@ -515,7 +519,6 @@ def generate_future_event_dates(
             url = rrule.default_url
 
         # event is recurring
-        event.recurring = True
         startdates, enddates = generateRecurringDates(rrule, start_naive, end_naive)
 
         # work out how many dates to generate
@@ -732,9 +735,11 @@ def query_event_dates(**kwargs):
         if lat is None or lng is None:
             raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
 
+        wkt = f"SRID=4326;POINT({lng} {lat})"
+        print("DISTANCE WKT:", wkt)
         distance_expression = func.ST_Distance(
             cast(EventLocation.geo, Geography(srid=4326)),
-            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+            cast(wkt, Geography(srid=4326)),
         )
 
         query = (
@@ -843,9 +848,11 @@ def query_event_dates(**kwargs):
         if lat is None or lng is None:
             raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
 
+        wkt = f"SRID=4326;POINT({lng} {lat})"
+        print("DISTANCE WKT:", wkt)
         distance_expression = func.ST_Distance(
             cast(EventLocation.geo, Geography(srid=4326)),
-            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+            cast(wkt, Geography(srid=4326)),
         )
 
         query = (
@@ -985,14 +992,18 @@ def query_event_dates(**kwargs):
     # Create an alias for EventDate that we'll use throughout
     EventDateAlias = aliased(EventDate)
 
-    query = db.session.query(EventDateAlias)
+    query = db.session.query(EventDateAlias).populate_existing()
 
     # Initialize distance_expression as None
     distance_expression = None
 
-    if bounds:
-        # Ensure EventLocation is joined if not already
+    # Always join EventLocation and Event so filters can assume they exist
+    query = (
+        query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
+        .join(Event, EventDateAlias.event_id == Event.id)
+    )
 
+    if bounds:
         # Bounds filter
         northEast = bounds["_northEast"]
         southWest = bounds["_southWest"]
@@ -1016,7 +1027,7 @@ def query_event_dates(**kwargs):
 
     # Tag filters
     if tags := kwargs.get("tags"):
-        query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
+            query = query.filter(Event.event_tags.any(EventTag.tag_id.in_(tags)))
 
     if empty_lineup:
         query = query.filter(~EventDateAlias.artists.any())
@@ -1038,22 +1049,19 @@ def query_event_dates(**kwargs):
 
     # Distance filter if location is provided
     if location_filters and location_filters["lat"] and location_filters["lng"]:
-        print("LOCATION FILTERS")
         lat = float(location_filters["lat"])
         lng = float(location_filters["lng"])
         if lat is None or lng is None:
             raise exc.InvalidAPIRequest("lat and lng are required for nearby search.")
 
+        wkt = f"SRID=4326;POINT({lng} {lat})"
         distance_expression = func.ST_Distance(
             cast(EventLocation.geo, Geography(srid=4326)),
-            cast(f"SRID=4326;POINT({lng} {lat})", Geography(srid=4326)),
+            cast(wkt, Geography(srid=4326)),
         )
 
-        query = (
-            query.join(EventLocation, EventDateAlias.location_id == EventLocation.id)
-            .join(Event, EventDateAlias.event_id == Event.id)
-            .options(with_expression(EventDateAlias.distance, distance_expression))
-        )
+        # EventLocation and Event are already joined above; don't join again.
+        query = query.options(with_expression(EventDateAlias.distance, distance_expression))
 
         if bounds is None and radius == 0:
             # used on the home page of partyman
@@ -1120,13 +1128,6 @@ def query_event_dates(**kwargs):
         # Apply radius filter
         if radius:
             query = query.filter(distance_expression <= radius)
-
-    # location not provided
-    else:
-        query = query.join(
-            EventLocation, EventDateAlias.location_id == EventLocation.id
-        )
-        query = query.join(Event, EventDateAlias.event_id == Event.id)
 
     if country_id:
         query = query.filter(EventLocation.country_id == country_id)
@@ -1273,6 +1274,8 @@ def query_event_dates(**kwargs):
         query = query.order_by(sort_field)
 
     # Paginate results
+    # Pop 'query' from kwargs to avoid conflict with paginated_results()'s query param
+    kwargs.pop("query", None)
     results = paginated_results(EventDate, query, **kwargs)
 
     results.radius = radius
@@ -1775,7 +1778,8 @@ def toggle_going(id):
         user.going_event_dates.remove(event_date)
 
     db.session.commit()
-    return event_date
+    # Re-fetch so that with_expression values are populated for the response
+    return get_event_date_or_404(id)
 
 
 def toggle_interested(id):
@@ -1795,7 +1799,8 @@ def toggle_interested(id):
         user.interested_event_dates.remove(event_date)
 
     db.session.commit()
-    return event_date
+    # Re-fetch so that with_expression values are populated for the response
+    return get_event_date_or_404(id)
 
 
 def ics_download(id):

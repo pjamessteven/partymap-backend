@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import url_for
+import pytest
 
 
 def test_get_event(anon_user, complete_event_factory):
@@ -11,7 +12,7 @@ def test_get_event(anon_user, complete_event_factory):
 
 def test_get_event_or_404(anon_user):
     rv = anon_user.client.get(
-        url_for("events.EventResource", event_id="52544252-6f78-4fbd-8fb9-adb3dec7b3f8")
+        url_for("events.EventResource", event_id="999999")
     )
     assert rv.status_code == 404
 
@@ -161,12 +162,13 @@ def test_add_event_rrule_anon(anon_user):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
         "url": "test.com",
         "tags": ["test1", "test2"],
     }
     rv = anon_user.client.post(url_for("events.EventsResource"), json=payload)
-    assert rv.status_code == 401  # login required
+    assert rv.status_code == 200  # anonymous event creation is allowed
 
 
 def test_update_event_rrule(complete_event_factory, regular_user):
@@ -216,6 +218,7 @@ def test_update_event_rrule(complete_event_factory, regular_user):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
     }
 
@@ -293,6 +296,7 @@ def test_update_event_rrule_staff(complete_event_factory, regular_user, staff_us
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
     }
 
@@ -392,19 +396,19 @@ def test_update_event_description(complete_event_factory, regular_user):
     assert rv.json["description"] == payload["description"]
 
 
-def test_update_event_url(complete_event_factory, regular_user):
+def test_update_event_youtube_url(complete_event_factory, regular_user):
     event = complete_event_factory(creator=regular_user)
-    payload = {"url": "http://updatedurl.com"}
+    payload = {"youtube_url": "https://youtube.com/updated"}
     rv = regular_user.client.put(
         url_for("events.EventResource", event_id=event.id), json=payload
     )
-    assert rv.status_code == 200  # login required
-    assert rv.json["default_url"] == payload["url"]
+    assert rv.status_code == 200
+    assert rv.json["youtube_url"] == payload["youtube_url"]
 
 
 def test_update_event_tags(complete_event_factory, regular_user):
     event = complete_event_factory(creator=regular_user)
-    payload = {"tags": ["test", "blah"]}
+    payload = {"add_tags": ["test", "blah"]}
 
     rv = regular_user.client.put(
         url_for("events.EventResource", event_id=event.id), json=payload
@@ -414,7 +418,7 @@ def test_update_event_tags(complete_event_factory, regular_user):
     event_tags = []
     for tag in rv.json["event_tags"]:
         event_tags.append(tag["tag"])
-    for tag in payload["tags"]:
+    for tag in payload["add_tags"]:
         assert tag in event_tags
 
 

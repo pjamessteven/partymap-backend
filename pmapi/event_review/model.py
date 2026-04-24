@@ -74,11 +74,9 @@ class EventReview(db.Model):
             event_id=self.event_id,
         )
 
-    def get_status(self):
-        """
-        returns string form of status, 0 = 'dead', 1 = 'alive'
-        """
-        return self.status
+    def get_age(self):
+        """Return seconds since Unix epoch for created_at."""
+        return self.created_at.timestamp()
 
     def get_hotness(self):
         """
@@ -102,7 +100,7 @@ class EventReview(db.Model):
         return ids of users who voted this item up
         """
         select = event_review_upvotes.select(
-            event_review_upvotes.c.thread_id == self.id
+            event_review_upvotes.c.event_review_id == self.id
         )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples
@@ -113,7 +111,7 @@ class EventReview(db.Model):
         return ids of users who voted this item down
         """
         select = event_review_downvotes.select(
-            event_review_downvotes.c.thread_id == self.id
+            event_review_downvotes.c.event_review_id == self.id
         )
         rs = db.engine.execute(select)
         ids = rs.fetchall()  # list of tuples

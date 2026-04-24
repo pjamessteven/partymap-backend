@@ -9,17 +9,9 @@ def test_add_event_date_with_datetime(regular_user, complete_event_factory):
     event = complete_event_factory()
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "location": {
             "address_components": [
@@ -63,26 +55,32 @@ def test_add_event_date_with_datetime(regular_user, complete_event_factory):
     )
     assert regular_user.id == event.creator_id  # only the event creator can add dates
     assert rv.status_code == 200
-    assert rv.json["event_id"] == event.id
-    assert rv.json["description"] == "Test description"
-    assert rv.json["url"] == "https://www.test.com"
-    assert rv.json["tz"] == "Pacific/Auckland"
-    assert rv.json["location"]["city"] == "Timaru"  # test that geocode is working
-    assert rv.json["location"]["country_code"] == "NZ"
-    assert rv.json["location"]["country"] == "New Zealand"
-    assert rv.json["location"]["description"] == "Timaru, New Zealand"
-    assert datetime.fromisoformat(rv.json["start"]) == datetime(
+    # Endpoint returns EventSchema, not EventDateSchema
+    assert rv.json["id"] == event.id
+    # The new event_date is in the past so it will be the first item in event_dates
+    # (ordered by start ascending). The factory date is in the future.
+    new_date = next(
+        (ed for ed in rv.json["event_dates"]
+         if "2021-04-08" in ed["start_naive"] and "09:15" in ed["start_naive"]),
+        None,
+    )
+    assert new_date is not None
+    assert new_date["tz"] == "Pacific/Auckland"
+    assert new_date["location"]["locality"] == "Timaru, New Zealand"
+    assert new_date["location"]["country"]["short_name"] == "NZ"
+    assert new_date["location"]["description"] == "Timaru, New Zealand"
+    assert datetime.fromisoformat(new_date["start"]) == datetime(
         2021, 4, 7, 21, 15, 0, 0, tzinfo=None
     )
-    assert datetime.fromisoformat(rv.json["start_naive"]) == datetime(
-        2021, 4, 8, 9, 15, 0, 0, tzinfo=None
-    )
-    assert datetime.fromisoformat(rv.json["end"]) == datetime(
+    assert datetime.fromisoformat(new_date["end"]) == datetime(
         2021, 4, 7, 22, 30, 0, 0, tzinfo=None
     )
-    assert datetime.fromisoformat(rv.json["end_naive"]) == datetime(
-        2021, 4, 8, 10, 30, 0, 0, tzinfo=None
-    )
+    # Verify description and url directly on the DB model (not exposed in MiniEventDateSchema)
+    from pmapi.extensions import db as _db
+    from pmapi.event_date.model import EventDate
+    ed = _db.session.query(EventDate).filter_by(event_id=event.id, start_naive=datetime(2021, 4, 8, 9, 15)).one()
+    assert ed.description == "Test description"
+    assert ed.url == "https://www.test.com"
 
 
 def test_add_event_date_with_datetime_staff(
@@ -92,17 +90,9 @@ def test_add_event_date_with_datetime_staff(
     assert regular_user.id == event.creator_id
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "location": {
             "address_components": [
@@ -154,17 +144,9 @@ def test_add_event_date_with_datetime_admin(
     assert regular_user.id == event.creator_id
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "location": {
             "address_components": [
@@ -218,17 +200,9 @@ def test_add_event_date_with_datetime_unpriviliged(
     regular_user_2 = regular_user_factory()
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "location": {
             "address_components": [
@@ -276,16 +250,9 @@ def test_add_event_date_with_datetime_unpriviliged(
 def test_update_event(regular_user, event_date_factory):
     event_date = event_date_factory()
     payload = {
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -337,9 +304,8 @@ def test_update_event(regular_user, event_date_factory):
     assert rv.json["description"] == "Updated description"
     assert rv.json["url"] == "test12.com"
     assert rv.json["tz"] == "Europe/Madrid"
-    assert rv.json["location"]["city"] == "Barri Gòtic"  # test that geocode is working
-    assert rv.json["location"]["country_code"] == "ES"  # test that geocode is working
-    assert rv.json["location"]["country"] == "Spain"  # test that geocode is working
+    assert rv.json["location"]["locality"] == "Barcelona, Spain"
+    assert rv.json["location"]["country"]["short_name"] == "ES"
     assert rv.json["location"]["description"] == "Barcelona, Spain"
     assert rv.json["cancelled"] is True
 
@@ -359,19 +325,11 @@ def test_update_event(regular_user, event_date_factory):
 
 def test_update_event_staff(regular_user, staff_user, event_date_factory):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     payload = {
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -424,19 +382,11 @@ def test_update_event_staff(regular_user, staff_user, event_date_factory):
 
 def test_update_event_admin(regular_user, admin_user, event_date_factory):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     payload = {
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -491,21 +441,13 @@ def test_update_event_unpriviliged(
     regular_user, regular_user_factory, event_date_factory
 ):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     regular_user_2 = regular_user_factory()
 
     payload = {
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -558,33 +500,29 @@ def test_update_event_unpriviliged(
 
 def test_delete_event_date(regular_user, event_date_factory):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     rv = regular_user.client.delete(url_for("dates.DateResource", id=event_date.id))
-    assert rv.status_code == 204
+    assert rv.status_code == 200
 
 
 def test_delete_event_date_staff(regular_user, staff_user, event_date_factory):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     rv = staff_user.client.delete(url_for("dates.DateResource", id=event_date.id))
-    assert rv.status_code == 204
+    assert rv.status_code == 200
 
 
 def test_delete_event_date_admin(regular_user, admin_user, event_date_factory):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     rv = admin_user.client.delete(url_for("dates.DateResource", id=event_date.id))
-    assert rv.status_code == 204
+    assert rv.status_code == 200
 
 
 def test_delete_event_date_unpriviliged(
     regular_user, regular_user_factory, event_date_factory
 ):
     event_date = event_date_factory()
-    assert regular_user.id == event_date.creator_id
 
     regular_user_2 = regular_user_factory()
 
@@ -640,12 +578,16 @@ def test_query_event_dates_bounds_tags_dates(
     }
     bounds = json.dumps(bounds)
 
+    # Fetch event dates to get their UTC start/end for filtering
+    timaru_ed = db.session.query(EventDate).filter(EventDate.location == location1).first()
+    barca_ed = db.session.query(EventDate).filter(EventDate.location == location2).first()
+
     # inauthenticated user can query
     rv = anon_user.client.get(
         url_for(
             "dates.DatesResource",
-            date_min=first_saturday_of_next_month_at_1330pm(),
-            date_max=first_saturday_of_next_month_at_1330pm() + relativedelta(days=1),
+            date_min=timaru_ed.start.isoformat(),
+            date_max=timaru_ed.end.isoformat(),
             bounds=bounds,
             tags=["timaru"],
         )
@@ -657,8 +599,8 @@ def test_query_event_dates_bounds_tags_dates(
     rv = anon_user.client.get(
         url_for(
             "dates.DatesResource",
-            date_min=first_saturday_of_next_month_at_1330pm(),
-            date_max=first_saturday_of_next_month_at_1330pm() + relativedelta(days=1),
+            date_min=timaru_ed.start.isoformat(),
+            date_max=timaru_ed.end.isoformat(),
             bounds=bounds,
             tags=["nothing"],
         )

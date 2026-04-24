@@ -121,12 +121,7 @@ def authenticate_user(**kwargs):
 
     if not user:
         raise exc.LoginRequired()
-    
-    if user.login_attempts > 5:
-        raise exc.InvalidAPIRequest(
-           code="ACCOUNT_LOCKED"
-        )
-    
+
     # don't allow pending or disabled accounts to login
     if user.status == "disabled":
         raise exc.UserDisabled()
@@ -136,6 +131,10 @@ def authenticate_user(**kwargs):
     if not check_password_hash(user.password, password):
         user.login_attempts = user.login_attempts + 1
         db.session.commit()
+        if user.login_attempts >= 5:
+            raise exc.InvalidAPIRequest(
+               code="ACCOUNT_LOCKED"
+            )
         raise exc.InvalidAPIRequest(
            code="AUTH_FAIL"
         )

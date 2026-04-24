@@ -44,7 +44,7 @@ class UserNotification(db.Model):
         return dict(
             id=self.id,
             created_at=self.notification.created_at,
-            notification_text=self.notification.notification_text,
+            notification_type=self.notification.notification_type,
             notification_url=self.notification.notification_url,
         )
 

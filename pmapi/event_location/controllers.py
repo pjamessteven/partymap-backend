@@ -125,6 +125,7 @@ def add_new_event_location(creator=None, **kwargs):
     creator_id = None
     if creator:
         creator_id = creator.id
+    # Deduplicate types to avoid duplicate association inserts
     location = EventLocation(
         geohash=pgh.encode(lat, lng),
         # For geodetic coordinates,
@@ -132,7 +133,7 @@ def add_new_event_location(creator=None, **kwargs):
         geo="SRID=4326;POINT ({0} {1})".format(lng, lat),
         name=name,
         description=description,
-        types=location_type_objects,
+        types=list({t.id: t for t in location_type_objects}.values()),
         lat=lat,
         lng=lng,
         country=country,
@@ -316,6 +317,7 @@ def get_location(place_id):
 def get_all_locations(**kwargs):
 
     query = db.session.query(EventLocation)
+    event_joined = False
 
     if "date_min" in kwargs or "date_max" in kwargs or "tags" in kwargs:
         # this expression allows us to show the events for a given
@@ -377,6 +379,7 @@ def get_all_locations(**kwargs):
             .populate_existing()
             .distinct()
         )  # fixes issues related to pagination
+        event_joined = True
 
         if "date_min" in kwargs:
             datemin = kwargs.pop("date_min")
@@ -483,23 +486,27 @@ def get_all_locations(**kwargs):
     # filter cancelled events out
     # query = query.filter(EventDate.cancelled != True)
 
-    # filter hidden events out
-    query = query.filter(
-        or_(
-                    Event.hidden == False,
-                    and_(
-                        Event.hidden == True,
-                        Event.creator_id is not None, 
-                        Event.creator_id == current_user.id
-                    )
-                ))
-    
-    return query.options(
-        with_expression(
-            EventLocation.events,
-            expression.where(EventDate.location_id == EventLocation.id),
+    # filter hidden events out (only when Event is actually joined)
+    if event_joined:
+        query = query.filter(
+            or_(
+                        Event.hidden == False,
+                        and_(
+                            Event.hidden == True,
+                            Event.creator_id is not None, 
+                            Event.creator_id == current_user.id
+                        )
+                    ))
+
+    if "expression" in locals():
+        query = query.options(
+            with_expression(
+                EventLocation.events,
+                expression.where(EventDate.location_id == EventLocation.id),
+            )
         )
-    )
+
+    return query
 
 
 """

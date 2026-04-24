@@ -43,7 +43,7 @@ def delete_item_by_id(id):
     db.session.commit()
     return "", 204
 
-def update_item(event, id, **kwargs):
+def update_item(id, **kwargs):
     item = get_media_item_or_404(id)
     event = item.event
     if "caption" in kwargs:
@@ -252,7 +252,6 @@ def add_lineup_images_to_event_date(images, event, event_date, creator=current_u
         media_item.creator_id = creator.id if creator else None
         media_item.attributes = {'isLineupImage': True}
         media_item.event = event
-        media_item.event_date = event_date
         db.session.flush()
 
         event_date.media_items.insert(0, media_item)
@@ -319,9 +318,6 @@ def add_media_to_event(items, event, event_date=None, creator=current_user):
         media_item.caption = i.get("caption", None)
 
         if media_item:
-            event.media_items.append(media_item)
-            if event_date:
-                event_date.media_items.append(media_item)
             # activity
             db.session.flush()
             activity = Activity(
@@ -407,19 +403,19 @@ def save_media_item(file, path):
 
         # Create thumbnails
         img_copy = img.copy()
-        img_copy.thumbnail((1024, 1024), Image.ANTIALIAS)
+        img_copy.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
         img_copy.save(os.path.join(path, image_med_filename), "WEBP")
 
         img_copy = img.copy()
-        img_copy.thumbnail((512, 512), Image.ANTIALIAS)
+        img_copy.thumbnail((512, 512), Image.Resampling.LANCZOS)
         img_copy.save(os.path.join(path, thumb_filename), "WEBP")
 
         img_copy = img.copy()
-        img_copy.thumbnail((256, 256), Image.ANTIALIAS)
+        img_copy.thumbnail((256, 256), Image.Resampling.LANCZOS)
         img_copy.save(os.path.join(path, thumb_xs_filename), "WEBP")
 
         img_copy = img.copy()
-        img_copy.thumbnail((64, 64), Image.ANTIALIAS)
+        img_copy.thumbnail((64, 64), Image.Resampling.LANCZOS)
         img_copy.save(os.path.join(path, thumb_xxs_filename), "WEBP")
 
         return (

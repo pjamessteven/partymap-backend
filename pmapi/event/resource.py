@@ -154,6 +154,7 @@ class EventResource(MethodResource):
                 required=False, allow_none=True
             ),
             "youtube_url": fields.String(required=False, allow_none=True),
+            "name": fields.String(required=False, allow_none=True),
             "url": fields.String(required=False, allow_none=True),
             "add_tags": fields.List(fields.String(), required=False, allow_none=True),
             "remove_tags": fields.List(

@@ -23,7 +23,6 @@ def test_create_user_with_invalid_token(anon_user):
     user_args = {
         "username": "new_user",
         "email": "test@example.com",
-        "activate": True,
         "password": "12345678",
         "token": "123",
     }
@@ -36,7 +35,6 @@ def test_create_user_with_no_token(anon_user):
     user_args = {
         "username": "new_user",
         "email": "test@example.com",
-        "activate": True,
         "password": "12345678",
     }
 
@@ -53,7 +51,6 @@ def test_create_user_fails_with_dupe_email(admin_user, anon_user, db):
     user_args = {
         "username": "new_user",
         "email": admin_user.email,
-        "activate": True,
         "password": "12345678",
         "token": token.id,
     }
@@ -71,7 +68,6 @@ def test_create_user_fails_with_dupe_name(admin_user, anon_user, db):
     user_args = {
         "username": admin_user.username,
         "email": "test@example.com",
-        "activate": True,
         "password": "12345678",
         "token": token.id,
     }
@@ -89,7 +85,6 @@ def test_activate_user(anon_user, db):
     user_args = {
         "username": "new_user",
         "email": "test@example.com",
-        "activate": False,
         "password": "12345678",
         "token": token.id,
     }
@@ -108,10 +103,10 @@ def test_activate_user(anon_user, db):
         .first()
     )
 
-    rv = anon_user.client.post(url_for("users.activate", token=email_verify_action.id))
+    rv = anon_user.client.post(url_for("users.ActivateUserResource", token=email_verify_action.id))
     assert rv.status_code == 200
 
 
 def test_activate_user_invalid_token(anon_user, db):
-    rv = anon_user.client.post(url_for("users.activate", token="test"))
+    rv = anon_user.client.post(url_for("users.ActivateUserResource", token="test"))
     assert rv.status_code == 404

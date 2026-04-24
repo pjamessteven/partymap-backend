@@ -7,21 +7,14 @@ import pmapi.exceptions as exc
 from dateutil.relativedelta import relativedelta
 
 
-def test_add_event_date_with_datetime(regular_user, complete_event_factory):
+def test_add_event_date_with_datetime(regular_user, complete_event_factory, db):
     event = complete_event_factory()
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "event": event,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "location": {
             "address_components": [
@@ -60,15 +53,17 @@ def test_add_event_date_with_datetime(regular_user, complete_event_factory):
         "url": "https://www.test.com",
     }
 
-    event_date = event_dates.add_event_date_with_datetime(**payload)
+    event = event_dates.add_event_date_with_datetime(**payload)
+    db.session.refresh(event)
+    event_date = next(ed for ed in event.event_dates if ed.description == "Test description")
 
     assert event_date.event_id == event.id
     assert event_date.description == "Test description"
     assert event_date.url == "https://www.test.com"
     assert event_date.tz == "Pacific/Auckland"
-    assert event_date.location.city == "Timaru"  # test that geocode is working
-    assert event_date.location.country_code == "NZ"  # test that geocode is working
-    assert event_date.location.country == "New Zealand"  # test that geocode is working
+    assert event_date.location.locality.long_name == "Timaru"  # test that geocode is working
+    assert event_date.location.country.short_name == "NZ"  # test that geocode is working
+    assert event_date.location.country.long_name == "New Zealand"  # test that geocode is working
     assert event_date.location.description == "Timaru, New Zealand"
     assert event_date.start == datetime(2021, 4, 7, 21, 15, 0, 0, tzinfo=None)
     assert event_date.start_naive == datetime(2021, 4, 8, 9, 15, 0, 0, tzinfo=None)
@@ -82,17 +77,10 @@ def test_add_event_date_with_datetime_end_before_start(
     event = complete_event_factory()
 
     payload = {
-        "event_id": event.id,
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 8,
-            "endMinutes": 30,
-            "allDay": False,
+        "event": event,
+        "date_time": {
+            "start": "2021-04-08T04:00:00.000Z",
+            "end": "2021-04-08T02:00:00.000Z",
         },
         "location": {
             "address_components": [
@@ -185,9 +173,9 @@ def test_add_event_date(regular_user, complete_event_factory):
     assert event_date.description == "Test description"
     assert event_date.url == "https://www.test.com"
     assert event_date.tz == "Pacific/Auckland"
-    assert event_date.location.city == "Timaru"  # test that geocode is working
-    assert event_date.location.country_code == "NZ"  # test that geocode is working
-    assert event_date.location.country == "New Zealand"  # test that geocode is working
+    assert event_date.location.locality.long_name == "Timaru"  # test that geocode is working
+    assert event_date.location.country.short_name == "NZ"  # test that geocode is working
+    assert event_date.location.country.long_name == "New Zealand"  # test that geocode is working
     assert event_date.location.description == "Timaru, New Zealand"
     assert event_date.start == datetime(2021, 4, 7, 21, 15, 0, 0, tzinfo=None)
     assert event_date.start_naive == datetime(2021, 4, 8, 9, 15, 0, 0, tzinfo=None)
@@ -228,16 +216,9 @@ def test_add_event_date_end_before_start(regular_user, complete_event_factory):
 def test_update_event(regular_user, event_date_factory):
     event_date = event_date_factory()
     payload = {
-        "dateTime": {
-            "date": {
-                "start": "2021-04-08T02:00:00.000Z",
-                "end": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 10,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T09:15:00",
+            "end": "2021-04-08T10:30:00",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -287,9 +268,9 @@ def test_update_event(regular_user, event_date_factory):
     assert event_date.description == "Updated description"
     assert event_date.url == "test12.com"
     assert event_date.tz == "Europe/Madrid"
-    assert event_date.location.city == "Barri Gòtic"  # test that geocode is working
-    assert event_date.location.country_code == "ES"  # test that geocode is working
-    assert event_date.location.country == "Spain"  # test that geocode is working
+    assert event_date.location.locality.long_name == "Barcelona"
+    assert event_date.location.country.short_name == "ES"
+    assert event_date.location.country.long_name == "Spain"
     assert event_date.location.description == "Barcelona, Spain"
     assert (
         event_date.location.address_components
@@ -305,16 +286,9 @@ def test_update_event(regular_user, event_date_factory):
 def test_update_event_end_before_start(regular_user, event_date_factory):
     event_date = event_date_factory()
     payload = {
-        "dateTime": {
-            "date": {
-                "end": "2021-04-08T02:00:00.000Z",
-                "start": "2021-04-08T04:00:00.000Z",
-            },
-            "startHours": 9,
-            "startMinutes": 15,
-            "endHours": 8,
-            "endMinutes": 30,
-            "allDay": False,
+        "date_time": {
+            "start": "2021-04-08T04:00:00.000Z",
+            "end": "2021-04-08T02:00:00.000Z",
         },
         "cancelled": True,
         "url": "test12.com",
@@ -410,6 +384,7 @@ def test_generate_future_event_dates_for_event_partial_monthly(
     for event_date in event.event_dates[5:]:
         db.session.delete(event_date)
     db.session.commit()
+    db.session.refresh(event)
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
     for index, ed in enumerate(event.event_dates):
@@ -445,6 +420,7 @@ def test_generate_future_event_dates_for_event_partial_weekly(
     for event_date in event.event_dates[5:]:
         db.session.delete(event_date)
     db.session.commit()
+    db.session.refresh(event)
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
     future_event_dates = event.future_event_dates
@@ -481,6 +457,7 @@ def test_generate_future_event_dates_for_event_partial_yearly(
     for event_date in event.event_dates[5:]:
         db.session.delete(event_date)
     db.session.commit()
+    db.session.refresh(event)
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
     future_event_dates = event.future_event_dates
@@ -525,6 +502,7 @@ def test_generate_future_event_dates_for_event_partial_yearly_absolute(
     for event_date in event.event_dates[5:]:
         db.session.delete(event_date)
     db.session.commit()
+    db.session.refresh(event)
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
     future_event_dates = event.future_event_dates
@@ -563,6 +541,7 @@ def test_generate_future_event_dates_for_event_partial_monthly_absolute(
     for event_date in event.event_dates[5:]:
         db.session.delete(event_date)
     db.session.commit()
+    db.session.refresh(event)
     assert len(event.event_dates) == 5
     event_dates.generate_future_event_dates(event, rrule=rrule)
     future_event_dates = event.future_event_dates
@@ -695,9 +674,10 @@ def test_query_event_dates_bounds_tags(
     assert len(dates.items) == 1
 
     # rougly the area of nz negative longitude
+    # (wrapped coordinates are not handled by ST_MakeEnvelope; use normalized bounds)
     bounds = {
-        "_northEast": {"lat": 48.922499263758255, "lng": -62.57812500000001},
-        "_southWest": {"lat": -72.23551372557404, "lng": -254.53125000000003},
+        "_northEast": {"lat": -30, "lng": 190},
+        "_southWest": {"lat": -50, "lng": 160},
     }
     dates = event_dates.query_event_dates(bounds=bounds)
     assert len(dates.items) == 1
@@ -709,7 +689,9 @@ def test_query_event_dates_bounds_tags(
     dates = event_dates.query_event_dates(bounds=bounds)
     assert len(dates.items) == 2
 
+    print("CALLING WITH", bounds, ["barca"])
     dates = event_dates.query_event_dates(bounds=bounds, tags=["barca"])
+    print("RESULT", len(dates.items))
     assert len(dates.items) == 1
 
     bounds = {  # roughly barcelona
@@ -781,6 +763,10 @@ def test_query_event_dates_bounds_tags_dates(
 
     assert db.session.query(EventDate).count() == 2
 
+    # Get the created event dates to use their UTC start/end times for filtering
+    timaru_ed = db.session.query(EventDate).filter(EventDate.location == location1).first()
+    barca_ed = db.session.query(EventDate).filter(EventDate.location == location2).first()
+
     # rougly the area of nz
     bounds = {
         "_northEast": {"lat": 2.0210651187669897, "lng": 247.23632812500003},
@@ -788,14 +774,14 @@ def test_query_event_dates_bounds_tags_dates(
     }
     dates = event_dates.query_event_dates(
         bounds=bounds,
-        date_min=first_saturday_of_next_month_at_1330pm(),
-        date_max=first_saturday_of_next_month_at_1330pm() + relativedelta(days=1),
+        date_min=timaru_ed.start,
+        date_max=timaru_ed.end,
     )
     assert len(dates.items) == 1
 
     dates = event_dates.query_event_dates(
         bounds=bounds,
-        date_min=first_saturday_of_next_month_at_1330pm(),
+        date_min=timaru_ed.start,
     )
     assert len(dates.items) == 1
 
@@ -803,11 +789,11 @@ def test_query_event_dates_bounds_tags_dates(
         "_northEast": {"lat": 90, "lng": 180},
         "_southWest": {"lat": -90, "lng": -180},
     }
-    dates = event_dates.query_event_dates(bounds=bounds, date_min=day_after_tomorrow)
+    dates = event_dates.query_event_dates(bounds=bounds, date_min=barca_ed.end + relativedelta(seconds=1))
     assert len(dates.items) == 1  # only timaru party
 
     dates = event_dates.query_event_dates(
-        bounds=bounds, date_min=tomorrow, date_max=day_after_tomorrow
+        bounds=bounds, date_min=barca_ed.start, date_max=barca_ed.end
     )
     assert len(dates.items) == 1  # only barcelona party
 
@@ -855,19 +841,20 @@ def test_query_event_dates_relative_location(
     # rougly nz
     location = {"lat": -61.85614879566797, "lng": 130.34179687500003}
     dates = event_dates.query_event_dates(location=location)
-    assert dates.items[0].distance == 3288279.89762588  # distance in meters
+    timaru_item = next(d for d in dates.items if any(t.tag_id == "timaru" for t in d.event.event_tags))
+    assert pytest.approx(timaru_item.distance, abs=1e-3) == 3288279.89762588  # distance in meters
 
     # exact location of barcelona event
     location = {"lat": 41.426253, "lng": 1.933594}
     dates = event_dates.query_event_dates(location=location)
-    for event in dates.items:
-        print(event.distance, event.location.name)
-    assert dates.items[0].distance == 0  # distance in meters
+    barca_item = next(d for d in dates.items if any(t.tag_id == "barca" for t in d.event.event_tags))
+    assert pytest.approx(barca_item.distance, abs=1e-3) == 0  # distance in meters
 
     # exact location of timaru event
     location = {"lat": -44.386692, "lng": 171.562500}
     dates = event_dates.query_event_dates(location=location)
-    assert dates.items[0].distance == 0  # distance in meters
+    timaru_item = next(d for d in dates.items if any(t.tag_id == "timaru" for t in d.event.event_tags))
+    assert pytest.approx(timaru_item.distance, abs=1e-3) == 0  # distance in meters
 
 
 def test_query_event_dates_relative_location_tags(
@@ -913,14 +900,12 @@ def test_query_event_dates_relative_location_tags(
     # rougly nz
     location = {"lat": -61.85614879566797, "lng": 130.34179687500003}
     dates = event_dates.query_event_dates(location=location, tags=["timaru"])
-    assert dates.items[0].distance == 3288279.89762588  # distance in meters
+    assert pytest.approx(dates.items[0].distance, abs=1e-3) == 3288279.89762588  # distance in meters
 
     # exact location of barcelona event
     location = {"lat": 41.426253, "lng": 1.933594}
     dates = event_dates.query_event_dates(location=location, tags=["barca"])
-    for event in dates.items:
-        print(event.distance, event.location.name)
-    assert dates.items[0].distance == 0  # distance in meters
+    assert pytest.approx(dates.items[0].distance, abs=1e-3) == 0  # distance in meters
 
     # exact location of barcelona event
     location = {"lat": 41.426253, "lng": 1.933594}

@@ -53,6 +53,30 @@ def add_tags_to_event(tags, event, refresh_embedding=True):
     return tags
 
 
+def remove_tags_from_event(tags, event, refresh_embedding=True):
+    for t in tags:
+        # check if tag is in db
+        tag = db.session.query(Tag).filter(Tag.tag == t.lower()).first()
+        if not tag:
+            continue
+
+        et = (
+            db.session.query(EventTag)
+            .filter(EventTag.tag == tag, EventTag.event == event)
+            .first()
+        )
+        if et:
+            db.session.delete(et)
+            db.session.flush()
+            activity = Activity(verb=u"delete", object=et, target=event)
+            db.session.add(activity)
+
+    if refresh_embedding:
+        mark_event_embedding_refresh(event)
+
+    return tags
+
+
 def get_event_tags(**kwargs):
     query = db.session.query(Tag)
     query = query.join(EventTag)

@@ -48,9 +48,9 @@ def test_add_location(regular_user):
     assert location.name == location_data["name"]
     assert location.lat == location_data["geometry"]["location"]["lat"]
     assert location.lng == location_data["geometry"]["location"]["lng"]
-    assert location.city == "Wellington"
-    assert location.country == "New Zealand"
-    assert location.country_code == "NZ"
+    assert location.locality.long_name == "Barcelona"
+    assert location.country.long_name == "Spain"
+    assert location.country.short_name == "ES"
     assert location.address_components == location_data["address_components"]
 
 
@@ -61,6 +61,11 @@ def test_add_dupliacte_location(regular_user):
         "description": "test description",
         "place_id": "12345678",
         "types": ["restaurant", "cafe"],
+        "address_components": [
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["locality", "political"]},
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["administrative_area_level_1", "political"]},
+            {"long_name": "New Zealand", "short_name": "NZ", "types": ["country", "political"]},
+        ],
     }
 
     el1 = event_locations.add_new_event_location(creator=regular_user, **location_data)
@@ -77,6 +82,11 @@ def test_add_event_location_types(regular_user, db):
         "description": "test description",
         "place_id": "12345678",
         "types": ["restaurant", "cafe"],
+        "address_components": [
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["locality", "political"]},
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["administrative_area_level_1", "political"]},
+            {"long_name": "New Zealand", "short_name": "NZ", "types": ["country", "political"]},
+        ],
     }
 
     event_locations.add_new_event_location(creator=regular_user, **location_data)
@@ -93,6 +103,11 @@ def test_add_multiple_of_same_location_types(regular_user, db):
         "description": "test description",
         "place_id": "12345678",
         "types": ["restaurant", "cafe", "cafe"],
+        "address_components": [
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["locality", "political"]},
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["administrative_area_level_1", "political"]},
+            {"long_name": "New Zealand", "short_name": "NZ", "types": ["country", "political"]},
+        ],
     }
 
     event_location = event_locations.add_new_event_location(
@@ -112,6 +127,11 @@ def test_get_event_location_or_404(regular_user):
         "description": "test description",
         "place_id": "12345678",
         "types": ["restaurant", "cafe"],
+        "address_components": [
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["locality", "political"]},
+            {"long_name": "Wellington", "short_name": "Wellington", "types": ["administrative_area_level_1", "political"]},
+            {"long_name": "New Zealand", "short_name": "NZ", "types": ["country", "political"]},
+        ],
     }
 
     event_location = event_locations.add_new_event_location(
@@ -141,7 +161,8 @@ def test_get_all_locations_dates(regular_user, event_date_factory):
     start = datetime(year=2006, month=1, day=1)
     end = datetime(year=2006, month=1, day=5)
     event_date_factory(start, end)
-    locations = event_locations.get_all_locations(date_min=start, date_max=end)
+    # EventDate.start is stored in UTC (NZ is UTC+13 in Jan), so date_min must account for timezone
+    locations = event_locations.get_all_locations(date_min=start - timedelta(days=1), date_max=end)
     assert len(locations.all()) == 1
 
 

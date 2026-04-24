@@ -155,7 +155,7 @@ def update_suggested_edit(id, **kwargs):
     return suggestion
 
 
-def delete_suggested_edit(**kwargs):
+def delete_suggested_edit(id, **kwargs):
     edit = get_suggested_edit_or_404(id)
     db.session.delete(edit)
     db.session.commit()

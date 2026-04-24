@@ -47,6 +47,7 @@ from pmapi.user.model import User
 from pmapi.utils import ROLES
 
 from .model import Event, Rrule, event_page_views_table, user_event_following_table
+from pmapi.event_tag.model import EventTag
 
 DEV_ENVIRON = get_debug_flag()
 CONFIG = DevConfig if DEV_ENVIRON else ProdConfig
@@ -359,16 +360,29 @@ def add_event(**kwargs):
     db.session.commit()
 
     # Re-attach event and eagerly load relationships to avoid DetachedInstanceError
+    from pmapi.media_item.model import MediaItem
     event = (
         db.session.query(Event)
         .options(
-            joinedload(Event.event_dates),
-            joinedload(Event.event_tags),
-            joinedload(Event.media_items),
-            joinedload(Event.rrule),
+            joinedload(Event.event_dates)
+            .joinedload(EventDate.location)
+            .joinedload(EventLocation.country),
+            joinedload(Event.event_dates)
+            .joinedload(EventDate.location)
+            .joinedload(EventLocation.region),
+            joinedload(Event.event_dates)
+            .joinedload(EventDate.location)
+            .joinedload(EventLocation.locality),
+            joinedload(Event.event_dates)
+            .joinedload(EventDate.event),
+            joinedload(Event.event_tags).joinedload(EventTag.tag),
+            joinedload(Event.media_items).joinedload(MediaItem.creator),
+            joinedload(Event.rrule)
+            .joinedload(Rrule.default_location),
             joinedload(Event.creator),
             joinedload(Event.host),
         )
+        .populate_existing()
         .get(event.id)
     )
 
@@ -380,7 +394,6 @@ def add_event(**kwargs):
             if creator is not None and creator.id != CONFIG.ANON_USER_ID
             else None,
         )
-    print("added!!")
     return event
 
 
@@ -465,7 +478,7 @@ def update_event(event_id, **kwargs):
         should_refresh_embedding = True
 
     if remove_tags and len(remove_tags) > 0:
-        event_tags.add_tags_to_event(remove_tags, event)
+        event_tags.remove_tags_from_event(remove_tags, event)
         should_refresh_embedding = True
 
     if should_refresh_embedding:

@@ -1,0 +1,47 @@
+# Docker Compose configuration for running tests locally
+# Usage: docker compose -f docker-compose.test.yml up --abort-on-container-exit
+
+services:
+  test-db:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      - POSTGRES_USER=partymap
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=partymap
+    ports:
+      - "127.0.0.1:5439:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U partymap -d partymap"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://partymap:password@test-db:5432/partymap
+      - TEST_DATABASE_URL=postgresql://partymap:password@test-db:5432/partymap
+      - FLASK_ENV=testing
+      - SECRET_KEY=test-secret-key-for-local-tests-only
+      - GMAPS_API_KEY=test-gmaps-key
+      - WEBSITE_URL=http://localhost:5000
+      - UPLOADS_URL=http://localhost:5000/static/uploaded_media
+      - SQL_HOST=test-db
+      - SQL_PORT=5432
+      - DATABASE=postgres
+      - DATABASE_USER=partymap
+    depends_on:
+      test-db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        uv run pytest tests/ -v --tb=short
+      "
+    # Override entrypoint so we don't run migrations/server
+    entrypoint: [""]

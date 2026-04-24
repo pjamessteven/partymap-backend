@@ -5,8 +5,7 @@ from pmapi.extensions import db
 def create_notification(notification_type, activity, to_users):
 
     notification = Notification(notification_type=notification_type,
-                                activity=activity,
-                                url=activity.object.get_url())
+                                notification_url=activity.object.get_url())
     db.session.add(notification)
 
     for user in to_users:

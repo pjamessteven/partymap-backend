@@ -55,10 +55,10 @@ def test_create_user_with_token_valid_token(db):
         "token": token.id,
     }
 
-    user = users.create_user_with_token(**user_args)
+    user = users.create_user(**user_args)
     assert user.username == user_args.get("username")
     assert user.email == user_args.get("email")
-    assert user.active is False
+    assert user.status == "pending"
 
 
 def test_create_user_with_token_invalid_token():
@@ -71,7 +71,7 @@ def test_create_user_with_token_invalid_token():
     }
 
     with pytest.raises(RecordNotFound):
-        users.create_user_with_token(**user_args)
+        users.create_user(**user_args)
 
 
 def test_create_user_with_token_no_token():
@@ -83,7 +83,7 @@ def test_create_user_with_token_no_token():
     }
 
     with pytest.raises(RecordNotFound):
-        users.create_user_with_token(**user_args)
+        users.create_user(**user_args)
 
 
 def test_create_user_fails_with_token_dupe_name(admin_user, db):
@@ -100,7 +100,7 @@ def test_create_user_fails_with_token_dupe_name(admin_user, db):
         "token": token.id,
     }
     with pytest.raises(RecordAlreadyExists):
-        users.create_user_with_token(**user_args)
+        users.create_user(**user_args)
 
 
 def test_create_user_with_token_fails_dupe_email(admin_user, db):
@@ -134,7 +134,7 @@ def test_activate_user(db):
         "token": token.id,
     }
 
-    user = users.create_user_with_token(**user_args)
+    user = users.create_user(**user_args)
 
     # find activate token from db
     email_verify_action = (
@@ -168,6 +168,6 @@ def test_confirmation_email_sent_to_pending_user(db, emailer):
         "token": token.id,
     }
 
-    pending_user = users.create_user_with_token(**user_args)
-    assert emailer.mail_sent == 1
+    pending_user = users.create_user(**user_args)
+    assert mail.send.called
     assert pending_user.status == "pending"

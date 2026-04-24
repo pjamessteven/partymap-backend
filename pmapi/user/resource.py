@@ -41,7 +41,6 @@ class UsersResource(MethodResource):
             "query": fields.Str(description="search by username, email or UUID"),
             "status": fields.Str(
                 description="Filter by status (staff+ only) (default: active)",
-                missing="active",
                 validate=OneOf(["active", "pending", "disabled", "all"]),
             ),
             "role": fields.Int(

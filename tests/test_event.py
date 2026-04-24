@@ -23,16 +23,16 @@ def test_search_events(complete_event_factory):
     complete_event_factory(name="another", description="one")
     complete_event_factory(name="blah one", description="two")
 
-    results = events.search_events(query="one")
+    results = events.search_events(None, query="one")
     assert len(results.items) == 3
 
-    results = events.search_events(query="testing")
+    results = events.search_events(None, query="testing")
     assert len(results.items) == 1
 
-    results = events.search_events(query="blah")
+    results = events.search_events(None, query="blah")
     assert len(results.items) == 1
 
-    results = events.search_events(query="two")
+    results = events.search_events(None, query="two")
     assert len(results.items) == 1
 
 
@@ -41,6 +41,7 @@ def test_add_event_rrule(regular_user):
         "creator": regular_user,
         "name": "Test event",
         "description": "Test description",
+        "full_description": "Test full description",
         "location": {
             "address_components": [
                 {
@@ -74,16 +75,9 @@ def test_add_event_rrule(regular_user):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -92,6 +86,7 @@ def test_add_event_rrule(regular_user):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
         "url": "test.com",
         "tags": ["test1", "test2"],
@@ -101,7 +96,7 @@ def test_add_event_rrule(regular_user):
     event = events.add_event(**payload)
     assert event.description == payload["description"]
     assert event.name == payload["name"]
-    assert event.default_location.description == payload["location"]["description"]
+    assert event.rrule.default_location.description == payload["location"]["description"]
     assert len(event.event_dates) == 10
     assert event.event_dates[0].start_naive == datetime(2021, 5, 12, 8, 00, tzinfo=None)
     assert event.event_dates[0].start == datetime(2021, 5, 11, 20, 00, tzinfo=None)
@@ -120,6 +115,7 @@ def test_add_event_one_off_event(regular_user):
         "creator": regular_user,
         "name": "Test event",
         "description": "Test description",
+        "full_description": "Test full description",
         "location": {
             "address_components": [
                 {
@@ -153,16 +149,9 @@ def test_add_event_one_off_event(regular_user):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -171,6 +160,7 @@ def test_add_event_one_off_event(regular_user):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
         "url": "test.com",
         "tags": ["test1", "test2"],
@@ -180,7 +170,7 @@ def test_add_event_one_off_event(regular_user):
     event = events.add_event(**payload)
     assert event.description == payload["description"]
     assert event.name == payload["name"]
-    assert event.default_location.description == payload["location"]["description"]
+    assert event.event_dates[0].location.description == payload["location"]["description"]
     assert len(event.event_dates) == 1
     assert event.event_dates[0].start_naive == datetime(2021, 5, 12, 8, 00, tzinfo=None)
     assert event.event_dates[0].start == datetime(2021, 5, 11, 20, 00, tzinfo=None)
@@ -230,16 +220,9 @@ def test_update_event_rrule(complete_event_factory):
             "description": "Timaru, New Zealand",
             "place_id": "ChIJ78dhY4ljLG0ROZl5hIbvAAU",
         },
-        "dateTime": {
-            "date": {
-                "start": "2021-05-12T15:05:46.247Z",
-                "end": "2021-05-14T15:05:46.248Z",
-            },
-            "startHours": 8,
-            "startMinutes": "00",
-            "endHours": 20,
-            "endMinutes": "30",
-            "allDay": False,
+        "date_time": {
+            "start": "2021-05-12T08:00:00",
+            "end": "2021-05-14T20:30:00",
         },
         "rrule": {
             "recurringType": 1,
@@ -248,6 +231,7 @@ def test_update_event_rrule(complete_event_factory):
             "dayOfMonth": 13,
             "dayOfWeek": 4,
             "monthOfYear": 5,
+            "exact": False,
         },
     }
     event = events.update_event(event.id, **payload)
@@ -258,7 +242,7 @@ def test_update_event_rrule(complete_event_factory):
     assert event.event_dates[0].start == datetime(2021, 5, 11, 20, 00, tzinfo=None)
     assert event.event_dates[0].end_naive == datetime(2021, 5, 14, 20, 30, tzinfo=None)
     assert event.event_dates[0].end == datetime(2021, 5, 14, 8, 30, tzinfo=None)
-    assert event.default_location.description == payload["location"]["description"]
+    assert event.event_dates[0].location.description == payload["location"]["description"]
     assert (
         event.event_dates[0].location.description == payload["location"]["description"]
     )
@@ -271,22 +255,22 @@ def test_update_event_description(complete_event_factory):
     assert event.description == payload["description"]
 
 
-def test_update_event_url(complete_event_factory):
+def test_update_event_youtube_url(complete_event_factory):
     event = complete_event_factory()
-    payload = {"url": "updated url"}
+    payload = {"youtube_url": "https://youtube.com/updated"}
     event = events.update_event(event.id, **payload)
-    assert event.default_url == payload["url"]
+    assert event.youtube_url == payload["youtube_url"]
 
 
 def test_update_event_tags(complete_event_factory):
     event = complete_event_factory()
-    payload = {"tags": ["test", "blah"]}
+    payload = {"add_tags": ["test", "blah"]}
     event = events.update_event(event.id, **payload)
     # check tags
     event_tags = []
     for tag in event.event_tags:
         event_tags.append(tag.tag.tag)
-    for tag in payload["tags"]:
+    for tag in payload["add_tags"]:
         assert tag in event_tags
 
 

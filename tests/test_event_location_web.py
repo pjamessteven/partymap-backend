@@ -12,9 +12,10 @@ def test_get_locations(anon_user, event_location_factory):
 
 def test_get_locations_date_range(anon_user, complete_event_factory):
     complete_event_factory(start=datetime(year=2006, month=1, day=1))
+    # EventDate.start is UTC (NZ is UTC+13 in Jan), so date_min must be earlier than naive start
     rv = anon_user.client.get(
         url_for(
-            "locations.LocationsResource", date_min=datetime(year=2006, month=1, day=1)
+            "locations.LocationsResource", date_min=datetime(year=2005, month=12, day=31)
         )
     )
     assert len(rv.json["items"]) == 1
@@ -38,11 +39,12 @@ def test_get_locations_date_rage_tags(anon_user, complete_event_factory):
     complete_event_factory(
         tags=["test3", "test2"], start=datetime(year=2006, month=1, day=1)
     )
+    # EventDate.start is UTC, so date_min must be earlier than naive start
     rv = anon_user.client.get(
         url_for(
             "locations.LocationsResource",
             tags=["test1"],
-            date_min=datetime(year=2010, month=1, day=1),
+            date_min=datetime(year=2009, month=12, day=31),
         )
     )
     assert len(rv.json["items"]) == 1
@@ -58,9 +60,10 @@ def test_get_points(anon_user, event_location_factory):
 
 def test_get_points_date_range(anon_user, complete_event_factory):
     complete_event_factory(start=datetime(year=2006, month=1, day=1))
+    # EventDate.start is UTC (NZ is UTC+13 in Jan), so date_min must be earlier than naive start
     rv = anon_user.client.get(
         url_for(
-            "locations.PointsResource", date_min=datetime(year=2006, month=1, day=1)
+            "locations.PointsResource", date_min=datetime(year=2005, month=12, day=31)
         )
     )
     assert len(rv.json) == 1
@@ -84,11 +87,12 @@ def test_get_points_date_range_tags(anon_user, complete_event_factory):
     complete_event_factory(
         tags=["test3", "test2"], start=datetime(year=2006, month=1, day=1)
     )
+    # EventDate.start is UTC, so date_min must be earlier than naive start
     rv = anon_user.client.get(
         url_for(
             "locations.PointsResource",
             tags=["test1"],
-            date_min=datetime(year=2010, month=1, day=1),
+            date_min=datetime(year=2009, month=12, day=31),
         )
     )
     assert len(rv.json) == 1

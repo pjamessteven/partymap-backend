@@ -74,6 +74,10 @@ class User(db.Model):
         "Event", back_populates="followers", secondary=user_event_following_table
     )
 
+    favorite_events = db.relationship(
+        "Event", back_populates="favorited_by", secondary="user_event_favorite_table"
+    )
+
     going_event_dates = db.relationship(
         "EventDate", back_populates="going", secondary=user_event_date_going_table
     )

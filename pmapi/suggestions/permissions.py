@@ -1,6 +1,7 @@
 from pmapi.common import permissions
 import pmapi.exceptions as exc
 from pmapi.event import controllers as events
+from . import controllers as suggestions
 from flask_login import current_user
 
 
@@ -11,7 +12,7 @@ class get(permissions.Permission):
 
         if not permissions.current_user_role_is_at_least("ADMIN"):
             raise exc.InvalidPermissions(
-                "You don't have permission to delete this event date."
+                "You don't have permission to get suggestions."
             )
 
         return True
@@ -21,21 +22,26 @@ class delete(permissions.Permission):
     """Can delete if admin or event owner"""
 
     def can(self, **kwargs):
-        event = events.get_event_or_404(kwargs.get("event_id"))
+        suggested_edit_id = kwargs.get("suggested_edit_id")
+        if suggested_edit_id:
+            suggestion = suggestions.get_suggested_edit_or_404(suggested_edit_id)
+            event = suggestion.event
+        else:
+            event = events.get_event_or_404(kwargs.get("event_id"))
 
         if (
             event.creator_id != current_user.id
             and not permissions.current_user_role_is_at_least("ADMIN")
         ):
             raise exc.InvalidPermissions(
-                "You don't have permission to delete this event date."
+                "You don't have permission to delete this suggestion."
             )
 
         return True
 
 
 class update(permissions.Permission):
-    """Can update if staff or event owner"""
+    """Can update if admin or higher"""
 
     def can(self, **kwargs):
         if permissions.current_user_role_is_at_least("ADMIN"):
@@ -43,7 +49,7 @@ class update(permissions.Permission):
 
         else:
             raise exc.InvalidPermissions(
-                "You don't have permission to update this event date."
+                "You don't have permission to update this suggestion."
             )
 
 

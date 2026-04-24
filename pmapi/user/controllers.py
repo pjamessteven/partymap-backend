@@ -105,9 +105,12 @@ def get_users(**kwargs):
         query = User.query.filter(
             getattr(User, search_property).ilike(query_string))
 
-    if kwargs.get("status", None) is not None:
-        status = kwargs.pop("status")
+    status = kwargs.pop("status", None)
+    if status is not None and status != "all":
         query = query.filter(User.status == status)
+    elif status is None:
+        # Default to active users when no status filter is provided
+        query = query.filter(User.status == "active")
 
     if kwargs.get("role", None) is not None:
         role = kwargs.pop("role")
@@ -153,7 +156,6 @@ def create_user(**kwargs):
     if token:
         email_action = EmailAction.query.get(token)
 
-        # must be staff to add user without
         if not email_action:
             if not current_user or not current_user.is_authenticated:
                 raise exc.RecordNotFound(
@@ -171,6 +173,14 @@ def create_user(**kwargs):
             db.session.flush()
 
         role = 10
+    else:
+        # must be staff to add user without token
+        if not current_user or not current_user.is_authenticated:
+            raise exc.RecordNotFound(
+                "Invitation code is required to sign up.")
+        elif current_user.is_authenticated and current_user.role < ROLES["STAFF"]:
+            raise exc.RecordNotFound(
+                "Invitation code is required to sign up.")
 
     validate.username(username)
     validate.email(email)

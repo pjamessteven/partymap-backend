@@ -42,6 +42,12 @@ user_event_following_table = db.Table(
     db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
 )
 
+user_event_favorite_table = db.Table(
+    "user_event_favorite_table",
+    db.Column("user_id", UUID, db.ForeignKey("users.id", name='fk_user_event_favorite_user_id')),
+    db.Column("event_id", db.Integer, db.ForeignKey("events.id")),
+)
+
 
 event_page_views_table = db.Table(
     "event_page_views_table",
@@ -61,6 +67,10 @@ class Event(db.Model):
     featured = db.Column(db.Boolean)
     followers = db.relationship(
         "User", back_populates="following_events", secondary=user_event_following_table
+    )
+
+    favorited_by = db.relationship(
+        "User", back_populates="favorite_events", secondary=user_event_favorite_table
     )
 
     creator_id = db.Column(UUID, db.ForeignKey("users.id", name='fk_events_creator_id'))
@@ -99,7 +109,7 @@ class Event(db.Model):
 
     rrule_id = db.Column(db.Integer, db.ForeignKey("rrules.id", name='fk_events_rrule_id'))
     rrule = db.relationship(
-        "Rrule", uselist=False, foreign_keys=[rrule_id], backref="event"
+        "Rrule", uselist=False, foreign_keys=[rrule_id], backref=db.backref("event", uselist=False)
     )
     event_tickets = db.relationship(
         "EventDateTicket", back_populates="event")
@@ -291,41 +301,14 @@ class Event(db.Model):
             .first()
         )
 
-        """
-    def favorite(self, user_id):
-        _faved = self.is_favorited(user_id)
-        if _faved is False:
-            db.engine.execute(
-                favorites_association_table.insert(), user=user_id, event=self.id
-            )
-            db.session.commit()
-            return True
-        if _faved is True:
-            db.engine.execute(
-                favorites_association_table.delete(
-                    db.and_(
-                        favorites_association_table.c.user == user_id,
-                        favorites_association_table.c.event == self.id,
-                    )
-                )
-            )
-            db.session.commit()
-            return False
-
-    def is_favorited(self, user_id):
-#        returns favorite status
-        select = favorites_association_table.select(
-            db.and_(
-                favorites_association_table.c.event == self.id,
-                favorites_association_table.c.user == user_id,
-            )
-        )
-        rs = db.engine.execute(select).fetchall()
-        if len(rs) > 0:
-            return True
-        else:
-            return False
-    """
+    @property
+    def is_favorited(self):
+        from flask_login import current_user
+        if current_user and current_user.is_authenticated:
+            return db.session.query(user_event_favorite_table).filter_by(
+                user_id=current_user.id, event_id=self.id
+            ).first() is not None
+        return False
 
     def revisions(self):
         # get revisions then invert list

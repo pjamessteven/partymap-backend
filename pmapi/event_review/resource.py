@@ -43,11 +43,12 @@ class EventReviewResource(MethodResource):
     @permissions.delete
     @doc(summary="Delete a review", description="Deletes a review")
     def delete(self, review_id, **kwargs):
-        return event_reviews.delete_review(review_id)
-    
+        return event_review.delete_review(review_id)
+
+    @marshal_with(EventReviewSchema(), code=200)
     @doc(summary="Gets a review", description="Gets a review, and it's direct children")
     def get(self, review_id, **kwargs):
-        return event_reviews.get_event_review_and_children(review_id)
+        return event_review.get_event_review_and_children(review_id)
     
 event_review_blueprint.add_url_rule(
     "/<review_id>",

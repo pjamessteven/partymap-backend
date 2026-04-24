@@ -50,6 +50,7 @@ class Artist(db.Model):
     area = db.Column(db.Text)
     urls = db.relationship(
         "ArtistUrl",
+        back_populates="artist",
         cascade="all, delete-orphan"
     )
     media_items = db.relationship(

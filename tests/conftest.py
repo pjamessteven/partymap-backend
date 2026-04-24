@@ -1,3 +1,58 @@
+import os
+from unittest.mock import patch
+
+
+class _MockLocation:
+    latitude = 0.0
+    longitude = 0.0
+
+
+class _MockCity:
+    name = "Test City"
+    names = {"en": "Test City"}
+
+
+class _MockSubdivision:
+    name = "Test Region"
+    names = {"en": "Test Region"}
+
+
+class _MockSubdivisions:
+    most_specific = _MockSubdivision()
+
+
+class _MockCountry:
+    name = "Test Country"
+    names = {"en": "Test Country"}
+
+
+class _MockResponse:
+    country = _MockCountry()
+    subdivisions = _MockSubdivisions()
+    city = _MockCity()
+    location = _MockLocation()
+
+
+class _MockReader:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def city(self, ip_address):
+        return _MockResponse()
+
+
+# Prevent geoip2 from trying to load a non-existent database file during imports
+_geoip_reader_patch = patch("geoip2.database.Reader", _MockReader)
+_geoip_reader_patch.start()
+
+# Always pass hCaptcha validation in tests
+_hcaptcha_patch = patch("pmapi.hcaptcha.controllers.validate_hcaptcha", return_value=True)
+_hcaptcha_patch.start()
+
+# Disable Flask-Track-Usage in tests to avoid URL column length issues
+_tracker_patch = patch("pmapi.extensions.tracker.init_app", lambda *args, **kwargs: None)
+_tracker_patch.start()
+
 from pmapi.application import create_app
 from pmapi.extensions import db as _db
 from pmapi.user.model import User
@@ -25,7 +80,10 @@ class Config_Test(BaseConfig):
     ENV = "testing"
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "postgresql://partymap:password@test-db:5432/partymap"
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql://partymap:password@localhost:5439/partymap",
+    )
     # PRESERVE_CONTEXT_ON_EXCEPTION = False
 
 
@@ -42,6 +100,41 @@ def app(config):
     ctx = _app.app_context()
     ctx.push()
 
+    # Patch test_client to clear cached login user between requests
+    # (g._login_user leaks across requests because app_context is session-scoped)
+    from flask.testing import FlaskClient
+
+    class CleanLoginClient(FlaskClient):
+        def open(self, *args, **kwargs):
+            from flask import g
+            g.pop("_login_user", None)
+            return super().open(*args, **kwargs)
+
+    _app.test_client_class = CleanLoginClient
+
+    # Stub out mail sending so email-dependent endpoints don't 500 in tests
+    from unittest.mock import MagicMock, patch
+    import pmapi.extensions as _ext
+    _ext.mail.send = MagicMock(return_value=True)
+
+    # Mock celery task delays so background jobs don't interfere with test sessions
+    # (Eager execution causes db.session conflicts because tasks commit/close the
+    # same session the test is using.)
+    _celery_tasks = [
+        "pmapi.celery_tasks.background_send_mail",
+        "pmapi.celery_tasks.refresh_artist_info",
+        "pmapi.celery_tasks.update_event_translation",
+        "pmapi.celery_tasks.update_event_embedding",
+        "pmapi.celery_tasks.update_event_date_translation",
+        "pmapi.celery_tasks.update_artist_translation",
+        "pmapi.celery_tasks.update_review_translation",
+        "pmapi.celery_tasks.run_video_conversion",
+        "pmapi.celery_tasks.get_video_thumbnail",
+    ]
+    for _task_path in _celery_tasks:
+        patch(_task_path + ".delay").start()
+        patch(_task_path + ".apply_async").start()
+
     yield _app
 
     ctx.pop()
@@ -56,6 +149,18 @@ def db(app, config):
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         _db.engine.execute("CREATE EXTENSION IF NOT EXISTS hstore;")
+        # Ensure SRID 4326 (WGS 84) is present for PostGIS geography operations
+        _db.engine.execute(
+            """
+            INSERT INTO spatial_ref_sys (srid, auth_name, auth_srid, srtext, proj4text)
+            VALUES (
+                4326, 'EPSG', 4326,
+                'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]',
+                '+proj=longlat +datum=WGS84 +no_defs'
+            )
+            ON CONFLICT (srid) DO NOTHING;
+            """
+        )
         _db.create_all()
         # configure anon user
         anon = (
@@ -76,11 +181,17 @@ def db(app, config):
 
         # upgrade()
 
+    # Disable expire_on_commit for tests to avoid DetachedInstanceError
+    # after controllers call db.session.commit()
+    _db.session.configure(expire_on_commit=False)
+
     yield _db
 
     # Explicitly close DB connection
     _db.session.close()
-    _db.drop_all()
+    # Intentionally skip drop_all() to avoid failing on PostGIS system tables;
+    # clear_db truncates application tables between tests instead.
+    # _db.drop_all()
 
 
 @pytest.fixture(autouse=True)
@@ -104,11 +215,26 @@ def clear_db(request):
         except Exception:
             pass
 
-        # Delete all rows using truncate cascade to handle fk ordering
-        with db.engine.begin() as conn:
-            for table in reversed(meta.sorted_tables):
-                print('table', table)
-                conn.execute(f"TRUNCATE TABLE {table.name} CASCADE")
+        # Expunge all objects so after_commit listeners don't try to lazy-load
+        # truncated rows
+        db.session.expunge_all()
+
+        # Clear Flask-Login's cached user from g so it doesn't leak across tests
+        from flask import g
+        g.pop("_login_user", None)
+
+        # Delete all rows using a single truncate cascade to avoid deadlocks
+        # (PostgreSQL can deadlock when truncating multiple related tables in
+        # separate transactions because lock ordering isn't guaranteed.)
+        postgis_tables = {"spatial_ref_sys", "geometry_columns", "geography_columns"}
+        table_names = [
+            table.name
+            for table in reversed(meta.sorted_tables)
+            if table.name not in postgis_tables
+        ]
+        if table_names:
+            with db.engine.begin() as conn:
+                conn.execute(f"TRUNCATE TABLE {', '.join(table_names)} CASCADE")
         print('CLEARED DB3')
 
         # Drop the indexes
@@ -121,20 +247,17 @@ def clear_db(request):
         except Exception:
             pass
         print('CLEARED DB4')
-        print('CLEARED DB3')
 
-        # Drop the indexes
-        try:
-            with db.engine.connect() as conn:
-                event_index = Index("idx_events_fts", "events.c.__ts_vector__")
-                event_index.drop(conn)
-                tag_index = Index("idx_tags_fts", "tags.c.__ts_vector__")
-                tag_index.drop(conn)
-        except Exception:
-            pass
-        print('CLEARED DB4')
+        # Remove session to get a completely fresh one for the next test
+        db.session.remove()
 
-        db.session.commit()
+        # Recreate anon user since it was truncated; continuum transactions
+        # reference it when current_user is anonymous.
+        with db.engine.begin() as conn:
+            conn.execute(
+                "INSERT INTO users (id, username, email, status, role) VALUES (%s, %s, %s, %s, %s)",
+                (Config_Test.ANON_USER_ID, "anon", "anon@partymap.com", "active", 0)
+            )
 
     if "db" in request.fixturenames:
         print('CLEAR DB')
@@ -156,11 +279,11 @@ def user_factory(app, db):
         username = username.lower()
         user = User(
             username=username,
-            password=password,
             email="{}@example.com".format(username),
             role=role,
             status=status,
         )
+        user.set_password(password)
 
         db.session.add(user)
         db.session.commit()
@@ -170,10 +293,13 @@ def user_factory(app, db):
         print(user.email)
 
         # log in to client
-        payload = {"email": "{}@example.com".format(username), "password": password}
-        user.client.post(
+        payload = {"identifier": "{}@example.com".format(username), "password": password}
+        login_rv = user.client.post(
             url_for("auth.LoginResource"), json=payload, follow_redirects=True
         )
+        if login_rv.status_code != 200:
+            print("LOGIN FAILED:", login_rv.status_code, login_rv.data[:500])
+        assert login_rv.status_code == 200, f"Login failed: {login_rv.status_code}"
         return user
 
     return _gen_user
@@ -255,7 +381,9 @@ def event_factory(app, db, regular_user, user_factory):
         event = Event(
             name=name,
             creator_id=creator.id,
+            host_id=creator.id,
             description=description,
+            hidden=False,
         )
 
         db.session.add(event)
@@ -528,13 +656,12 @@ def anon_user(app):
 @pytest.fixture
 def emailer():
     """Fixture to be used whenever testing the extension we use to send system email.
-    When app.testing is True, then the mailer doesn't send anything but instead records
-    the mail that would've been sent. Because this extension is tied to the "app", and
-    the app lives for the duration of the test session, this mail_sent count accumulates
-    across test boundaries and so must be reset between tests to give an accurate count
-    of mail sent for each test.
+    Because the mailer may be mocked in tests, this fixture resets mock state.
     """
-    mail.reset_mail_sent()
+    if hasattr(mail, "reset_mail_sent"):
+        mail.reset_mail_sent()
+    if hasattr(mail.send, "reset_mock"):
+        mail.send.reset_mock()
     return mail
 
 

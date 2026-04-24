@@ -84,6 +84,122 @@ These containers are:
 
 - `worker_1`: A celery worker that waits for asynchronous work (like getting artist info and processing media) and then does it 'in the background'. Explained above. This uses the same Debian container created by the 'web' service.
 
+## Testing
+
+Tests run inside Docker against a real PostgreSQL/PostGIS database using `docker-compose.test.yml`.
+
+### Run the full test suite
+
+```bash
+docker compose -f docker-compose.test.yml up --abort-on-container-exit
+```
+
+This spins up a test database and a test-runner container, then executes `pytest tests/ -v --tb=short`.
+
+### Run a specific test or file during development
+
+```bash
+docker compose -f docker-compose.test.yml run --rm test-runner \
+  sh -c "uv run pytest tests/test_event_date.py -xvs"
+```
+
+### Tips to speed up test execution
+
+1. **Run only changed / targeted tests**  
+   During development, scope pytest to the file or test you are working on instead of the full suite:
+   ```bash
+   uv run pytest tests/test_event.py::test_add_event -xvs
+   ```
+
+2. **Use `pytest-timeout`**  
+   A 2-minute default timeout is configured. If you are debugging a single test, disable or raise it:
+   ```bash
+   uv run pytest tests/test_event_date.py -x --timeout=300
+   ```
+
+3. **Avoid redundant Docker rebuilds**  
+   The test compose file mounts the project root as a volume, so source changes are reflected immediately without rebuilding the image.
+
+4. **Parallel execution (`pytest-xdist`)**  
+   The test database is created and dropped per test via `testing-postgresql`, so parallel runs are currently limited by DB contention. For substantial speed-ups, consider switching the test fixtures to use a single shared DB with transaction rollbacks (instead of per-test DB creation) and then run:
+   ```bash
+   uv run pytest -n auto
+   ```
+
+5. **Skip coverage in local dev**  
+   If you have coverage plugins enabled locally, omit `--cov` during day-to-day TDD to shave off seconds.
+
+---
+
+## CI / Automated Checks
+
+GitHub Actions runs on every push and pull request to `main`, `master`, and `develop`:
+
+- **`test` job** — starts a PostgreSQL container, installs dependencies via `uv`, and runs `pytest tests/ --tb=short -q`
+- **`lint` job** — runs `ruff check .` and `black --check .`
+
+See `.github/workflows/ci.yml` for the full workflow definition.
+
+---
+
+## Architecture Overview
+
+```text
+                    ┌──────────────┐
+                    │   Client     │
+                    │  (Quasar)    │
+                    └──────┬───────┘
+                           │ HTTPS
+                    ┌──────▼───────┐
+                    │  Nginx /     │
+                    │  Cloudflare  │
+                    └──────┬───────┘
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+     ┌──────▼──────┐ ┌─────▼─────┐ ┌─────▼──────┐
+     │  Flask API  │ │  Celery   │ │  Swagger   │
+     │  (PMAPI)    │ │  Workers  │ │  / Docs    │
+     └──────┬──────┘ └─────┬─────┘ └────────────┘
+            │              │
+            │ RabbitMQ     │
+            │ (broker)     │
+     ┌──────▼──────┐ ┌─────▼─────┐
+     │ PostgreSQL  │ │  Redis    │
+     │ + PostGIS   │ │  (cache)  │
+     └─────────────┘ └───────────┘
+```
+
+### Key Components
+
+| Service | Technology | Responsibility |
+|---------|-----------|----------------|
+| **Web** | Flask 2.3 + SQLAlchemy 1.4 | REST API, request handling, business logic |
+| **DB** | PostgreSQL 15 + PostGIS | Persistent storage, geospatial queries (`ST_Distance`, `ST_Intersects`) |
+| **Message Broker** | RabbitMQ | Celery task queue (artist lookups, media processing, email) |
+| **Workers** | Celery 5 | Background/async jobs (scraping, image processing, embedding generation) |
+| **Cache** | Redis (via Flask-Caching) | Rate limiting, response caching |
+| **Auth** | Flask-Login + OAuth (Google, FB) | Session and token-based authentication |
+| **Docs** | Flask-Apispec | Auto-generated Swagger/OpenAPI specs at `/swagger-ui/` |
+
+### Domain Modules & Routes
+
+| Blueprint | URL Prefix | What it does |
+|-----------|-----------|--------------|
+| `events` | `/api/event` | CRUD for events, versioning, full-text search |
+| `dates` | `/api/date` | Event date instances, filtering by geo bounds / distance / time |
+| `locations` | `/api/location` | Venues, geo clustering, reverse geocoding |
+| `artists` | `/api/artist` | Lineup artists, external metadata (Spotify, etc.) |
+| `users` | `/api/user` | Profiles, roles, activity feeds |
+| `auth` | `/api/auth` | Login, logout, OAuth callbacks, API key auth |
+| `search` | `/api/search` | Global search, vector embeddings |
+| `media` | `/api/media` | Image/video upload and processing |
+| `contributions` | `/api/contribution` | Reviews, ratings, reports |
+
+> **Note:** This codebase was originally authored by a human developer before the widespread adoption of generative AI coding assistants. Many architectural decisions, schema designs, and business-logic patterns reflect organic, iterative development.
+
+---
+
 ## API documentation
 
 See /swagger-ui/ and /swagger/

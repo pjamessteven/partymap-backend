@@ -4,6 +4,21 @@ manage.py
   application to perform interactive debugging and setup
 """
 
+# Monkey-patch flask._compat for Flask 2+ compatibility with flask-script
+import sys
+import flask
+if not hasattr(flask, '_compat'):
+    import types
+    compat = types.ModuleType('flask._compat')
+    compat.text_type = str
+    compat.string_types = (str,)
+    compat.integer_types = (int,)
+    compat.iteritems = lambda d: d.items()
+    compat.iterkeys = lambda d: d.keys()
+    compat.itervalues = lambda d: d.values()
+    flask._compat = compat
+    sys.modules['flask._compat'] = compat
+
 from flask_script import Manager, Command, Option
 from flask_migrate import Migrate, MigrateCommand
 from flask.helpers import get_debug_flag

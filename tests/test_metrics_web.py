@@ -1,31 +1,37 @@
-import pytest
 from flask import url_for
 
 
-# ---------------------------------------------------------------------------
-# Metrics endpoints
-# ---------------------------------------------------------------------------
+from datetime import datetime, timedelta
 
 
-@pytest.mark.skip(reason="TODO")
 def test_get_url_metrics(anon_user):
-    """GET /metrics/urls should return URL usage metrics."""
-    pass
+    """GET /metrics/urls should return URL metrics."""
+    end = datetime.utcnow()
+    start = end - timedelta(days=7)
+    rv = anon_user.client.get(
+        url_for("metrics.UrlMetricResource", start_time=start.isoformat(), end_time=end.isoformat())
+    )
+    assert rv.status_code == 200
+    assert "url_rankings" in rv.json
 
 
-@pytest.mark.skip(reason="TODO")
-def test_get_url_metrics_with_filters(anon_user):
-    """GET /metrics/urls?country=...&start_time=... should filter metrics."""
-    pass
-
-
-@pytest.mark.skip(reason="TODO")
 def test_get_country_metrics(anon_user):
     """GET /metrics/countries should return country visitor metrics."""
-    pass
+    end = datetime.utcnow()
+    start = end - timedelta(days=7)
+    rv = anon_user.client.get(
+        url_for("metrics.CountryMetricResource", start_time=start.isoformat(), end_time=end.isoformat())
+    )
+    assert rv.status_code == 200
+    assert "country_rankings" in rv.json
 
 
-@pytest.mark.skip(reason="TODO")
-def test_get_country_metrics_with_date_range(anon_user):
-    """GET /metrics/countries?start_time=...&end_time=... should filter by date."""
-    pass
+def test_get_url_metrics_with_sort(anon_user):
+    """GET /metrics/urls?sort=views should sort by views."""
+    end = datetime.utcnow()
+    start = end - timedelta(days=7)
+    rv = anon_user.client.get(
+        url_for("metrics.UrlMetricResource", sort="views", start_time=start.isoformat(), end_time=end.isoformat())
+    )
+    assert rv.status_code == 200
+    assert "url_rankings" in rv.json
